@@ -54,6 +54,7 @@ export const ACTION_GROUPS = {
   SOUND: { key: 'sound', name: '声音' },
   EPISODE: { key: 'episode', name: '播放列表 / 画质' },
   SUBTITLE: { key: 'subtitle', name: '字幕' },
+  MARKER: { key: 'marker', name: '打点' },
   WINDOW: { key: 'window', name: '窗口' },
   TRANSFORM: { key: 'transform', name: '画面变换' },
   ENHANCE: { key: 'enhance', name: '视频色彩' },
@@ -134,6 +135,11 @@ export const DEFAULT_ACTION_KEY_BINDINGS = {
   toggleSubtitle: ['c'],
   nextSubtitle: [],
   prevSubtitle: [],
+
+  // marker
+  addMarker: ['M'],
+  prevMarker: [],
+  nextMarker: [],
 
   // window
   toggleTheatre: ['v'],

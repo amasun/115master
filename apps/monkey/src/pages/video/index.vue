@@ -61,8 +61,12 @@
           :on-seeked="handleSeek"
           :on-canplay="handleStartAutoBuffer"
           :on-ended="handleVideoEnded"
+          :markers="DataMarkers.markers.value"
           @play-previous="playPrevious"
           @play-next="playNext"
+          @marker-add="DataMarkers.add"
+          @marker-update="DataMarkers.update"
+          @marker-remove="DataMarkers.remove"
         >
           <template #headerLeft="{ ctx }">
             <HeaderInfo
@@ -195,6 +199,7 @@ import Playlist from './components/Playlist/index.vue'
 import { useDataFileInfo } from './data/useDataFileInfo'
 import { useDataHistory } from './data/useDataHistory'
 import { useMark } from './data/useDataMark'
+import { useDataMarkers } from './data/useDataMarkers'
 import { useDataMovieInfo } from './data/useDataMovieInfo'
 import { useDataPlaylist } from './data/useDataPlaylist'
 import { useParamsVideoPage } from './data/useParamsVideoPage'
@@ -267,6 +272,8 @@ const DataPlaylist = useDataPlaylist()
 const DataHistory = useDataHistory()
 /** 收藏 */
 const DataMark = useMark(DataFileInfo)
+/** 打点 */
+const DataMarkers = useDataMarkers(params.pickCode, DataFileInfo)
 /** 移动操作 */
 const moveAction = useMoveAction()
 

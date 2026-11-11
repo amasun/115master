@@ -69,6 +69,8 @@
             </PlayerControlSurface>
 
             <PlayerControlSurface>
+              <!-- 打点 -->
+              <MarkersButton />
               <!-- 倍速控制 -->
               <PlaybackRateButton />
             </PlayerControlSurface>
@@ -102,6 +104,7 @@ import AudioTrackButton from './AudioTrackButton.vue'
 import EpisodeButton from './EpisodeButton.vue'
 import ExpandableControlGroup from './ExpandableControlGroup'
 import FullscreenButton from './FullscreenButton.vue'
+import MarkersButton from './MarkersButton.vue'
 import PipButton from './PipButton.vue'
 import PlaybackRateButton from './PlaybackRateButton.vue'
 import PlayButton from './PlayButton.vue'

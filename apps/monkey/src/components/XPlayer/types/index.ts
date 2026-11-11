@@ -112,6 +112,20 @@ export interface SubtitleBase {
 export type Subtitle = RequireAtLeastOne<SubtitleBase, 'url' | 'raw'>
 
 /**
+ * 打点项
+ */
+export interface MarkerItem {
+  /** 唯一 ID */
+  id: string
+  /** 打点时间（秒） */
+  time: number
+  /** 片段结束时间（秒，可选） */
+  endTime?: number
+  /** 打点备注 */
+  label: string
+}
+
+/**
  * 播放器属性
  */
 export interface XPlayerProps {
@@ -161,6 +175,8 @@ export interface XPlayerProps {
   hasNext?: boolean
   /** 外部快捷键配置 */
   shortcutsExt?: ShortcutsExt
+  /** 打点列表 */
+  markers?: MarkerItem[]
   /** hls 配置 */
   hlsConfig?: Partial<HlsConfig>
   /** avPlayer 配置 */
@@ -222,4 +238,10 @@ export interface XPlayerEmit {
   'playPrevious': [PlayerContext]
   /** 播放下一集 */
   'playNext': [PlayerContext]
+  /** 添加打点 */
+  'markerAdd': [time: number]
+  /** 更新打点 */
+  'markerUpdate': [id: string, patch: { time?: number, endTime?: number, label?: string }]
+  /** 删除打点 */
+  'markerRemove': [id: string]
 }

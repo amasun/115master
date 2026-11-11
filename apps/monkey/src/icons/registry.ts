@@ -69,6 +69,7 @@ export const I = {
   LOCATION_ON: 'ion:locate',
   TIMER: 'ion:timer',
   PLAYBACK_RATE: 'ion:speedometer',
+  MARKER: 'ion:bookmark-outline',
   STATISTICS_INFO: 'ion:stats-chart',
   SHORTCUTS: 'ion:keypad',
   ABOUT: 'ion:information-circle',
