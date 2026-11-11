@@ -2,9 +2,9 @@
 
 <p><img src="./apps/monkey/src/assets/logo-wordmark.svg" alt="115Master Fusion" width="500" /></p>
 
-[![GitHub Release](https://img.shields.io/github/v/release/daoran9/115master?include_prereleases&logo=github)](https://github.com/daoran9/115master/releases)
-[![GitHub Downloads](https://img.shields.io/github/downloads/daoran9/115master/115master-fusion.user.js?logo=github)](https://github.com/daoran9/115master/releases)
-[![License](https://img.shields.io/github/license/daoran9/115master)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/amasun/115master?include_prereleases&logo=github)](https://github.com/amasun/115master/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master/115master-fusion.user.js?logo=github)](https://github.com/amasun/115master/releases)
+[![License](https://img.shields.io/github/license/amasun/115master)](LICENSE)
 
 </div>
 
@@ -22,7 +22,7 @@
 - Tampermonkey 5.3.3+ 或 ScriptCat
 - 浏览器扩展开发者模式已开启
 
-安装文件：[`115master-fusion.user.js`](https://github.com/daoran9/115master/releases/latest/download/115master-fusion.user.js)
+安装文件：[`115master-fusion.user.js`](https://github.com/amasun/115master/releases/latest/download/115master-fusion.user.js)
 
 ## 功能
 
@@ -121,6 +121,8 @@ apps/monkey/dist/115master-fusion.meta.js
 原作者：[@cbingb666](https://github.com/cbingb666)
 
 Fusion 维护：[@daoran9](https://github.com/daoran9)
+
+本仓库：在 [daoran9/115master](https://github.com/daoran9/115master) 的 Fusion 版本基础上继续修改，原项目 cbingb666/115master 已删除。
 
 项目继续使用 [MIT](LICENSE) 许可证。原项目赞助入口保留给原作者。
 

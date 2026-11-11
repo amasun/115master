@@ -8,14 +8,14 @@
   "author": "cbingb666, daoran9",
   "license": "MIT",
   "funding": "https://afdian.com/a/115Master",
-  "homepage": "https://github.com/daoran9/115master",
+  "homepage": "https://github.com/amasun/115master",
   "repository": {
     "type": "git",
-    "url": "https://github.com/daoran9/115master.git",
+    "url": "https://github.com/amasun/115master.git",
     "directory": "/apps/monkey"
   },
   "bugs": {
-    "url": "https://github.com/daoran9/115master/issues"
+    "url": "https://github.com/amasun/115master/issues"
   },
   "engines": {
     "node": ">=20.12"

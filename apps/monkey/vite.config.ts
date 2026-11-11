@@ -70,7 +70,7 @@ export default defineConfig({
       userscript: {
         'name': dev?.userscript.name ?? '115Master Fusion',
         'icon': logoSvg,
-        'namespace': 'https://github.com/daoran9/115master',
+        'namespace': 'https://github.com/amasun/115master',
         'homepage': PKG.homepage,
         'author': PKG.author,
         'description': PKG.description,
@@ -111,9 +111,9 @@ export default defineConfig({
           icon: logoSvg,
         },
         'downloadURL':
-          'https://github.com/daoran9/115master/releases/latest/download/115master-fusion.user.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master-fusion.user.js',
         'updateURL':
-          'https://github.com/daoran9/115master/releases/latest/download/115master-fusion.meta.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master-fusion.meta.js',
       },
       build: {
         fileName: '115master-fusion.user.js',

@@ -5,13 +5,13 @@
   "description": "115Master Fusion monorepo",
   "author": "cbingb666, daoran9",
   "license": "MIT",
-  "homepage": "https://github.com/daoran9/115master",
+  "homepage": "https://github.com/amasun/115master",
   "repository": {
     "type": "git",
-    "url": "https://github.com/daoran9/115master.git"
+    "url": "https://github.com/amasun/115master.git"
   },
   "bugs": {
-    "url": "https://github.com/daoran9/115master/issues"
+    "url": "https://github.com/amasun/115master/issues"
   },
   "engines": {
     "node": ">=22.19"
