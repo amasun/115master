@@ -109,7 +109,7 @@ export class ActressFaceDB {
       ? name
       : mode === 'name'
         ? this.getMatcher().matchName(name)
-        : this.getMatcher().match(name)
+        : (this.getMatcher().match(name) ?? this.getMatcher().matchName(name))
     const actress = matchedName ? this.imageMap.get(matchedName) : undefined
     if (!actress) {
       return undefined
