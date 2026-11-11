@@ -1,7 +1,6 @@
 import type { ComputedRef } from 'vue'
 import type { PlayerContext } from './usePlayerProvide'
 import type { MarkerItem } from '@/components/XPlayer/types'
-import type { Marker } from '@/utils/markers'
 import { computed } from 'vue'
 import { I } from '@/icons'
 import { findNextMarker, findPrevMarker, formatMarkerTime } from '@/utils/markers'
@@ -65,9 +64,9 @@ export function useMarkers(ctx: PlayerContext): UseMarkersReturn {
   /** 跳转到上一个打点 */
   function seekPrev(): void {
     const currentTime = ctx.playerCore.value?.currentTime ?? 0
-    const target = findPrevMarker(list.value as unknown as Marker[], currentTime)
+    const target = findPrevMarker(list.value, currentTime)
     if (target) {
-      seekTo(target as MarkerItem)
+      seekTo(target)
       return
     }
 
@@ -80,9 +79,9 @@ export function useMarkers(ctx: PlayerContext): UseMarkersReturn {
   /** 跳转到下一个打点 */
   function seekNext(): void {
     const currentTime = ctx.playerCore.value?.currentTime ?? 0
-    const target = findNextMarker(list.value as unknown as Marker[], currentTime)
+    const target = findNextMarker(list.value, currentTime)
     if (target) {
-      seekTo(target as MarkerItem)
+      seekTo(target)
       return
     }
 

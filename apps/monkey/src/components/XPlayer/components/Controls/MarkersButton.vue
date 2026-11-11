@@ -50,14 +50,14 @@
           <!-- 行内编辑状态 -->
           <div v-if="editingId === item.id" :class="styles.popup.editBox" @click.stop>
             <input
-              ref="editInputRef"
+              :ref="(el) => { if (el) editInputRef = el as HTMLInputElement }"
               v-model="editingLabel"
               type="text"
               :class="styles.popup.input"
               placeholder="输入备注..."
               @keydown.stop
-              @keydown.enter="saveEdit(item.id)"
-              @keydown.esc="cancelEdit"
+              @keydown.enter.stop="saveEdit(item.id)"
+              @keydown.esc.stop="cancelEdit"
             >
             <Button
               variant="ghost"

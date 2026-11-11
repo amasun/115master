@@ -75,6 +75,7 @@ vi.mock('@/components/XPlayer/hooks/usePlayerProvide', () => ({
     },
     shortcuts: {
       getShortcutsTip: vi.fn((key: string) => `(${key})`),
+      recordState: { isRecording: ref(false) },
     },
     popupManager: {
       registerPopup: vi.fn(),
@@ -248,7 +249,7 @@ describe('markersButton 控制栏按钮及弹层列表', () => {
     itemRow!.click()
     expect(state.mockSeekTo).toHaveBeenCalledWith(m1)
 
-    /** 2. 点击编辑按钮开启行内输入框 */
+    /** 2. 点击编辑按钮开启行内输入框，且输入框获得焦点 */
     const editBtn = itemRow!.querySelector<HTMLButtonElement>('[data-marker-edit]')
     expect(editBtn).not.toBeNull()
     editBtn!.click()
@@ -257,6 +258,7 @@ describe('markersButton 控制栏按钮及弹层列表', () => {
     const input = itemRow!.querySelector<HTMLInputElement>('input')
     expect(input).not.toBeNull()
     expect(input?.value).toBe('精彩镜头')
+    expect(document.activeElement).toBe(input)
 
     // 模拟输入新备注并按回车保存
     input!.value = '修改后的镜头'
@@ -266,7 +268,22 @@ describe('markersButton 控制栏按钮及弹层列表', () => {
 
     expect(state.mockUpdate).toHaveBeenCalledWith('m1', { label: '修改后的镜头' })
 
-    /** 3. 点击删除按钮触发 remove */
+    /** 3. 测试按 Esc 取消改名：弹层不关闭，改名不生效 */
+    const reEditBtn = itemRow!.querySelector<HTMLButtonElement>('[data-marker-edit]')
+    expect(reEditBtn).not.toBeNull()
+    reEditBtn!.click()
+    await nextTick()
+    const inputForEsc = itemRow!.querySelector<HTMLInputElement>('input')
+    expect(inputForEsc).not.toBeNull()
+    inputForEsc!.value = '未保存的文字'
+    inputForEsc!.dispatchEvent(new Event('input'))
+    inputForEsc!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(itemRow!.querySelector('input')).toBeNull()
+    expect(document.body.querySelector('[data-marker-item]')).not.toBeNull()
+    expect(state.mockUpdate).not.toHaveBeenCalledWith('m1', { label: '未保存的文字' })
+
+    /** 4. 点击删除按钮触发 remove */
     const deleteBtn = document.body.querySelector<HTMLButtonElement>('[data-marker-delete]')
     expect(deleteBtn).not.toBeNull()
     deleteBtn!.click()

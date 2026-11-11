@@ -21,6 +21,10 @@ export type Marker = {
   deleted?: boolean
 }
 
+/** 打点展示/时间点基础结构（可直接用于跳转与查找） */
+
+export type MarkerPoint = Pick<Marker, 'id' | 'time'> & Partial<Pick<Marker, 'deleted' | 'createdAt' | 'endTime' | 'label'>>
+
 /** 单视频打点文档数据结构 */
 // eslint-disable-next-line ts/consistent-type-definitions -- T1 规范要求使用 type 定义数据模型
 export type MarkerDoc = {
