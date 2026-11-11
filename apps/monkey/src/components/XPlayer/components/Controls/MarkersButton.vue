@@ -128,22 +128,22 @@ const styles = clsx({
   btn: controlStyles.btn,
   btnText: controlStyles.btnText,
   popup: {
-    container: 'flex flex-col w-72 max-h-80 p-2 gap-2 text-base-content',
+    container: 'text-base-content flex max-h-80 w-72 flex-col gap-2 p-2',
     header: 'shrink-0',
-    empty: 'py-6 text-center text-sm text-base-content/50',
+    empty: 'text-base-content/50 py-6 text-center text-sm',
     list: [
-      'flex flex-col gap-1 overflow-y-auto max-h-60',
+      'flex max-h-60 flex-col gap-1 overflow-y-auto',
       ...scrollbar(),
     ],
     row: [
-      'flex items-center gap-2 px-2 py-1.5 rounded-lg',
-      'hover:bg-base-content/10 cursor-pointer group transition-colors',
+      'flex items-center gap-2 rounded-lg px-2 py-1.5',
+      'hover:bg-base-content/10 group cursor-pointer transition-colors',
     ],
-    time: 'badge badge-sm badge-neutral font-mono shrink-0',
-    label: 'flex-1 truncate text-xs text-base-content/80',
-    actions: 'flex items-center gap-0.5 opacity-80 group-hover:opacity-100 shrink-0',
-    editBox: 'flex items-center gap-1 flex-1 min-w-0',
-    input: 'input input-xs input-bordered flex-1 min-w-0 bg-base-100 text-base-content',
+    time: 'badge badge-sm badge-neutral shrink-0 font-mono',
+    label: 'text-base-content/80 flex-1 truncate text-xs',
+    actions: 'flex shrink-0 items-center gap-0.5 opacity-80 group-hover:opacity-100',
+    editBox: 'flex min-w-0 flex-1 items-center gap-1',
+    input: 'input input-xs input-bordered bg-base-100 text-base-content min-w-0 flex-1',
   },
 })
 

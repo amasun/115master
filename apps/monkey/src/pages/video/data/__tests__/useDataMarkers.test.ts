@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
 import { useDataMarkers } from '../useDataMarkers'
 
-// Mock useToast
+/** Mock useToast */
 const mockToastError = vi.fn()
 vi.mock('@/components/Toast', () => ({
   useToast: () => ({
@@ -14,7 +14,7 @@ vi.mock('@/components/Toast', () => ({
   }),
 }))
 
-// Mock markerStore
+/** Mock markerStore */
 const mockGetDoc = vi.fn()
 const mockSaveDoc = vi.fn()
 vi.mock('@/utils/cache/markerStore', () => ({
@@ -108,7 +108,7 @@ describe('useDataMarkers', () => {
       expect(hook.currentDoc.value?.pickCode).toBe('video-2')
     })
 
-    // 此时 video-1 迟到响应
+    /** 此时 video-1 迟到响应 */
     const firstDoc: MarkerDoc = {
       v: 1,
       pickCode: 'video-1',
@@ -196,7 +196,7 @@ describe('useDataMarkers', () => {
     expect(mockSaveDoc).toHaveBeenCalledTimes(2)
     // 软删除后可见打点列表为空
     expect(hook.markers.value.length).toBe(0)
-    // 内部文档保留墓碑
+    /** 内部文档保留墓碑 */
     const lastSavedDoc = mockSaveDoc.mock.calls[1][0] as MarkerDoc
     expect(lastSavedDoc.markers[0].deleted).toBe(true)
   })
