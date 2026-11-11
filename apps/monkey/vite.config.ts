@@ -105,9 +105,9 @@ export default defineConfig({
           icon: 'https://115.com/favicon.ico',
         },
         'downloadURL':
-          'https://github.com/cbingb666/115master/releases/latest/download/115master.user.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master.user.js',
         'updateURL':
-          'https://github.com/cbingb666/115master/releases/latest/download/115master.meta.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master.meta.js',
       },
       build: {
         fileName: '115master.user.js',

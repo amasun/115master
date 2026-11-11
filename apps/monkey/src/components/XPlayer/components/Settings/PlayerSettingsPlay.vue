@@ -20,7 +20,7 @@
           <a
             :class="styles.hint"
             class="link link-hover"
-            href="https://github.com/cbingb666/115master/discussions/206"
+            href="https://github.com/amasun/115master/discussions/206"
             target="_blank"
           >如何开启声音？
           </a>

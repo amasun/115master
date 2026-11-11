@@ -1,13 +1,15 @@
 <div align="center">
 <h1>115Master</h1>
 
+> 本仓库是原项目 cbingb666/115master（MIT 协议，原仓库已删除）的留存副本，保留了完整提交历史。原作者：cbingb666。
+
 <br/>
 
-[![GitHub Release](https://img.shields.io/github/v/release/cbingb666/115master?logo=github)](https://github.com/cbingb666/115master/releases/latest)
-[![GitHub Downloads](https://img.shields.io/github/downloads/cbingb666/115master/115master.user.js?displayAssetName=false&logo=Github)](https://github.com/cbingb666/115master/releases)
-[![Last Commit](https://img.shields.io/github/last-commit/cbingb666/115master?logo=github)](https://github.com/cbingb666/115master/commits/main)
-[![License](https://img.shields.io/github/license/cbingb666/115master)](LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cbingb666/115master)
+[![GitHub Release](https://img.shields.io/github/v/release/amasun/115master?logo=github)](https://github.com/amasun/115master/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master/115master.user.js?displayAssetName=false&logo=Github)](https://github.com/amasun/115master/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/amasun/115master?logo=github)](https://github.com/amasun/115master/commits/main)
+[![License](https://img.shields.io/github/license/amasun/115master)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/amasun/115master)
 
 <br/>
 
@@ -40,7 +42,7 @@
 
 **Magnet:**
 
-支持 [任何网站的 Magnet 链接一键唤起离线任务](https://github.com/cbingb666/115master/discussions/238)。
+支持 [任何网站的 Magnet 链接一键唤起离线任务](https://github.com/amasun/115master/discussions/238)。
 
 ## 安装
 
@@ -50,7 +52,7 @@
 
 3. 开启 [浏览器扩展开发者模式](https://www.tampermonkey.net/faq.php#Q209)。
 
-4. 安装 [115Master](https://github.com/cbingb666/115master/releases/latest/download/115master.user.js)。
+4. 安装 [115Master](https://github.com/amasun/115master/releases/latest/download/115master.user.js)。
 
 ## 开放功能
 
@@ -68,7 +70,7 @@
 
 ## 常见问题
 
-[Q&A](https://github.com/cbingb666/115master/discussions/categories/q-a)
+[Q&A](https://github.com/amasun/115master/discussions/categories/q-a)
 
 ## 贡献
 
