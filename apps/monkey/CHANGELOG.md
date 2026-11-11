@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.1.0
+
+### Minor Changes
+
+- Sync with upstream Fusion `codex/fusion-dev` (2.0.0-beta.101): adds enhancement of the new 115 file list, JavLibrary source, ED2K links and many fixes. Actor avatars on the video page match by full name only.
+
 ## 2.0.2
 
 ### Patch Changes
@@ -17,6 +23,7 @@
 ### Minor Changes
 
 - [`b86dd93`](https://github.com/amasun/115master/commit/b86dd936d8568af0ff914dd1a18475f9db6fed66) Thanks [@amasun](https://github.com/amasun)! - feat(monkey/actress): fuzzy match actress avatars by name contained in the title, ignoring Simplified/Traditional/Japanese kanji differences
+
 ## 2.0.0-beta.101
 
 ### Patch Changes
