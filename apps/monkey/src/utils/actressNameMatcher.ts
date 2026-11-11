@@ -34,6 +34,10 @@ export class ActressNameMatcher {
   private index = new Map<string, string>()
   /** 标题 -> 匹配结果 */
   private resultCache = new Map<string, string | undefined>()
+  /** 名字 -> 匹配结果 */
+  private nameCache = new Map<string, string | undefined>()
+  /** 前缀 -> 候选列表 */
+  private candidateCache = new Map<string, string[]>()
   private maxLength = 0
 
   constructor(names: Iterable<string>) {
@@ -65,11 +69,73 @@ export class ActressNameMatcher {
   }
 
   /**
-   * 按完整名字匹配演员，只忽略写法差异
+   * 按完整名字匹配演员，支持忽略写法差异以及渐进式缩位降级（1234 -> 123 -> 12）
    * @returns 头像库中的原始名字
    */
   matchName(name: string): string | undefined {
-    return this.index.get(normalizeActressName(name))
+    if (this.nameCache.has(name)) {
+      return this.nameCache.get(name)
+    }
+    const result = this.resolveName(name)
+    this.nameCache.set(name, result)
+    return result
+  }
+
+  /**
+   * 搜索以指定前缀开头的演员名候选列表
+   * @param prefix 搜索前缀
+   * @returns 匹配到的原始名字列表（完全匹配优先，其余按收录顺序）
+   */
+  searchCandidates(prefix: string): string[] {
+    const key = normalizeActressName(prefix)
+    if (!key || key.length < MIN_FUZZY_LENGTH) {
+      return []
+    }
+    if (this.candidateCache.has(key)) {
+      return this.candidateCache.get(key)!
+    }
+    const results: string[] = []
+    const exact = this.index.get(key)
+    if (exact) {
+      results.push(exact)
+    }
+    for (const [k, original] of this.index) {
+      if (k !== key && k.startsWith(key)) {
+        results.push(original)
+      }
+    }
+    this.candidateCache.set(key, results)
+    return results
+  }
+
+  private resolveName(name: string): string | undefined {
+    const key = normalizeActressName(name)
+    if (!key) {
+      return undefined
+    }
+
+    /** 1. 完整名字精确搜索（忽略繁简、大小写等写法差异） */
+    const exact = this.index.get(key)
+    if (exact) {
+      return exact
+    }
+
+    // 演员名过长（如标题等长文本）或过短不做缩位降级，避免误匹配
+    if (key.length > 5 || key.length < MIN_FUZZY_LENGTH) {
+      return undefined
+    }
+
+    // 2 & 3. 渐进式缩位降级：去掉末位搜索（如 123），继续去位搜索（如 12）
+    // 最多去位至 MIN_FUZZY_LENGTH (2)，取第一候选
+    for (let len = key.length - 1; len >= MIN_FUZZY_LENGTH; len--) {
+      const prefix = key.slice(0, len)
+      const candidates = this.searchCandidates(prefix)
+      if (candidates.length > 0) {
+        return candidates[0]
+      }
+    }
+
+    return undefined
   }
 
   private add(name: string, original: string) {
