@@ -232,6 +232,7 @@ export const Gallery: Story = {
             { key: 'LOCATION_ON', value: I.LOCATION_ON },
             { key: 'TIMER', value: I.TIMER },
             { key: 'PLAYBACK_RATE', value: I.PLAYBACK_RATE },
+            { key: 'MARKER', value: I.MARKER },
             { key: 'STATISTICS_INFO', value: I.STATISTICS_INFO },
             { key: 'SHORTCUTS', value: I.SHORTCUTS },
             { key: 'ABOUT', value: I.ABOUT },

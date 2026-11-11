@@ -113,12 +113,12 @@ const styles = clsx({
     layer: 'pointer-events-none absolute inset-x-0 top-0 bottom-0',
     itemWrapper: [
       'pointer-events-auto absolute top-0 bottom-0 -translate-x-1/2',
-      'flex items-center justify-center w-3 cursor-pointer z-10',
+      'z-10 flex w-3 cursor-pointer items-center justify-center',
       'group/marker',
     ],
     tick: [
-      'w-1 h-3 rounded-full bg-amber-400',
-      'group-hover/marker:scale-125 transition-transform duration-150',
+      'h-3 w-1 rounded-full bg-amber-400',
+      'transition-transform duration-150 group-hover/marker:scale-125',
       'shadow-[0_0_2px_rgba(0,0,0,0.6)]',
     ],
   },
