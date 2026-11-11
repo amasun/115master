@@ -39,6 +39,27 @@
           :style="{ transform: `scaleX(${previewProgress / 100})` }"
         />
       </div>
+
+      <!-- 打点刻度层（在 wrapper 层，避免被 track 的 overflow-hidden 裁切） -->
+      <div
+        v-if="duration > 0 && markerList.length > 0"
+        :class="styles.markers.layer"
+      >
+        <div
+          v-for="marker in markerList"
+          :key="marker.id"
+          :class="styles.markers.itemWrapper"
+          :style="{ left: `${Math.min(100, Math.max(0, (marker.time / duration) * 100))}%` }"
+          :title="marker.label || formatMarkerTime(marker.time)"
+          data-marker-tick
+          :data-marker-id="marker.id"
+          :data-marker-time="marker.time"
+          @mousedown.stop
+          @click.stop="handleMarkerClick(marker)"
+        >
+          <div :class="styles.markers.tick" />
+        </div>
+      </div>
     </div>
     <!-- 缩略图预览 -->
     <Thumbnail
@@ -52,10 +73,12 @@
 </template>
 
 <script setup lang="ts">
+import type { MarkerItem } from '@/components/XPlayer/types'
 import { computed, ref, watch } from 'vue'
 import Thumbnail from '@/components/XPlayer/components/Thumbnail/index.vue'
 import { usePlayerContext } from '@/components/XPlayer/hooks/usePlayerProvide'
 import { clsx } from '@/utils/clsx'
+import { formatMarkerTime } from '@/utils/markers'
 
 /** 样式抽象 */
 const styles = clsx({
@@ -86,9 +109,29 @@ const styles = clsx({
     dragging: 'transition-none',
     hover: 'pointer-events-none absolute h-full w-full origin-left bg-white/15',
   },
+  markers: {
+    layer: 'pointer-events-none absolute inset-x-0 top-0 bottom-0',
+    itemWrapper: [
+      'pointer-events-auto absolute top-0 bottom-0 -translate-x-1/2',
+      'flex items-center justify-center w-3 cursor-pointer z-10',
+      'group/marker',
+    ],
+    tick: [
+      'w-1 h-3 rounded-full bg-amber-400',
+      'group-hover/marker:scale-125 transition-transform duration-150',
+      'shadow-[0_0_2px_rgba(0,0,0,0.6)]',
+    ],
+  },
 })
 
-const { progressBar, playerCore } = usePlayerContext()
+const { progressBar, playerCore, markers } = usePlayerContext()
+
+const duration = computed(() => progressBar.duration.value)
+const markerList = computed(() => markers.list.value)
+
+function handleMarkerClick(marker: MarkerItem) {
+  markers.seekTo(marker)
+}
 
 /** 缩略图组件引用 */
 const thumbnailRef = ref<any>(null)

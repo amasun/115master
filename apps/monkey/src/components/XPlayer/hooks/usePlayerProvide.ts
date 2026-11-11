@@ -23,6 +23,7 @@ import { useControls } from './useControls'
 import { useCssVar } from './useCssVar'
 import { useFullscreen } from './useFullscreen'
 import { useHud } from './useHud'
+import { useMarkers } from './useMarkers'
 import { usePictureInPicture } from './usePictureInPicture'
 import { usePlaybackRate } from './usePlaybackRate'
 import { usePlaySettings } from './usePlaySettings'
@@ -67,6 +68,8 @@ export interface PlayerContext {
   playbackRate: ReturnType<typeof usePlaybackRate>
   /** 进度条 */
   progressBar: ReturnType<typeof useProgressBar>
+  /** 打点管理 */
+  markers: ReturnType<typeof useMarkers>
   /** 控制栏 */
   controls: ReturnType<typeof useControls>
   /** 字幕 */
@@ -166,6 +169,10 @@ export function usePlayerProvide(
   /** 源 */
   const source = useSources(context)
   context.source = source
+
+  /** 打点管理 */
+  const markers = useMarkers(context)
+  context.markers = markers
 
   /** 热键设置 */
   const shortcuts = useShortcuts(context)

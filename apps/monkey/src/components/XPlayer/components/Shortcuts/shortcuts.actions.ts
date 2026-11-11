@@ -493,12 +493,46 @@ const OTHER_ACTION_MAP = withGroup({
   },
 } satisfies ActionMap, ACTION_GROUPS.OTHER)
 
+/** 打点动作 */
+const MARKER_ACTION_MAP = withGroup({
+  /**
+   * 添加打点
+   */
+  addMarker: {
+    name: '添加打点',
+    keydown: (ctx) => {
+      ctx.markers.addAtCurrentTime()
+    },
+  },
+
+  /**
+   * 上一个打点
+   */
+  prevMarker: {
+    name: '上一个打点',
+    keydown: (ctx) => {
+      ctx.markers.seekPrev()
+    },
+  },
+
+  /**
+   * 下一个打点
+   */
+  nextMarker: {
+    name: '下一个打点',
+    keydown: (ctx) => {
+      ctx.markers.seekNext()
+    },
+  },
+} satisfies ActionMap, ACTION_GROUPS.MARKER)
+
 /** 默认动作 */
 export const DEFAULT_ACTION_MAP = {
   ...PLAY_ACTION_MAP,
   ...SOUND_ACTION_MAP,
   ...EPISODE_ACTION_MAP,
   ...SUBTITLE_ACTION_MAP,
+  ...MARKER_ACTION_MAP,
   ...WINDOW_ACTION_MAP,
   ...TRANSFORM_ACTION_MAP,
   ...ENHANCE_COLOR_ACTION_MAP,

@@ -120,6 +120,7 @@ const props = withDefaults(defineProps<XPlayerProps>(), {
   seekSeconds: FAST_JUMP_OFFSET,
   highSpeedSeekSeconds: HIGH_FAST_JUMP_OFFSET,
   percentageSeek: 10,
+  markers: () => [],
 })
 
 /** 事件 */
