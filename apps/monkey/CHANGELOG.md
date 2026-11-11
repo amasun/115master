@@ -1,5 +1,17 @@
 # @115master/monkey
 
+## 2.3.0
+
+### Minor Changes
+
+- [#1](https://github.com/amasun/115master/pull/1) [`7695341`](https://github.com/amasun/115master/commit/7695341c22198dffb4591c003d67d010f375678a) Thanks [@amasun](https://github.com/amasun)! - feat(monkey/actress): 增加演员头像缩位降级匹配（1234 -> 123 -> 12）
+
+- [#1](https://github.com/amasun/115master/pull/1) [`0c5ab53`](https://github.com/amasun/115master/commit/0c5ab53dcf2e726f5d9a5b1ea2ee25703a55c858) Thanks [@amasun](https://github.com/amasun)! - 新增播放器打点 UI：进度条刻度、控制栏按钮列表、默认快捷键（b: 当前位置打点，,: 上一个打点，.: 下一个打点）、视频页接入与防覆盖本地持久化
+
+### Patch Changes
+
+- [#1](https://github.com/amasun/115master/pull/1) [`cde3da8`](https://github.com/amasun/115master/commit/cde3da8ff8239232ec0c993f3f8beedf8e4094be) Thanks [@amasun](https://github.com/amasun)! - 新增播放器打点数据模型、纯逻辑与本地存储
+
 ## 2.2.0
 
 ### Minor Changes
