@@ -68,7 +68,7 @@ export default defineConfig({
     monkey({
       entry: 'src/main.ts',
       userscript: {
-        'name': dev?.userscript.name ?? '115Master Fusion',
+        'name': dev?.userscript.name ?? '115Master Fusion (amasun)',
         'icon': logoSvg,
         'namespace': 'https://github.com/amasun/115master',
         'homepage': PKG.homepage,
