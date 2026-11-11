@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.0.1
+
+### Patch Changes
+
+- [`8ae694e`](https://github.com/amasun/115master/commit/8ae694e207d8b39780bc3ec849baa6e6961d1559) Thanks [@amasun](https://github.com/amasun)! - fix(monkey/home): info cards embedded in the official page follow the page brightness instead of always using the dark theme
+
 ## 2.0.0
 
 ### Minor Changes
