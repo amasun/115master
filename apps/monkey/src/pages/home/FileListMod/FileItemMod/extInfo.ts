@@ -7,6 +7,7 @@ import mainStyles from '@/styles/main.css?inline'
 import { adoptShadowStyle } from '@/utils/adoptShadowStyle'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { appLogger } from '@/utils/logger'
+import { userSettings } from '@/utils/userSettings'
 import { FileItemModBase } from './base'
 import {
   FILE_ITEM_PRELOAD_MARGIN,
@@ -195,6 +196,7 @@ export class FileItemModExtInfo extends FileItemModBase {
     /** 创建并挂载 Vue 应用 */
     const app = createApp(ExtInfo, {
       avNumber,
+      compact: userSettings.value.compactAvInfo,
       variant: this.itemInfo.surface === 'official'
         ? this.itemInfo.presentation === 'panel'
           ? 'official-panel'

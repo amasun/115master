@@ -11,6 +11,7 @@
           : props.variant === 'official-panel'
             ? styles.container.officialPanelMain
             : styles.container.legacyMain,
+      isCompactEmbedded && styles.container.compactEmbedded,
     ]"
     :style="isLegacyVisual
       ? { fontFamily: '\'PingFang SC\', \'Microsoft YaHei\', sans-serif' }
@@ -30,7 +31,7 @@
       </div>
 
       <!-- 加载骨架 -->
-      <template v-else-if="props.variant === 'legacy' && extInfo.isLoading.value">
+      <template v-else-if="props.variant === 'legacy' && !props.compact && extInfo.isLoading.value">
         <div :class="[styles.cover.container, styles.cover.legacy]" data-115master-legacy-cover-skeleton>
           <div class="skeleton h-full w-full rounded-xl" />
         </div>
@@ -238,13 +239,17 @@ import { appLogger } from '@/utils/logger'
 const props = withDefaults(defineProps<{
   avNumber: string
   variant?: 'drive' | 'legacy' | 'official' | 'official-panel'
+  /** 嵌入官方页面时使用 1.x 的紧凑样式 */
+  compact?: boolean
 }>(), {
   variant: 'legacy',
+  compact: false,
 })
 const logger = appLogger.sub('ExtInfo')
-const isLegacyVisual = props.variant === 'legacy'
-  || props.variant === 'official'
-  || props.variant === 'official-panel'
+/** 嵌入官方页面（旧版或新版） */
+const isEmbedded = props.variant !== 'drive'
+const isCompactEmbedded = isEmbedded && props.compact
+const isLegacyVisual = isEmbedded && !props.compact
 const legacySkeletonWidths = ['72%', '88%', '64%', '80%']
 
 /** 样式常量定义 */
@@ -257,6 +262,7 @@ const styles = clsx({
     officialMain: 'mr-[74px] ml-[34px] box-border min-h-[212px] !w-auto gap-6 rounded-2xl bg-[#f8f8fa] px-4 py-4 text-[#333]',
     officialPanelMain: 'mr-[74px] ml-[34px] box-border min-h-[212px] !w-auto gap-6 rounded-2xl bg-[#f8f8fa] px-4 py-4 text-[#333]',
     officialPending: 'h-px overflow-hidden',
+    compactEmbedded: '!min-h-24 !gap-0 !rounded-none !bg-transparent !px-0 !py-2',
     content: 'group relative flex h-full items-center gap-1',
     driveContent: 'flex-col items-stretch gap-2',
     legacyContent: '!gap-6',

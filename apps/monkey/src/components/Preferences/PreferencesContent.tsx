@@ -76,6 +76,7 @@ const PreferencesContent = defineComponent({
     const mode = useDriveListMode()
     const preview = useUserSetting('enableFilelistPreview')
     const avInfo = useUserSetting('enableAvInfo')
+    const compactAvInfo = useUserSetting('compactAvInfo')
     const actressFaces = useUserSetting('enableActressFaces')
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
     const isDesktop = ref(false)
@@ -192,6 +193,11 @@ const PreferencesContent = defineComponent({
                   label="番号资料"
                   modelValue={avInfo.value}
                   onUpdate:modelValue={value => avInfo.value = value}
+                />
+                <SettingToggle
+                  label="番号资料紧凑样式（115 官方页面，刷新后生效）"
+                  modelValue={compactAvInfo.value}
+                  onUpdate:modelValue={value => compactAvInfo.value = value}
                 />
                 <SettingToggle
                   label="演员头像"

@@ -10,6 +10,8 @@ export interface Settings {
   enableFilelistPreview: boolean
   /** 显示番号资料 */
   enableAvInfo: boolean
+  /** 官方页面的番号资料使用紧凑样式 */
+  compactAvInfo: boolean
   /** 显示演员头像 */
   enableActressFaces: boolean
   /** 显示播放页影片详情 */
@@ -24,6 +26,7 @@ export type UserSettingKey = keyof Settings
 const DEFAULT_SETTINGS: Settings = {
   enableFilelistPreview: true,
   enableAvInfo: true,
+  compactAvInfo: false,
   enableActressFaces: true,
   enablePlayerMovieInfo: true,
   theme: 'system',
