@@ -15,10 +15,10 @@
       ]"
     >
       <div
+        data-app-video-player
         data-video-player-shell
         :class="[
           styles.player.container,
-          preferences.showPlaylist && styles.player.containerFold,
           preferences.theatre && styles.player.containerTheatre,
         ]"
       >
@@ -75,6 +75,21 @@
           </template>
           <template #headerRight="{ ctx }">
             <div class="flex items-center gap-2">
+              <PlayerControlSurface v-if="isWindows && DataFileInfo.isReady">
+                <!-- Windows MPV 播放按钮 -->
+                <Button
+                  variant="ghost"
+                  shape="circle"
+                  :title="getActionNameTip(ctx, 'MPV 播放', 'playWithMPV')"
+                  @click="handleLocalPlay('mpv')"
+                >
+                  <Icon
+                    :name="I.WINDOW"
+                    :class="styles.controls.btn.icon"
+                  />
+                </Button>
+              </PlayerControlSurface>
+
               <PlayerControlSurface v-if="isMac && DataFileInfo.isReady">
                 <!-- IINA 播放按钮 -->
                 <Button
@@ -96,6 +111,8 @@
                 <Button
                   variant="ghost"
                   shape="circle"
+                  aria-label="播放列表"
+                  data-app-playlist-trigger
                   :title="getActionNameTip(ctx, '播放列表', 'toggleShowSider')"
                   @click="togglePlaylist"
                 >
@@ -107,9 +124,6 @@
               </PlayerControlSurface>
             </div>
           </template>
-          <template #aboutContent>
-            <About />
-          </template>
         </XPlayer>
       </div>
     </div>
@@ -120,26 +134,22 @@
       <MovieInfo :movie-infos="DataMovieInfo" />
     </div>
 
-    <!-- Overlay 遮罩 -->
-    <div
-      :data-visible="preferences.showPlaylist"
-      :class="styles.sidebar.overlay"
-      @click="handleClosePlaylist"
-    />
-
-    <!-- Playlist 侧边栏 -->
-    <div
-      :data-visible="preferences.showPlaylist"
-      :class="styles.sidebar.content"
+    <Drawer
+      v-model:open="preferences.showPlaylist"
+      label="播放列表"
+      :placement="placement"
+      size="md"
+      overlay-handle
+      class="app-playlist-drawer"
+      data-app-xplayer-shortcuts
     >
       <Playlist
         :pick-code="params.pickCode.value"
         :playlist="DataPlaylist"
-        :visible="preferences.showPlaylist"
         @play="handleChangeVideo"
         @close="handleClosePlaylist"
       />
-    </div>
+    </Drawer>
   </div>
 </template>
 
@@ -155,9 +165,9 @@ import type {
 import type { PlayerContext } from '@/components/XPlayer/hooks/usePlayerProvide'
 import type XPlayerInstance from '@/components/XPlayer/index.vue'
 import type { Subtitle, ThumbnailRequest } from '@/components/XPlayer/types'
-import { Button } from '@115master/ui'
+import { Button, Drawer } from '@115master/ui'
 import { format } from '@115master/utils'
-import { useEventListener, useTitle } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useTitle } from '@vueuse/core'
 import { cloneDeep } from 'lodash'
 import { computed, h, nextTick, onMounted, ref, shallowRef, toValue, watch } from 'vue'
 import iinaIcon from '@/assets/icons/iina-icon.png'
@@ -169,17 +179,15 @@ import { formatTime } from '@/components/XPlayer/utils/time'
 import { useMoveAction } from '@/hooks/useDriveAction/useMoveAction'
 import { useLockFn } from '@/hooks/useLockFn'
 import { I, Icon } from '@/icons'
-import { useDriveStore } from '@/store/driveList'
 import { subtitlePreference } from '@/utils/cache/subtitlePreference'
 import { clsx } from '@/utils/clsx'
 import { drive115 } from '@/utils/drive115Instance'
 import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
-import { isMac } from '@/utils/platform'
+import { isMac, isWindows } from '@/utils/platform'
 import { goToPlayer } from '@/utils/route'
 import { useUserSetting } from '@/utils/userSettings'
-import { webLinkIINA, webLinkShortcutsMpv } from '@/utils/weblink'
-import About from './components/About/index.vue'
+import { webLinkIINA, webLinkWindowsMpv } from '@/utils/weblink'
 import { FileActionMenu } from './components/FileActionMenu'
 import HeaderInfo from './components/HeaderInfo/index.vue'
 import MovieInfo from './components/MovieInfo/index.vue'
@@ -202,13 +210,9 @@ const styles = clsx({
       'flex flex-col items-center',
       'min-h-screen gap-5',
       'bg-base-100 text-base-content',
-      'sm:[--app-xplayer-ratio:0.3] md:[--app-xplayer-ratio:0.518] lg:[--app-xplayer-ratio:0.618] 2xl:[--app-xplayer-ratio:0.718]',
-      '[--app-playlist-ratio:calc(1-var(--app-xplayer-ratio))]',
-      '[--app-xplayer-width:calc(100%*var(--app-xplayer-ratio))]',
-      '[--app-playlist-width:calc(100%*var(--app-playlist-ratio))]',
       'relative',
     ],
-    mainTheatre: 'ui-z-host fixed inset-0 h-screen w-screen overflow-hidden bg-black',
+    mainTheatre: 'w-full bg-black',
     pageMain: [
       'relative flex min-h-screen w-full items-center justify-center overflow-hidden',
       'bg-base-100 px-4 py-6 sm:px-8',
@@ -223,31 +227,8 @@ const styles = clsx({
       'transform-gpu items-center justify-center overflow-hidden rounded-lg',
       'transition-all duration-200 ease-[var(--app-ease-in-out-cubic)] will-change-contents',
     ],
-    containerFold: [
-      'w-(--app-xplayer-width)!',
-    ],
     containerTheatre: '[aspect-ratio:auto] h-screen max-w-none rounded-none',
     video: 'absolute m-auto h-full w-full overflow-hidden',
-  },
-  // 侧边栏样式
-  sidebar: {
-    overlay: [
-      'ui-z-scrim fixed inset-0',
-      'bg-black/40',
-      'cursor-pointer',
-      'transition-opacity duration-300 ease-[var(--app-ease-in-out-sine)]',
-      'pointer-events-none opacity-0',
-      'data-[visible=true]:opacity-100',
-      'data-[visible=true]:pointer-events-auto',
-    ],
-    content: [
-      'ui-z-sheet fixed inset-y-0 right-0',
-      'w-(--app-playlist-width)',
-      'h-screen',
-      'transition-transform duration-300 ease-[var(--app-ease-out-cubic)]',
-      'translate-x-full',
-      'data-[visible=true]:translate-x-0',
-    ],
   },
   // 控制样式
   controls: {
@@ -255,6 +236,10 @@ const styles = clsx({
     iinaIcon: 'size-7 contrast-200 grayscale invert',
   },
 })
+
+/** 播放列表位置 */
+const sm = useBreakpoints(breakpointsTailwind).greaterOrEqual('sm')
+const placement = computed(() => sm.value ? 'end' : 'bottom')
 
 /** 日志 */
 const logger = appLogger.sub('Video')
@@ -284,27 +269,26 @@ const DataHistory = useDataHistory()
 const DataMark = useMark(DataFileInfo)
 /** 移动操作 */
 const moveAction = useMoveAction()
-/** drive 列表 store（移动后最小化刷新缓存用） */
-const driveStore = useDriveStore()
 
 /** 同步影片详情数据。 */
-function syncMovieInfo(avNumber = getAvNumber(DataFileInfo.state.file_name)) {
+function syncMovieInfo(
+  avNumber = getAvNumber(DataFileInfo.state.file_name),
+) {
   /*
    * ================================================================================
    * 步骤1：同步播放页影片详情
    * ================================================================================
    * 目标：用运行时设置替代 Plus 编译门控，并避免关闭时请求外部资料源。
    * 操作：
-   * 1) 清理上一文件的影片资料
-   * 2) 开关开启且识别到番号时加载 JavDB 与 JavBus
+   * 1) 关闭或无标识时清理上一文件资料
+   * 2) 普通番号加载三个来源，FC2 增加 FD2PPV 来源
    */
   logger.info('开始同步播放页影片详情', avNumber)
 
-  DataMovieInfo.clear()
-  if (showMovieInfo.value && avNumber) {
-    DataMovieInfo.javDBState.execute(0, avNumber)
-    DataMovieInfo.javBusState.execute(0, avNumber)
-  }
+  if (showMovieInfo.value && avNumber)
+    DataMovieInfo.load(avNumber)
+  else
+    DataMovieInfo.clear()
 
   logger.info('播放页影片详情同步完成', avNumber)
 }
@@ -377,30 +361,15 @@ const FileActions = computed<FileActionMenuTypes.FileAction[]>(() => [
         parentId: DataFileInfo.state.parent_id,
       })
 
-      /** 当前文件项（移动 API 与列表缓存增量操作用） */
+      /** 当前文件项（移动 API 使用） */
       const fileItem = { fc: 1, fid: DataFileInfo.state.file_id } as Share.Entity.FilesItem
       /** 源目录（移动后 DataFileInfo 会刷新，需提前捕获） */
       const sourceCid = params.cid.value || DataFileInfo.state.parent_id || '0'
 
       /** 复用 masterapp 的移动功能（文件浏览器对话框 + 移动 API） */
-      const { success, pid } = await moveAction.moveBatch(sourceCid, [fileItem])
+      const { success } = await moveAction.moveBatch(sourceCid, [fileItem])
       if (!success) {
         return
-      }
-
-      /**
-       * 最小化刷新 drive 列表：
-       * 离开 drive 页后 nav 冻结在进入时的目录，与源目录一致则增量移除缓存页中的该项（目标目录失效）；
-       * 不一致（如直接打开播放页）则失效源/目标目录缓存，返回列表时重拉
-       */
-      if (driveStore.nav.cid === sourceCid) {
-        driveStore.applyRemoveMutation([fileItem], pid)
-      }
-      else {
-        driveStore.invalidate('all', sourceCid)
-        driveStore.invalidate('star', sourceCid)
-        driveStore.invalidate('all', pid)
-        driveStore.invalidate('star', pid)
       }
 
       /** 刷新文件信息，获取新的 parent_id */
@@ -467,11 +436,23 @@ const ACTION_MAP: ActionMap = {
       })
     },
   },
+
+  playWithMPV: {
+    name: 'MPV 播放',
+    group: ACTION_GROUPS.EXTERNAL,
+    keydown: (ctx) => {
+      handleLocalPlay('mpv')
+      ctx.hud?.show({
+        title: 'MPV 播放',
+      })
+    },
+  },
 } satisfies ActionMap
 /** 动作键绑定 */
 const ACTION_KEY_BINDINGS = {
   toggleFavorite: [],
   playWithIINA: [],
+  playWithMPV: [],
 } satisfies ActionKeyBindings
 /** 外部动作配置 */
 const extShortcuts = {
@@ -490,13 +471,25 @@ async function handleSubtitleChange(subtitle: Subtitle | null) {
 
 /** 本地播放 */
 async function handleLocalPlay(player: LocalPlayer) {
+  /*
+   * ================================================================================
+   * 步骤1：交给本地播放器打开当前视频
+   * ================================================================================
+   * 目标：macOS 使用 IINA，Windows 使用已注册的 master115-mpv 协议。
+   * 数据源：当前 pickCode 对应的临时下载地址和鉴权信息。
+   * 操作：
+   * 1) 获取当前文件下载信息
+   * 2) 按平台播放器生成协议链接
+   */
+  logger.info('开始打开本地播放器', player)
+
   if (!params.pickCode.value) {
     throw new Error('pickCode is required')
   }
   const download = await drive115.video.getFileDownloadUrl(params.pickCode.value)
   switch (player) {
     case 'mpv':
-      open(webLinkShortcutsMpv(download))
+      open(webLinkWindowsMpv(download))
       break
     case 'iina':
       xplayerRef.value?.interruptSource()
@@ -505,6 +498,7 @@ async function handleLocalPlay(player: LocalPlayer) {
       }, 300)
       break
   }
+  logger.info('本地播放器打开请求完成', player)
 }
 
 async function changeVideo(item: Share.Entity.FilesItem) {
@@ -552,16 +546,6 @@ function handleSeek(ctx: PlayerContext) {
 function handleClosePlaylist() {
   preferences.value.showPlaylist = false
 }
-
-/**
- * Esc 关闭播放列表：冒泡阶段监听，
- * XPlayer 弹窗（Popup）在 capture 阶段拦截 Esc 并阻止传播，优先级更高。
- */
-useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-  if (event.key !== 'Escape' || !preferences.value.showPlaylist)
-    return
-  handleClosePlaylist()
-})
 
 /** 切换播放列表 */
 function togglePlaylist() {
@@ -616,7 +600,13 @@ async function loadData(isFirst = true) {
       // 加载番号信息
       syncMovieInfo(avNumber)
       // 加载字幕
-      DataSubtitles.execute(0, pickCode, res.file_name, avNumber)
+      DataSubtitles.execute(
+        0,
+        pickCode,
+        res.file_name,
+        avNumber,
+        Number(res.play_long),
+      )
 
       // 加载播放列表（cid 变化时或首次加载）
       if (res.parent_id && (isFirst || params.cid.value !== res.parent_id)) {

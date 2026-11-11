@@ -4,10 +4,13 @@ import { Share } from '@115master/drive115'
 import iinaIcon from '@/assets/icons/iina-icon.png'
 import { FileListType, IvType } from '@/pages/home/types'
 import { drive115 } from '@/utils/drive115Instance'
+import { openEd2kDialog } from '@/utils/ed2k/browserDialog'
 import { isMac } from '@/utils/platform'
 import { goToPlayer } from '@/utils/route'
 import { webLinkIINA } from '@/utils/weblink'
 import { FileItemModBase } from './base'
+
+const NATIVE_ACTION_GROUP_SELECTOR = '[data-115master-native-action-group]'
 
 /**
  * 按钮配置
@@ -31,13 +34,15 @@ interface ButtonConfig {
  * FileItemMod 扩展菜单
  */
 export class FileItemModExtMenu extends FileItemModBase {
+  private readonly createdLinks: HTMLAnchorElement[] = []
+
   /** 按钮配置 */
   get buttonConfig(): ButtonConfig[] {
-    return [
+    const buttons: ButtonConfig[] = [
       {
         class: '115-player',
         title: '使用【115官方播放器】',
-        text: '官方播放',
+        text: this.useLegacyLabels ? '5️⃣ 官方播放' : '官方播放',
         visible: this.itemInfo.attributes.iv === IvType.Yes,
         click: () => {
           GM_openInTab(
@@ -54,8 +59,8 @@ export class FileItemModExtMenu extends FileItemModBase {
             {
               class: 'iina-player',
               title: '使用【iina】',
-              text: 'IINA',
-              icon: iinaIcon,
+              text: this.useLegacyLabels ? '🎵 iina 播放' : 'IINA',
+              icon: this.useLegacyLabels ? undefined : iinaIcon,
               visible: this.itemInfo.attributes.iv === IvType.Yes,
               click: async () => {
                 try {
@@ -74,7 +79,7 @@ export class FileItemModExtMenu extends FileItemModBase {
       {
         class: 'master-player',
         title: '使用【Master播放器】',
-        text: 'Master 播放',
+        text: this.useLegacyLabels ? '▶️ Master 播放' : 'Master 播放',
         visible: this.itemInfo.attributes.iv === IvType.Yes,
         click: () => {
           goToPlayer(
@@ -85,15 +90,56 @@ export class FileItemModExtMenu extends FileItemModBase {
           )
         },
       },
+      {
+        class: 'ed2k-link',
+        title: '生成 ED2K 链',
+        text: 'ED2K',
+        visible: this.itemInfo.attributes.iv === IvType.Yes
+          && Number.isSafeInteger(Number(this.itemInfo.attributes.file_size))
+          && Number(this.itemInfo.attributes.file_size) >= 0,
+        click: () => {
+          void openEd2kDialog({
+            name: this.itemInfo.attributes.title,
+            pickCode: this.itemInfo.attributes.pick_code,
+            size: Number(this.itemInfo.attributes.file_size),
+          })
+        },
+      },
     ]
+
+    /*
+     * ================================================================================
+     * 步骤1：按页面原版顺序提供操作入口
+     * ================================================================================
+     * 目标：旧版播放入口保持 v0.5.0 顺序，新版维持当前 Fusion 顺序。
+     * 数据源：页面 surface 和新增 ED2K 操作。
+     * 操作：
+     * 1) 旧版先创建 ED2K，使 prepend 后落到原版播放入口之后
+     * 2) 新版沿用既有配置顺序
+     */
+    if (this.itemInfo.surface !== 'legacy')
+      return buttons
+
+    const ed2k = buttons[buttons.length - 1]
+    return ed2k ? [ed2k, ...buttons.slice(0, -1)] : buttons
   }
 
   /** 文件操作节点 */
   get fileOprNode() {
-    return (
-      this.itemNode.querySelector('.file-opr')
+    const interactionRoot = this.itemInfo.surface === 'official'
+      ? this.itemInfo.interactionNode ?? this.itemNode
+      : this.itemNode
+    const mergedActions = interactionRoot.querySelector<HTMLElement>('[data-115master-merged-actions]')
+    return mergedActions?.querySelector<HTMLElement>(NATIVE_ACTION_GROUP_SELECTOR)
+      ?? mergedActions
+      ?? this.itemNode.querySelector('.file-opr')
       ?? this.itemNode.querySelector('.file-opt')
-    )
+  }
+
+  /** 新旧页面统一沿用旧版文件操作入口的文字标记。 */
+  private get useLegacyLabels(): boolean {
+    return this.itemInfo.surface === 'legacy'
+      || this.itemInfo.surface === 'official'
   }
 
   /** 加载 */
@@ -107,7 +153,10 @@ export class FileItemModExtMenu extends FileItemModBase {
   }
 
   /** 销毁 */
-  onDestroy() {}
+  onDestroy() {
+    this.createdLinks.forEach(link => link.remove())
+    this.createdLinks.length = 0
+  }
 
   /** 创建文件操作菜单按钮 */
   private createButtons(): void {
@@ -116,7 +165,8 @@ export class FileItemModExtMenu extends FileItemModBase {
         return
       const link = this.createNormalItemButtonElement(button)
       this.fileOprNode?.prepend(link)
-      link.addEventListener('mousedown', async (e: MouseEvent) => {
+      this.createdLinks.push(link)
+      link.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
         e.stopImmediatePropagation()

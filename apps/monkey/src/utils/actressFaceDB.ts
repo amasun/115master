@@ -98,6 +98,8 @@ export class ActressFaceDB {
    */
   async findActress(
     name: string,
+    /** `title`：从文件名中找出包含的演员名；`name`：传入的就是完整演员名 */
+    mode: 'title' | 'name' = 'title',
   ): Promise<
     | { folder: string, filename: string, timestamp: number, url: string }
     | undefined
@@ -105,7 +107,9 @@ export class ActressFaceDB {
     await this.initPromise
     const matchedName = this.imageMap.has(name)
       ? name
-      : this.getMatcher().match(name)
+      : mode === 'name'
+        ? this.getMatcher().matchName(name)
+        : this.getMatcher().match(name)
     const actress = matchedName ? this.imageMap.get(matchedName) : undefined
     if (!actress) {
       return undefined

@@ -44,4 +44,9 @@ describe('actressNameMatcher', () => {
   ])('%s 不匹配', (title) => {
     expect(matcher.match(title)).toBeUndefined()
   })
+
+  it('matchName 只忽略写法差异，不做包含匹配', () => {
+    expect(matcher.matchName('大桥未久')).toBe('大橋未久')
+    expect(matcher.matchName('大桥未久无码全集')).toBeUndefined()
+  })
 })

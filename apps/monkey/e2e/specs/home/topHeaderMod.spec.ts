@@ -20,6 +20,8 @@ test.describe('TopHeaderMod', () => {
     await expect(offline).toBeAttached()
     await expect(offline).toContainText('云下载')
     await expect(offline.locator('i.icon-operate.ifo-linktask')).toBeAttached()
+    await expect(offline).toHaveCSS('background-color', 'rgb(58, 71, 131)')
+    await expect(offline).toHaveCSS('border-color', 'rgb(58, 71, 131)')
     await expect(page.locator('#js_top_panel_box > div > a:first-child')).toHaveClass(/master-offline-task-btn/)
 
     // 官方云下载按钮被移除
@@ -28,7 +30,9 @@ test.describe('TopHeaderMod', () => {
     /** 预览开关：默认 enableFilelistPreview=true → active */
     const preview = page.locator('a.master-preview-switch-btn')
     await expect(preview).toBeAttached()
-    await expect(preview).toHaveAttribute('title', '开启文件预览')
+    await expect(preview).toHaveAttribute('title', '关闭文件预览')
+    await expect(preview).toHaveAttribute('aria-label', '关闭文件预览')
+    await expect(preview).toHaveAttribute('aria-pressed', 'true')
     await expect(preview).toHaveClass(/active/)
     await expect(preview.locator('iconify-icon.preview-off')).toBeAttached()
     await expect(preview.locator('iconify-icon.preview-on')).toBeAttached()

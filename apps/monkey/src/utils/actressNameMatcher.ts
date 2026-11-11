@@ -64,6 +64,14 @@ export class ActressNameMatcher {
     return result
   }
 
+  /**
+   * 按完整名字匹配演员，只忽略写法差异
+   * @returns 头像库中的原始名字
+   */
+  matchName(name: string): string | undefined {
+    return this.index.get(normalizeActressName(name))
+  }
+
   private add(name: string, original: string) {
     const key = normalizeActressName(name)
     if (!key || this.index.has(key)) {

@@ -1,14 +1,31 @@
 <template>
-  <div ref="rootRef" :class="styles.container.main">
-    <div :class="styles.container.content">
+  <div
+    ref="rootRef"
+    :class="[
+      props.variant === 'official'
+        ? videoCover.isReady
+          ? styles.container.officialMain
+          : styles.container.officialPending
+        : props.variant === 'official-panel'
+          ? styles.container.officialPanelMain
+          : styles.container.legacyMain,
+    ]"
+  >
+    <div
+      v-if="props.variant !== 'official' || videoCover.isReady"
+      :class="[
+        styles.container.content,
+        isLegacyVisual && styles.container.legacyContent,
+      ]"
+    >
       <!-- 错误状态 -->
-      <div v-if="videoCover.error" :class="styles.states.error">
-        <LoadingError size="mini" :message="videoCover.error" />
+      <div v-if="props.variant !== 'official' && videoCover.error" :class="styles.states.error">
+        <StatusFeedback status="error" size="xs" :padded="false" v-bind="errorFeedback(videoCover.error)" />
       </div>
 
       <!-- 骨架屏 -->
-      <template v-else-if="videoCover.isLoading">
-        <div :class="styles.skeleton" />
+      <template v-else-if="props.variant !== 'official' && videoCover.isLoading">
+        <div :class="[styles.skeleton, props.variant === 'legacy' && styles.legacySkeleton]" />
       </template>
 
       <!-- 内容 -->
@@ -16,18 +33,21 @@
         v-else-if="videoCover.isReady"
         :id="`gallery-${props.pickCode}`"
         class="pswp-gallery"
-        :class="styles.cover.container"
+        :class="[styles.cover.container, isLegacyVisual && styles.cover.legacyContainer]"
       >
         <a
           v-for="(thumbnail, index) in videoCover.state"
           :key="index"
-          :class="[styles.cover.thumbItem]"
+          :class="[
+            styles.cover.thumbItem,
+            isLegacyVisual ? styles.cover.legacyThumbItem : styles.cover.officialThumbItem,
+          ]"
           @click.prevent.stop="openPhotoSwipe(index)"
         >
           <img
             :src="thumbnail.img"
-            :alt="`视频封面 ${index + 1}`"
-            :class="styles.cover.thumbImage"
+            :alt="`${isLegacyVisual ? '预览图' : '视频封面'} ${index + 1}`"
+            :class="[styles.cover.thumbImage, isLegacyVisual && styles.cover.legacyThumbImage]"
           >
         </a>
       </div>
@@ -36,30 +56,44 @@
 </template>
 
 <script setup lang="ts">
+import { StatusFeedback } from '@115master/ui'
+import PhotoSwipe from 'photoswipe'
 import PhotoSwipeLightbox from 'photoswipe/lightbox'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { LoadingError } from '@/components'
 import { useSmartVideoCover } from '@/hooks/useVideoCover'
 import { clsx } from '@/utils/clsx'
+import { errorFeedback } from '@/utils/errorFeedback'
 import 'photoswipe/style.css'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   pickCode: string
   sha1: string
   duration: number | string
   listScrollBoxNode: HTMLElement
-}>()
+  variant?: 'legacy' | 'official' | 'official-panel'
+}>(), {
+  variant: 'legacy',
+})
 
-/** 文件列表视频封面数量 */
-const FILELIST_VIDEO_COVER_NUM = 5
+/** 新旧页面共用旧版预览条视觉，保留 official 的延迟挂载策略。 */
+const isLegacyVisual = props.variant === 'legacy'
+  || props.variant === 'official'
+  || props.variant === 'official-panel'
+
+/** 旧版文件列表预览帧数量，保持横向 150px 预览的密度。 */
+const FILELIST_VIDEO_COVER_NUM = 8
 
 /** 样式常量定义 */
 const styles = clsx({
   // 容器样式
   container: {
-    main: 'h-24 w-full max-w-214 px-20 [content-visibility:auto]',
+    legacyMain: 'h-[150px] w-full [content-visibility:auto]',
+    officialMain: 'h-[150px] w-full [content-visibility:auto]',
+    officialPanelMain: 'h-[150px] w-full [content-visibility:auto]',
+    officialPending: 'h-px overflow-hidden',
     content:
       'bg-base-300 relative flex h-full items-center overflow-hidden rounded',
+    legacyContent: '!rounded-none !bg-transparent',
   },
   // 状态样式
   states: {
@@ -67,18 +101,22 @@ const styles = clsx({
   },
   // 骨架样式
   skeleton: 'skeleton h-full w-full rounded',
+  legacySkeleton: '!rounded-none',
   // 视频封面
   cover: {
     container: [
       'flex h-full w-full overflow-hidden select-none',
     ],
+    legacyContainer: 'justify-center gap-px overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
     thumbItem: [
-      'aspect-video h-full',
-      'overflow-hidden',
+      'h-full',
       'cursor-zoom-in no-underline',
-      'transition-opacity hover:opacity-90',
+      'transition-opacity ease-[var(--ui-ease-standard)] hover:opacity-90',
     ],
+    officialThumbItem: 'aspect-video overflow-hidden',
+    legacyThumbItem: '!h-[150px] !w-auto',
     thumbImage: ['h-full w-full object-contain object-center align-top'],
+    legacyThumbImage: '!h-[150px] !w-auto !object-cover',
   },
 })
 
@@ -119,10 +157,10 @@ function initPhotoSwipe() {
       src: item.img,
       width: item.width,
       height: item.height,
-      alt: '视频封面',
+      alt: isLegacyVisual ? '预览图' : '视频封面',
     })),
     showHideAnimationType: 'fade',
-    pswpModule: () => import('photoswipe'),
+    pswpModule: PhotoSwipe,
     mouseMovePan: true,
     initialZoomLevel: 'fit',
     secondaryZoomLevel: 2,

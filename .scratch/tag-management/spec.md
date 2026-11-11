@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # 标签管理页面（Tag Management）
 
@@ -52,7 +52,7 @@ Status: ready-for-agent
 - 一次 `drive115.tag.getLabels({ limit: 200 })` 全量加载，搜索 / 筛选全在前端。
 - **不引** `useDriveCache`（LRU）、**不引**后端分页状态机——标签量级小（典型几十到上百），前端处理足够。
 - `searchLabels` 与 `getLabels` 同端点（`/label/list`），前端过滤即可，首版不调用 `searchLabels`。
-- 列表页不 `keepAlive`——每次进入刷新全量，数据新鲜度优先（全量加载成本低）。
+- 列表页每次进入均重建并全量刷新，数据新鲜度优先（全量加载成本低）。
 
 ### 稳定内部模型（adapter 对冲未联调）
 
@@ -199,3 +199,4 @@ Status: ready-for-agent
 - `addLabels` / `editLabel` / `deleteLabel` 均以 `state + code + message` 表示成功或失败。
 - 标签名实际最大长度为 50；51 字符返回 `code=21002`。
 - 联调测试标签已全部删除，并重新拉取列表确认无残留。
+- 已由 `6f68d3d` 完成标签管理页，并由 `f9ab350` 按真实 115 响应修正接口假设。

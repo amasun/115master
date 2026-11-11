@@ -9,6 +9,7 @@ import { visualizer } from 'rollup-plugin-visualizer'
 import { defineConfig } from 'vite'
 import mkcert from 'vite-plugin-mkcert'
 import monkey, { cdn, util } from 'vite-plugin-monkey'
+import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 import PKG from './package.json'
 import { devConfig } from './plugins/dev'
@@ -25,6 +26,9 @@ const dev = !isProd ? devConfig(env.BRANCH_PORT) : undefined
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __115MASTER_VERSION__: JSON.stringify(PKG.version),
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -32,6 +36,12 @@ export default defineConfig({
   },
   build: {
     minify: true,
+    rollupOptions: {
+      output: {
+        // Keep userscript modules inline so SystemJS cannot resolve them against 115's Next.js base URL.
+        inlineDynamicImports: true,
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['@libmedia/avplayer'],
@@ -55,6 +65,10 @@ export default defineConfig({
       },
     }),
     mkcert(),
+    // userscript 没有 HTML 入口，在 MasterApp 重置文档后再注入开发面板
+    vueDevTools({
+      appendTo: 'src/app/devtools.ts',
+    }),
     vue(),
     vueJsx(),
     tailwindcss(),
@@ -76,9 +90,14 @@ export default defineConfig({
         'description': PKG.description,
         'supportURL': PKG.bugs?.url,
         'run-at': 'document-start',
+        'grant': [
+          'GM_addValueChangeListener',
+          'GM_deleteValue',
+        ],
         'include': [
           'https://115.com/*',
           'https://dl.115cdn.net/video/token',
+          'https://www.javlibrary.com/*',
         ],
         'exclude': [
           'https://*.115.com/bridge*',
@@ -92,20 +111,44 @@ export default defineConfig({
           'aps.115.com',
           'webapi.115.com',
           'proapi.115.com',
+          'passportapi.115.com',
+          'qrcodeapi.115.com',
+          'captchaapi.115.com',
+          'aq.115.com',
           'uplb.115.com',
           'cpats01.115.com',
           'dl.115cdn.net',
           'cdnfhnfile.115cdn.net',
+          '*.115cdn.net',
           'fhnfile.oss-cn-shenzhen.aliyuncs.com',
           '*.oss-cn-shenzhen.aliyuncs.com',
           'v.anxia.com',
           'subtitlecat.com',
+          'avsubtitles.com',
+          'www.avsubtitles.com',
+          'aiyi1.com',
+          'www.aiyi1.com',
           'javbus.com',
           'javdb.com',
+          'javlibrary.com',
           'jdbstatic.com',
+          'c0.jdbstatic.com',
+          '*.jdbstatic.com',
+          'pics.dmm.co.jp',
+          'api.video.dmm.co.jp',
+          'awsimgsrc.dmm.co.jp',
+          'pics.dmm.com',
+          'imgsrc.dmm.com',
           'missav.ws',
+          'fourhoi.com',
+          '*.fourhoi.com',
+          'fd2ppv.cc',
+          '*.contents.fc2.com',
+          'contents-thumbnail2.fc2.com',
+          'xximgs.cc',
           'api-shoulei-ssl.xunlei.com',
           'subtitle.v.geilijiasu.com',
+          'fastly.jsdelivr.net',
         ],
         'resource': {
           icon: logoSvg,
