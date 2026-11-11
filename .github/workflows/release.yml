@@ -19,6 +19,7 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm lint
       - run: pnpm type-check
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test
 
   release:
