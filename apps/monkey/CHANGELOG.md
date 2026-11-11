@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.2.0
+
+### Minor Changes
+
+- [`9d3109c`](https://github.com/amasun/115master/commit/9d3109cbcd10375d6126a3ddc07cfa2a61473b21) Thanks [@amasun](https://github.com/amasun)! - feat(monkey): add a "compact AV info card" preference that renders the info card embedded in official 115 pages in the 1.x compact style
+
 ## 2.1.0
 
 ### Minor Changes
