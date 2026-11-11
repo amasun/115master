@@ -1,6 +1,7 @@
 import type { ActressImageInfo, ActressImageMap } from '@/types/actress'
 import { GM_notification } from '$'
 import { CDN_BASE_URL } from '@/constants'
+import { ActressNameMatcher } from './actressNameMatcher'
 import { actressFaceCache } from './cache/actressFaceCache'
 import { appLogger } from './logger'
 
@@ -30,6 +31,8 @@ export class ActressFaceDB {
   private initPromise: Promise<ActressFaceDB> | null = null
   /** 是否初始化 */
   private isInit = false
+  /** 名字匹配器，随头像映射重建 */
+  private matcher: { source: ActressImageMap, value: ActressNameMatcher } | null = null
 
   constructor() {
     this.imageMap = new Map()
@@ -91,6 +94,7 @@ export class ActressFaceDB {
 
   /**
    * 查找演员头像信息
+   * @description 支持标题中包含演员名，以及简繁体、日文汉字写法不一致的情况
    */
   async findActress(
     name: string,
@@ -99,7 +103,10 @@ export class ActressFaceDB {
     | undefined
   > {
     await this.initPromise
-    const actress = this.imageMap.get(name)
+    const matchedName = this.imageMap.has(name)
+      ? name
+      : this.getMatcher().match(name)
+    const actress = matchedName ? this.imageMap.get(matchedName) : undefined
     if (!actress) {
       return undefined
     }
@@ -125,6 +132,19 @@ export class ActressFaceDB {
       window.clearInterval(this.updateTimer)
       this.updateTimer = null
     }
+  }
+
+  /**
+   * 获取与当前头像映射对应的名字匹配器
+   */
+  private getMatcher(): ActressNameMatcher {
+    if (this.matcher?.source !== this.imageMap) {
+      this.matcher = {
+        source: this.imageMap,
+        value: new ActressNameMatcher(this.imageMap.keys()),
+      }
+    }
+    return this.matcher.value
   }
 
   /**
