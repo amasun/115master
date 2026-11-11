@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.0.2
+
+### Patch Changes
+
+- [`d272e7f`](https://github.com/amasun/115master/commit/d272e7faf0633a4bad8f3ff6e45afe714cd461d0) Thanks [@amasun](https://github.com/amasun)! - chore(monkey): rename the userscript to "115Master Fusion (amasun)" so it no longer collides with the upstream Fusion script
+
 ## 2.0.1
 
 ### Patch Changes
