@@ -137,9 +137,9 @@ export const DEFAULT_ACTION_KEY_BINDINGS = {
   prevSubtitle: [],
 
   // marker
-  addMarker: ['M'],
-  prevMarker: [],
-  nextMarker: [],
+  addMarker: ['b'],
+  prevMarker: [','],
+  nextMarker: ['.'],
 
   // window
   toggleTheatre: ['v'],

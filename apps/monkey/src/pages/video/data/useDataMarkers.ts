@@ -23,8 +23,8 @@ const logger = appLogger.sub('useDataMarkers')
 
 /** 文件信息源类型 */
 export type MarkerFileInfoSource
-  = | { state?: { file_id?: string, file_name?: string, play_long?: string | number } }
-    | (() => { fileId?: string, fileName?: string, duration?: number })
+  = | { state?: { pick_code?: string, file_id?: string, file_name?: string, play_long?: string | number } }
+    | (() => { pickCode?: string, fileId?: string, fileName?: string, duration?: number })
 
 /** Hook 返回值接口 */
 export interface UseDataMarkersReturn {
@@ -48,6 +48,9 @@ export interface UseDataMarkersReturn {
 function extractMeta(pickCode: string, fileInfo?: MarkerFileInfoSource): CreateDocMeta {
   if (typeof fileInfo === 'function') {
     const res = fileInfo()
+    if (res.pickCode && res.pickCode !== pickCode) {
+      return { pickCode }
+    }
     return {
       pickCode,
       ...(res.fileId !== undefined ? { fileId: res.fileId } : {}),
@@ -58,6 +61,9 @@ function extractMeta(pickCode: string, fileInfo?: MarkerFileInfoSource): CreateD
 
   if (fileInfo && 'state' in fileInfo && fileInfo.state) {
     const state = fileInfo.state
+    if (state.pick_code && state.pick_code !== pickCode) {
+      return { pickCode }
+    }
     const duration = state.play_long !== undefined ? Number(state.play_long) : undefined
     return {
       pickCode,
@@ -82,6 +88,8 @@ export function useDataMarkers(
   const currentDoc = shallowRef<MarkerDoc | null>(null)
   const loading = shallowRef(false)
   let loadSequence = 0
+  let currentLoadPromise: Promise<void> | null = null
+  let loadFailed = false
 
   /** 可见打点列表 */
   const markers = computed(() => {
@@ -91,32 +99,93 @@ export function useDataMarkers(
   /** 加载打点文档（带序列号防竞态） */
   async function loadDoc(code: string | undefined): Promise<void> {
     const sequence = ++loadSequence
+    // 切换开始时立即把 currentDoc 置空（界面不再显示上一个视频的刻度）
+    currentDoc.value = null
+    loadFailed = false
+
     if (!code) {
-      currentDoc.value = null
       loading.value = false
+      currentLoadPromise = null
       return
     }
 
     loading.value = true
-    try {
-      const doc = await markerStore.getDoc(code)
-      if (sequence !== loadSequence) {
-        return
+    const p = (async () => {
+      try {
+        const doc = await markerStore.getDoc(code)
+        if (sequence !== loadSequence) {
+          return
+        }
+        currentDoc.value = doc
+        loadFailed = false
       }
-      currentDoc.value = doc
-    }
-    catch (error) {
-      if (sequence !== loadSequence) {
-        return
+      catch (error) {
+        if (sequence !== loadSequence) {
+          return
+        }
+        currentDoc.value = null
+        loadFailed = true
+        logger.error('加载打点文档失败', error)
       }
-      currentDoc.value = null
-      logger.error('加载打点文档失败', error)
+      finally {
+        if (sequence === loadSequence) {
+          loading.value = false
+        }
+      }
+    })()
+
+    currentLoadPromise = p
+    await p
+  }
+
+  /**
+   * 确保当前视频打点加载完成
+   * 若初始处于加载失败状态，重试一次 getDoc，仍失败则抛错放弃操作
+   */
+  async function ensureLoaded(initialCode: string): Promise<boolean> {
+    if (currentLoadPromise) {
+      try {
+        await currentLoadPromise
+      }
+      catch {
+        // 异常已在 loadDoc 中捕获并记录状态
+      }
     }
-    finally {
-      if (sequence === loadSequence) {
+
+    /** await 之后再次核对当前活跃提取码 */
+    const activeCode = toValue(pickCode)
+    if (activeCode !== initialCode) {
+      return false
+    }
+
+    // getDoc 失败状态：重试一次，仍失败则放弃本次操作并抛错
+    if (loadFailed) {
+      try {
+        loading.value = true
+        const doc = await markerStore.getDoc(initialCode)
+        const currentActive = toValue(pickCode)
+        if (currentActive !== initialCode) {
+          return false
+        }
+        currentDoc.value = doc
+        loadFailed = false
+      }
+      catch (err) {
+        logger.error('重试加载打点文档失败', err)
+        try {
+          useToast().error('读取打点数据失败，无法保存')
+        }
+        catch {
+          // Toast 降级
+        }
+        throw err
+      }
+      finally {
         loading.value = false
       }
     }
+
+    return true
   }
 
   /** 持久化保存打点文档 */
@@ -130,6 +199,7 @@ export function useDataMarkers(
       return
     }
 
+    const previousDoc = currentDoc.value
     const pruned = pruneTombstones(doc, Date.now())
     currentDoc.value = pruned
 
@@ -137,6 +207,8 @@ export function useDataMarkers(
       await markerStore.saveDoc(pruned)
     }
     catch (error) {
+      // 保存失败时回滚恢复为保存前的文档
+      currentDoc.value = previousDoc
       logger.error('保存打点文档失败', error)
       try {
         useToast().error(error instanceof Error ? error.message : '保存打点失败')
@@ -155,6 +227,11 @@ export function useDataMarkers(
       return
     }
 
+    const ok = await ensureLoaded(code)
+    if (!ok) {
+      return
+    }
+
     const now = Date.now()
     let doc = currentDoc.value
     if (!doc || doc.pickCode !== code) {
@@ -168,24 +245,40 @@ export function useDataMarkers(
   /** 更新打点 */
   async function update(id: string, patch: UpdateMarkerPatch): Promise<void> {
     const code = toValue(pickCode)
-    if (!code || !currentDoc.value || currentDoc.value.pickCode !== code) {
+    if (!code) {
+      return
+    }
+
+    const ok = await ensureLoaded(code)
+    if (!ok || !currentDoc.value || currentDoc.value.pickCode !== code) {
       return
     }
 
     const now = Date.now()
     const updated = updateMarker(currentDoc.value, id, patch, now)
+    if (updated === currentDoc.value) {
+      return
+    }
     await saveDoc(updated)
   }
 
   /** 删除打点（写入墓碑） */
   async function remove(id: string): Promise<void> {
     const code = toValue(pickCode)
-    if (!code || !currentDoc.value || currentDoc.value.pickCode !== code) {
+    if (!code) {
+      return
+    }
+
+    const ok = await ensureLoaded(code)
+    if (!ok || !currentDoc.value || currentDoc.value.pickCode !== code) {
       return
     }
 
     const now = Date.now()
     const updated = removeMarker(currentDoc.value, id, now)
+    if (updated === currentDoc.value) {
+      return
+    }
     await saveDoc(updated)
   }
 

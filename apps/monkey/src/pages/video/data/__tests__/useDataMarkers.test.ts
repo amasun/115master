@@ -28,7 +28,9 @@ describe('useDataMarkers', () => {
   let scope: ReturnType<typeof effectScope>
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockGetDoc.mockReset()
+    mockSaveDoc.mockReset()
+    mockToastError.mockReset()
     scope = effectScope()
   })
 
@@ -280,5 +282,163 @@ describe('useDataMarkers', () => {
 
     // 不应调用 saveDoc 保存到新视频
     expect(mockSaveDoc).not.toHaveBeenCalled()
+  })
+
+  it('切换开始后 markers 立即清空', async () => {
+    const doc1: MarkerDoc = {
+      v: 1,
+      pickCode: 'video-1',
+      updatedAt: 1000,
+      markers: [{ id: 'm1', time: 10, label: '点1', createdAt: 1000, updatedAt: 1000 }],
+    }
+    let resolveSecond!: (val: MarkerDoc | null) => void
+    const secondPromise = new Promise<MarkerDoc | null>((resolve) => {
+      resolveSecond = resolve
+    })
+
+    mockGetDoc.mockImplementation((code: string) => {
+      if (code === 'video-1') {
+        return Promise.resolve(doc1)
+      }
+      return secondPromise
+    })
+
+    const pickCode = ref('video-1')
+    let hook!: ReturnType<typeof useDataMarkers>
+    scope.run(() => {
+      hook = useDataMarkers(pickCode)
+    })
+
+    await vi.waitFor(() => {
+      expect(hook.markers.value.length).toBe(1)
+    })
+
+    // 切换到新视频
+    pickCode.value = 'video-2'
+    await nextTick()
+
+    // 切换开始后 markers 立即为空，不显示上一个视频的刻度
+    expect(hook.markers.value.length).toBe(0)
+    expect(hook.currentDoc.value).toBeNull()
+
+    resolveSecond(null)
+  })
+
+  it('加载未完成时调用 add，等待加载完成后合并保存，最终存储里同时包含已存打点和新增打点', async () => {
+    let resolveDoc!: (val: MarkerDoc | null) => void
+    const delayedPromise = new Promise<MarkerDoc | null>((resolve) => {
+      resolveDoc = resolve
+    })
+    mockGetDoc.mockReturnValueOnce(delayedPromise)
+    mockSaveDoc.mockResolvedValue(undefined)
+
+    const pickCode = ref('video-async')
+    let hook!: ReturnType<typeof useDataMarkers>
+    scope.run(() => {
+      hook = useDataMarkers(pickCode)
+    })
+
+    /** 在加载未完成时触发 add */
+    const addPromise = hook.add(50, '未完成时打点')
+
+    /** 存储原本已有一个打点 */
+    const existingDoc: MarkerDoc = {
+      v: 1,
+      pickCode: 'video-async',
+      updatedAt: 1000,
+      markers: [
+        { id: 'm-exist', time: 10, label: '原有打点', createdAt: 1000, updatedAt: 1000 },
+      ],
+    }
+    resolveDoc(existingDoc)
+
+    await addPromise
+
+    expect(mockSaveDoc).toHaveBeenCalledTimes(1)
+    const saved = mockSaveDoc.mock.calls[0][0] as MarkerDoc
+    expect(saved.pickCode).toBe('video-async')
+    expect(saved.markers.some(m => m.id === 'm-exist')).toBe(true)
+    expect(saved.markers.some(m => m.time === 50 && m.label === '未完成时打点')).toBe(true)
+  })
+
+  it('getDoc 失败后 add 不得新建空文档覆盖已有数据', async () => {
+    mockGetDoc.mockRejectedValue(new Error('Network offline'))
+
+    const pickCode = ref('video-fail')
+    let hook!: ReturnType<typeof useDataMarkers>
+    scope.run(() => {
+      hook = useDataMarkers(pickCode)
+    })
+
+    await vi.waitFor(() => {
+      expect(hook.loading.value).toBe(false)
+    })
+
+    // 发生错误时 add 会重试，若重试仍失败则抛错放弃，绝不能调用 saveDoc 写入空覆盖
+    await expect(hook.add(10, '尝试打点')).rejects.toThrow('Network offline')
+    expect(mockSaveDoc).not.toHaveBeenCalled()
+  })
+
+  it('保存失败时回滚恢复为保存前的文档', async () => {
+    const initialDoc: MarkerDoc = {
+      v: 1,
+      pickCode: 'video-rollback',
+      updatedAt: 1000,
+      markers: [
+        { id: 'm-keep', time: 10, label: '原有点', createdAt: 1000, updatedAt: 1000 },
+      ],
+    }
+    mockGetDoc.mockResolvedValueOnce(initialDoc)
+    mockSaveDoc.mockRejectedValueOnce(new Error('Quota exceeded'))
+
+    const pickCode = ref('video-rollback')
+    let hook!: ReturnType<typeof useDataMarkers>
+    scope.run(() => {
+      hook = useDataMarkers(pickCode)
+    })
+
+    await vi.waitFor(() => {
+      expect(hook.markers.value.length).toBe(1)
+    })
+
+    // 保存失败
+    await expect(hook.add(99, '失败点')).rejects.toThrow('Quota exceeded')
+
+    // 界面回滚为保存前的文档状态，不残留未保存成功的打点
+    expect(hook.markers.value.length).toBe(1)
+    expect(hook.markers.value[0].id).toBe('m-keep')
+  })
+
+  it('extractMeta 关联的文件信息属于另一个 pickCode 时不写入元数据', async () => {
+    mockGetDoc.mockResolvedValueOnce(null)
+    mockSaveDoc.mockResolvedValue(undefined)
+
+    const pickCode = ref('video-target')
+    const staleFileInfo = {
+      state: {
+        pick_code: 'video-stale-other',
+        file_id: 'fid-stale',
+        file_name: 'stale.mp4',
+        play_long: '1200',
+      },
+    }
+
+    let hook!: ReturnType<typeof useDataMarkers>
+    scope.run(() => {
+      hook = useDataMarkers(pickCode, staleFileInfo)
+    })
+
+    await vi.waitFor(() => {
+      expect(hook.loading.value).toBe(false)
+    })
+
+    await hook.add(10, '首个打点')
+
+    expect(mockSaveDoc).toHaveBeenCalledTimes(1)
+    const saved = mockSaveDoc.mock.calls[0][0] as MarkerDoc
+    expect(saved.pickCode).toBe('video-target')
+    // 属于另一个 pickCode 的元数据不应写入
+    expect(saved.fileId).toBeUndefined()
+    expect(saved.fileName).toBeUndefined()
   })
 })

@@ -21,6 +21,7 @@ export type {
   Marker,
   MarkerDoc,
   MarkerExportData,
+  MarkerPoint,
   MarkerSegment,
   SegmentAction,
   UpdateMarkerPatch,

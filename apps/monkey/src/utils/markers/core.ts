@@ -4,6 +4,7 @@ import type {
   Marker,
   MarkerDoc,
   MarkerExportData,
+  MarkerPoint,
   MarkerSegment,
   SegmentAction,
   UpdateMarkerPatch,
@@ -189,11 +190,11 @@ export function visibleMarkers(doc: MarkerDoc): Marker[] {
  * @param currentTime 当前播放时间（秒）
  * @param tolerance 容差时间（秒，默认 2）
  */
-export function findPrevMarker(
-  markers: Marker[],
+export function findPrevMarker<T extends MarkerPoint = Marker>(
+  markers: T[],
   currentTime: number,
   tolerance: number = 2,
-): Marker | null {
+): T | null {
   const list = markers
     .filter(m => !m.deleted)
     .sort((a, b) => a.time - b.time)
@@ -222,16 +223,16 @@ export function findPrevMarker(
  * @param markers 打点列表
  * @param currentTime 当前播放时间（秒）
  */
-export function findNextMarker(
-  markers: Marker[],
+export function findNextMarker<T extends MarkerPoint = Marker>(
+  markers: T[],
   currentTime: number,
-): Marker | null {
+): T | null {
   const list = markers
     .filter(m => !m.deleted && m.time > currentTime)
     .sort((a, b) => {
       if (a.time !== b.time)
         return a.time - b.time
-      if (a.createdAt !== b.createdAt)
+      if (a.createdAt !== undefined && b.createdAt !== undefined && a.createdAt !== b.createdAt)
         return a.createdAt - b.createdAt
       return a.id.localeCompare(b.id)
     })
