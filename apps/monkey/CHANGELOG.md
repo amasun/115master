@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.0.0
+
+### Minor Changes
+
+- [`b86dd93`](https://github.com/amasun/115master/commit/b86dd936d8568af0ff914dd1a18475f9db6fed66) Thanks [@amasun](https://github.com/amasun)! - feat(monkey/actress): fuzzy match actress avatars by name contained in the title, ignoring Simplified/Traditional/Japanese kanji differences
+
 ## 2.0.0-beta.1
 
 ### Minor Changes
