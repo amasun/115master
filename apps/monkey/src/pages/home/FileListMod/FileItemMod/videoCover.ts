@@ -4,6 +4,7 @@ import ExtVideoCover from '@/pages/home/components/ExtVideoCover/index.vue'
 import { FileListType, IvType } from '@/pages/home/types'
 import mainStyles from '@/styles/main.css?inline'
 import { appLogger } from '@/utils/logger'
+import { detectHostTheme } from '@/utils/theme'
 import { userSettings } from '@/utils/userSettings'
 import { FileItemModBase } from './base'
 
@@ -48,11 +49,10 @@ export class FileItemModVideoCover extends FileItemModBase {
     styleElement.textContent = mainStyles
     shadowRoot.appendChild(styleElement)
 
-    /** 在 shadow DOM 中创建挂载点，data-theme 跟随应用当前主题 */
+    /** 在 shadow DOM 中创建挂载点，data-theme 跟随应用主题或官方页面明暗 */
     const root = document.createElement('div')
     root.className = 'ext-video-cover-root'
-    const appRoot = document.getElementById('my-app')
-    root.setAttribute('data-theme', appRoot?.getAttribute('data-theme') || 'dark')
+    root.setAttribute('data-theme', detectHostTheme())
     shadowRoot.appendChild(root)
 
     /** 创建并挂载 Vue 应用 */

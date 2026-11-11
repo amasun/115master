@@ -5,6 +5,7 @@ import ExtInfo from '@/pages/home/components/ExtInfo/index.vue'
 import { FileListType, FileType, IvType } from '@/pages/home/types'
 import mainStyles from '@/styles/main.css?inline'
 import { appLogger } from '@/utils/logger'
+import { detectHostTheme } from '@/utils/theme'
 import { FileItemModBase } from './base'
 
 /** 番号资料增强共用日志。 */
@@ -56,11 +57,10 @@ export class FileItemModExtInfo extends FileItemModBase {
     styleElement.textContent = mainStyles
     shadowRoot.appendChild(styleElement)
 
-    /** 在 shadow DOM 中创建挂载点，data-theme 跟随应用当前主题 */
+    /** 在 shadow DOM 中创建挂载点，data-theme 跟随应用主题或官方页面明暗 */
     const extInfoDom = document.createElement('div')
     extInfoDom.className = 'ext-info-root'
-    const appRoot = document.getElementById('my-app')
-    extInfoDom.setAttribute('data-theme', appRoot?.getAttribute('data-theme') || 'dark')
+    extInfoDom.setAttribute('data-theme', detectHostTheme())
     shadowRoot.appendChild(extInfoDom)
 
     /** 创建并挂载 Vue 应用 */

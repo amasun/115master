@@ -63,3 +63,25 @@ export function initTheme() {
     syncResolvedTheme()
   })
 }
+
+/**
+ * 获取嵌入官方页面的组件应使用的主题
+ * @description MASTER 独立页跟随应用主题；官方页面没有应用根节点，按页面背景明暗判断
+ */
+export function detectHostTheme(): ResolvedTheme {
+  const appTheme = document.getElementById(APP_ROOT_ID)?.getAttribute('data-theme')
+  if (appTheme === 'light' || appTheme === 'dark')
+    return appTheme
+
+  for (const node of [document.body, document.documentElement]) {
+    if (!node)
+      continue
+    const channels = getComputedStyle(node).backgroundColor.match(/[\d.]+/g)?.map(Number)
+    if (!channels || channels.length < 3 || channels[3] === 0)
+      continue
+    const [r, g, b] = channels
+    return (r * 299 + g * 587 + b * 114) / 1000 < 128 ? 'dark' : 'light'
+  }
+  // 背景透明时浏览器默认白底
+  return 'light'
+}
