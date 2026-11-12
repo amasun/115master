@@ -1,5 +1,5 @@
 import { image as imageUtil } from '@115master/utils'
-import { FileListType } from '@/pages/home/types'
+import { FileListType, FileType } from '@/pages/home/types'
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { imageCache } from '@/utils/cache'
 import { appLogger } from '@/utils/logger'
@@ -15,15 +15,22 @@ export class FileItemModActressInfo extends FileItemModBase {
   readonly SETTING_KEYS = ['enableActressFaces'] as const
   private actressDom: HTMLImageElement | null = null
   private actressContainer: HTMLElement | null = null
+  private nativeIconNode: HTMLElement | null = null
+  private nativeIconDisplay: string | null = null
   private loadId = 0
   private objectUrl: string | null = null
 
   async onLoad() {
     const loadId = ++this.loadId
-    logger.info('开始加载旧版页面演员头像')
+    logger.info('开始加载页面演员头像')
 
     // 如果文件列表类型为网格，则不加载演员信息
     if (this.itemInfo.fileListType === FileListType.grid) {
+      return
+    }
+
+    // 仅文件夹才加载演员头像，普通文件/视频文件一律不显示头像
+    if (this.itemInfo.attributes.file_type !== FileType.folder) {
       return
     }
 
@@ -32,7 +39,7 @@ export class FileItemModActressInfo extends FileItemModBase {
       this.itemInfo.attributes.title.trim(),
     )
     if (!actress || loadId !== this.loadId) {
-      logger.info('旧版页面演员头像加载完成，无匹配头像')
+      logger.info('页面演员头像加载完成，无匹配头像')
       return
     }
 
@@ -43,13 +50,14 @@ export class FileItemModActressInfo extends FileItemModBase {
     actressDom.setAttribute('data-115master-actress', '')
     /*
      * ================================================================================
-     * 步骤1：按页面形态约束演员头像
+     * 步骤1：按页面形态约束演员头像并替代原生文件夹图标
      * ================================================================================
-     * 目标：新旧页面统一复现旧版头像外观和文件名旁挂载位置。
+     * 目标：隐藏原生文件夹图标，将演员头像放入原生图标位置，同时视频文件不显示头像。
      * 数据源：文件项所属页面形态。
      * 操作：
-     * 1) 固定为旧版 50×50 圆形头像
-     * 2) 新版列表把头像插到原生文件名前，详情面板仍使用独立容器
+     * 1) 固定为 50×50 圆形头像
+     * 2) 旧版隐藏 .file-thumb/.file-type 并前置插入头像代替原生图标
+     * 3) 新版列表隐藏原生图标并在文件名节点前插入头像代替原生图标
      */
     logger.info('开始设置演员头像显示模式')
 
@@ -69,33 +77,60 @@ export class FileItemModActressInfo extends FileItemModBase {
     actressDom.style.borderRadius = '50%'
     actressDom.style.objectFit = 'cover'
     logger.info('演员头像显示模式设置完成', isOfficialSurface ? 'official' : 'legacy')
-    const inlineName = isOfficialSurface && this.itemInfo.presentation !== 'panel'
-      ? this.itemInfo.interactionNode
-        ?.querySelector<HTMLElement>('.file-name-responsive') ?? null
-      : null
-    const nameContainer = this.itemInfo.surface === 'official'
-      ? this.itemInfo.presentation === 'panel'
-        ? this.itemNode.closest('[data-115master-grid-panel]')
+
+    if (isOfficialSurface) {
+      if (this.itemInfo.presentation === 'panel') {
+        const panelHeader = this.itemNode.closest('[data-115master-grid-panel]')
           ?.querySelector<HTMLElement>('[data-115master-grid-panel-header]')
           ?? this.itemNode
-        : inlineName?.parentElement ?? this.itemNode
-      : this.itemNode.querySelector<HTMLElement>('.file-name-wrap')
-        ?? this.itemNode.querySelector('.file-name-responsive')?.parentElement
-    const styleContainer = this.itemInfo.surface === 'official'
-      ? nameContainer
-      : this.itemNode
-    styleContainer?.classList.add('with-actress-info')
-    if (inlineName) {
-      // 1.3 新版头像紧邻文件名，并在附加区保留重绘自检标记。
-      nameContainer?.setAttribute('data-115master-actress-host', '')
-      this.itemNode.setAttribute('data-115master-actress-inline', '')
-      inlineName.before(actressDom)
+        panelHeader.prepend(actressDom)
+        panelHeader.classList.add('with-actress-info')
+        panelHeader.setAttribute('data-115master-actress-host', '')
+        this.actressContainer = panelHeader
+      }
+      else {
+        const inlineName = this.itemInfo.interactionNode
+          ?.querySelector<HTMLElement>('.file-name-responsive') ?? null
+        const nameContainer = inlineName?.parentElement ?? this.itemNode
+
+        /** 代替原生文件夹图标：若 inlineName 前面有原生图标节点，则将其隐藏 */
+        const nativeIcon = (inlineName?.previousElementSibling ?? null) as HTMLElement | null
+        if (nativeIcon && nativeIcon !== actressDom) {
+          this.nativeIconNode = nativeIcon
+          this.nativeIconDisplay = nativeIcon.style.display
+          nativeIcon.style.display = 'none'
+        }
+
+        nameContainer.setAttribute('data-115master-actress-host', '')
+        nameContainer.classList.add('with-actress-info')
+        this.itemNode.setAttribute('data-115master-actress-inline', '')
+        if (inlineName) {
+          inlineName.before(actressDom)
+        }
+        else {
+          nameContainer.prepend(actressDom)
+        }
+        this.actressContainer = nameContainer
+      }
     }
     else {
-      nameContainer?.prepend(actressDom)
+      /** 旧版 115 页面：代替原生文件夹图标（.file-thumb 或 .file-type） */
+      const thumbNode = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
+      if (thumbNode) {
+        this.nativeIconNode = thumbNode
+        this.nativeIconDisplay = thumbNode.style.display
+        thumbNode.style.display = 'none'
+        thumbNode.before(actressDom)
+      }
+      else {
+        const nameContainer = this.itemNode.querySelector<HTMLElement>('.file-name-wrap') ?? this.itemNode
+        nameContainer.prepend(actressDom)
+      }
+      this.itemNode.classList.add('with-actress-info')
+      this.actressContainer = this.itemNode
     }
+
     this.actressDom = actressDom
-    this.actressContainer = styleContainer ?? null
 
     try {
       /** 尝试从缓存获取图片 */
@@ -140,10 +175,20 @@ export class FileItemModActressInfo extends FileItemModBase {
   }
 
   onDestroy() {
-    logger.info('开始卸载旧版页面演员头像')
+    logger.info('开始卸载页面演员头像')
     this.loadId += 1
     this.actressDom?.remove()
     this.actressDom = null
+    if (this.nativeIconNode) {
+      if (this.nativeIconDisplay !== null && this.nativeIconDisplay !== '') {
+        this.nativeIconNode.style.display = this.nativeIconDisplay
+      }
+      else {
+        this.nativeIconNode.style.removeProperty('display')
+      }
+      this.nativeIconNode = null
+      this.nativeIconDisplay = null
+    }
     this.actressContainer?.classList.remove('with-actress-info')
     this.actressContainer?.removeAttribute('data-115master-actress-host')
     this.actressContainer = null
@@ -151,6 +196,6 @@ export class FileItemModActressInfo extends FileItemModBase {
     if (this.objectUrl)
       URL.revokeObjectURL(this.objectUrl)
     this.objectUrl = null
-    logger.info('旧版页面演员头像卸载完成')
+    logger.info('页面演员头像卸载完成')
   }
 }

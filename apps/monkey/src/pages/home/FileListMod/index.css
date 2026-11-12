@@ -14,11 +14,24 @@
 }
 
 .list-contents li.with-actress-info {
+  display: flex;
+  align-items: center;
   height: auto !important;
   .file-type {
     top: 50%;
     transform: translateY(-50%);
     transition: none;
+  }
+  .actress-info-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    border: 3px solid #f1f1f1;
+    box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.1);
+    background-color: #f1f1f1;
+    flex-shrink: 0;
   }
   .file-name-wrap {
     display: flex;
@@ -26,18 +39,6 @@
     flex-direction: row;
     justify-content: flex-start;
     height: auto !important;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    .actress-info-img {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin-right: 12px;
-      border: 3px solid #f1f1f1;
-      box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.1);
-      background-color: #f1f1f1;
-    }
   }
 }
 
