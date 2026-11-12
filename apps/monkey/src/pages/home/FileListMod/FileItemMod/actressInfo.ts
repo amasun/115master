@@ -8,6 +8,29 @@ import { FileItemModBase } from './base'
 /** 演员头像增强共用日志。 */
 const logger = appLogger.sub('FileItemModActressInfo')
 
+/** 提取文件夹名称中可能匹配演员的候选词（支持带修饰词/标签的文件夹） */
+export function extractActressCandidates(raw: string): string[] {
+  const list: string[] = []
+  const trimmed = raw.trim()
+  if (trimmed)
+    list.push(trimmed)
+
+  /** 去除常见方括号、圆括号标签 [xxx], 【xxx】, (xxx) 等 */
+  const cleaned = trimmed
+    .replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)|（[^）]*）/g, '')
+    .replace(/1080p|720p|4k|fhd|合集|精选|中文|字幕|无码|破解/gi, '')
+    .trim()
+  if (cleaned && !list.includes(cleaned))
+    list.push(cleaned)
+
+  /** 提取连续 2-6 位汉字/片假名/平假名 */
+  const match = cleaned.match(/[\u4E00-\u9FA5\u3040-\u309F\u30A0-\u30FF]{2,6}/)
+  if (match && !list.includes(match[0]))
+    list.push(match[0])
+
+  return list
+}
+
 /**
  * FileItemMod 演员信息
  */
@@ -35,9 +58,14 @@ export class FileItemModActressInfo extends FileItemModBase {
     }
 
     await actressFaceDB.init()
-    const actress = await actressFaceDB.findActress(
-      this.itemInfo.attributes.title.trim(),
-    )
+    const candidates = extractActressCandidates(this.itemInfo.attributes.title)
+    let actress: Awaited<ReturnType<typeof actressFaceDB.findActress>>
+    for (const name of candidates) {
+      actress = await actressFaceDB.findActress(name, 'name')
+      if (actress)
+        break
+    }
+
     if (!actress || loadId !== this.loadId) {
       logger.info('页面演员头像加载完成，无匹配头像')
       return
@@ -55,18 +83,15 @@ export class FileItemModActressInfo extends FileItemModBase {
      * 目标：隐藏原生文件夹图标，将演员头像放入原生图标位置，同时视频文件不显示头像。
      * 数据源：文件项所属页面形态。
      * 操作：
-     * 1) 固定为 50×50 圆形头像
-     * 2) 旧版隐藏 .file-thumb/.file-type 并前置插入头像代替原生图标
-     * 3) 新版列表隐藏原生图标并在文件名节点前插入头像代替原生图标
+     * 1) 约束为精致圆形头像，与原生列表行高对齐
+     * 2) 精准隐藏原生文件夹图标节点
+     * 3) 在原生图标位置前置插入头像代替原生图标
      */
     logger.info('开始设置演员头像显示模式')
 
-    // eslint-disable-next-line jsdoc/convert-to-jsdoc-comments -- 项目步骤注释使用编号行注释。
-    // 1.1 识别新版 115 原生文件列表附加区。
     const isOfficialSurface = this.itemInfo.surface === 'official'
     const avatarSize = 50
 
-    // 1.2 写入与页面形态对应的固定尺寸和缩放方式。
     actressDom.style.width = `${avatarSize}px`
     actressDom.style.height = `${avatarSize}px`
     actressDom.style.minWidth = `${avatarSize}px`
@@ -76,6 +101,9 @@ export class FileItemModActressInfo extends FileItemModBase {
     actressDom.style.flex = `0 0 ${avatarSize}px`
     actressDom.style.borderRadius = '50%'
     actressDom.style.objectFit = 'cover'
+    actressDom.style.marginRight = '8px'
+    actressDom.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.12)'
+    actressDom.style.border = '2px solid rgba(255, 255, 255, 0.8)'
     logger.info('演员头像显示模式设置完成', isOfficialSurface ? 'official' : 'legacy')
 
     if (isOfficialSurface) {
@@ -89,27 +117,48 @@ export class FileItemModActressInfo extends FileItemModBase {
         this.actressContainer = panelHeader
       }
       else {
-        const inlineName = this.itemInfo.interactionNode
-          ?.querySelector<HTMLElement>('.file-name-responsive') ?? null
+        const interactionRoot = this.itemInfo.interactionNode ?? this.itemNode
+        const inlineName = interactionRoot.querySelector<HTMLElement>('.file-name-responsive') ?? null
         const nameContainer = inlineName?.parentElement ?? this.itemNode
 
-        /** 代替原生文件夹图标：若 inlineName 前面有原生图标节点，则将其隐藏 */
-        const nativeIcon = (inlineName?.previousElementSibling ?? null) as HTMLElement | null
+        /** 代替原生文件夹图标：定位 inlineName 之前或父级之前的原生图标节点 */
+        let nativeIcon: HTMLElement | null = null
+        if (inlineName?.previousElementSibling) {
+          const prev = inlineName.previousElementSibling as HTMLElement
+          if (prev !== actressDom && !prev.hasAttribute('data-115master-actress')) {
+            nativeIcon = prev
+          }
+        }
+        if (!nativeIcon && nameContainer !== interactionRoot && nameContainer.previousElementSibling) {
+          const prev = nameContainer.previousElementSibling as HTMLElement
+          if (prev !== actressDom && !prev.hasAttribute('data-115master-actress')) {
+            nativeIcon = prev
+          }
+        }
+        if (!nativeIcon) {
+          const icons = Array.from(interactionRoot.querySelectorAll<HTMLElement>(
+            '.file-thumb, .file-type, svg, img, [class*="icon"]',
+          ))
+          nativeIcon = icons.find(n => !n.closest('input, [role="checkbox"], [data-115master-row-addon]')
+            && !n.hasAttribute('data-115master-actress')) ?? null
+        }
+
         if (nativeIcon && nativeIcon !== actressDom) {
           this.nativeIconNode = nativeIcon
           this.nativeIconDisplay = nativeIcon.style.display
           nativeIcon.style.display = 'none'
+          nativeIcon.before(actressDom)
         }
-
-        nameContainer.setAttribute('data-115master-actress-host', '')
-        nameContainer.classList.add('with-actress-info')
-        this.itemNode.setAttribute('data-115master-actress-inline', '')
-        if (inlineName) {
+        else if (inlineName) {
           inlineName.before(actressDom)
         }
         else {
           nameContainer.prepend(actressDom)
         }
+
+        nameContainer.setAttribute('data-115master-actress-host', '')
+        nameContainer.classList.add('with-actress-info')
+        this.itemNode.setAttribute('data-115master-actress-inline', '')
         this.actressContainer = nameContainer
       }
     }

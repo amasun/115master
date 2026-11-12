@@ -67,8 +67,19 @@ const MobileSider = defineComponent({
             ]}
           >
             {slots.default?.()}
-            <div class="mt-auto flex flex-col gap-4">
+            <div class="mt-auto flex flex-col gap-2">
               {slots.left?.()}
+              <Button
+                variant="ghost"
+                class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                onClick={() => {
+                  window.location.href = '/?mode=wangpan'
+                }}
+                title="返回 115 原生网盘界面"
+              >
+                <Icon class="text-lg" name={I.LEFT} />
+                <span>返回原生 115</span>
+              </Button>
               <SiderMenuButton beforeOpen={prepare} />
             </div>
           </div>
