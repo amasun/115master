@@ -40,6 +40,9 @@ export class FileItemModActressInfo extends FileItemModBase {
   private actressContainer: HTMLElement | null = null
   private nativeIconNode: HTMLElement | null = null
   private nativeIconDisplay: string | null = null
+  /** 旧版页面为头像腾位置时改过内边距的节点及其原值 */
+  private paddedNode: HTMLElement | null = null
+  private paddedValue = ''
   private loadId = 0
   private objectUrl: string | null = null
 
@@ -101,7 +104,6 @@ export class FileItemModActressInfo extends FileItemModBase {
     actressDom.style.flex = `0 0 ${avatarSize}px`
     actressDom.style.borderRadius = '50%'
     actressDom.style.objectFit = 'cover'
-    actressDom.style.margin = '0 auto'
     actressDom.style.display = 'block'
     actressDom.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.12)'
     actressDom.style.border = '2px solid rgba(255, 255, 255, 0.8)'
@@ -172,6 +174,7 @@ export class FileItemModActressInfo extends FileItemModBase {
             nativeIcon.style.display = 'flex'
             nativeIcon.style.alignItems = 'center'
             nativeIcon.style.justifyContent = 'center'
+            actressDom.style.margin = '0 auto'
             nativeIcon.append(actressDom)
             this.actressContainer = nativeIcon
           }
@@ -200,11 +203,26 @@ export class FileItemModActressInfo extends FileItemModBase {
       /** 旧版 115 页面：代替原生文件夹图标（.file-thumb 或 .file-type）占用其原来显示位置 */
       const thumbNode = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
       if (thumbNode) {
+        /**
+         * 旧版列表的文件夹图标是绝对定位的，文件名靠左内边距给它留位置。
+         * 头像必须同样绝对定位到图标原来的位置；如果按普通流插入，
+         * 头像会排在留白之后，文件名再被头像顶开，两者都向右偏。
+         */
+        const absolute = getComputedStyle(thumbNode).position === 'absolute'
+        const left = thumbNode.offsetLeft
         this.nativeIconNode = thumbNode
         this.nativeIconDisplay = thumbNode.style.display
         thumbNode.style.display = 'none'
         thumbNode.before(actressDom)
         this.actressContainer = thumbNode.parentElement ?? this.itemNode
+        if (absolute) {
+          actressDom.style.position = 'absolute'
+          actressDom.style.left = `${left}px`
+          actressDom.style.top = '50%'
+          actressDom.style.transform = 'translateY(-50%)'
+          actressDom.style.margin = '0'
+          this.reserve(actressDom)
+        }
       }
       else {
         const nameContainer = this.itemNode.querySelector<HTMLElement>('.file-name-wrap') ?? this.itemNode
@@ -278,6 +296,11 @@ export class FileItemModActressInfo extends FileItemModBase {
       this.nativeIconNode = null
       this.nativeIconDisplay = null
     }
+    if (this.paddedNode) {
+      this.paddedNode.style.paddingLeft = this.paddedValue
+      this.paddedNode = null
+      this.paddedValue = ''
+    }
     this.actressContainer?.classList.remove('with-actress-info')
     this.actressContainer?.removeAttribute('data-115master-actress-host')
     this.actressContainer = null
@@ -286,5 +309,18 @@ export class FileItemModActressInfo extends FileItemModBase {
       URL.revokeObjectURL(this.objectUrl)
     this.objectUrl = null
     logger.info('页面演员头像卸载完成')
+  }
+
+  /** 头像比原图标宽时，加大文件名所在节点的左内边距，避免头像盖住文件名 */
+  private reserve(avatar: HTMLElement) {
+    const name = this.itemNode.querySelector<HTMLElement>('.file-name-wrap, .file-name')
+    if (!name)
+      return
+    const overlap = avatar.getBoundingClientRect().right + 12 - name.getBoundingClientRect().left
+    if (overlap <= 0)
+      return
+    this.paddedNode = name
+    this.paddedValue = name.style.paddingLeft
+    name.style.paddingLeft = `${Number.parseFloat(getComputedStyle(name).paddingLeft) + overlap}px`
   }
 }

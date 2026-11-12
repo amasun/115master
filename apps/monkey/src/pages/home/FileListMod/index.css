@@ -17,6 +17,7 @@
   display: flex;
   align-items: center;
   height: auto !important;
+  min-height: 58px;
   .file-type {
     top: 50%;
     transform: translateY(-50%);
