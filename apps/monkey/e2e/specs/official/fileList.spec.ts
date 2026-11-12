@@ -1493,14 +1493,21 @@ test.describe('新版 115 原生文件列表适配', () => {
     })
   })
 
-  test('新版演员头像紧邻原生文件名并在重绘后恢复', async ({ page }) => {
+  test('新版演员头像仅在文件夹展示并替代原生图标且在重绘后恢复', async ({ page }) => {
     const errors = watch(page)
+    const folderItem = {
+      ...folder('actress-folder-1', '三上悠亚', '0'),
+      cid: 'actress-folder-1',
+    }
+    const testItems = [folderItem, ...items]
+
     await setupHarness(page, {
       mocks: (api) => {
         api.override(/^https:\/\/fastly\.jsdelivr\.net\/gh\/gfriends\/gfriends[^/]*\/Filetree\.json/, ({ route }) =>
           json(route, {
             Content: {
               faces: {
+                '三上悠亚.jpg': '三上悠亚.jpg?t=1',
                 'SORA-636.mp4.jpg': 'SORA-636.mp4.jpg?t=1',
               },
             },
@@ -1511,14 +1518,14 @@ test.describe('新版 115 原生文件列表适配', () => {
           await route.fulfill({
             contentType: 'text/html; charset=utf-8',
             headers: { ...CORS, 'origin-agent-cluster': '?0' },
-            body: storageHtml(items),
+            body: storageHtml(testItems),
           })
           return true
         })
         api.override(FILES_RE, ({ route }) => json(route, filesRes({
           cid: '0',
           name: '根目录',
-          items,
+          items: testItems,
         }, 0, 1150)))
         api.override(/^https:\/\/(www\.javbus\.com|www\.javlibrary\.com|javdb\.com|missav\.ws)\//, ({ route }) => {
           return json(route, { state: false }, 404)
@@ -1529,37 +1536,34 @@ test.describe('新版 115 原生文件列表适配', () => {
 
     /**
      * ================================================================================
-     * 步骤1：验证新版演员头像行内挂载
+     * 步骤1：验证新版演员头像行内挂载与视频文件无头像门禁
      * ================================================================================
-     * 目标：复现旧版演员头像位置，同时保留独立 Fusion 附加区。
-     * 数据源：本地头像数据库响应、新版文件名节点和 Fusion 附加区。
-     * 操作：
-     * 1) 等待 SORA 头像索引完成
-     * 2) 核对头像紧邻文件名且不进入附加区
-     * 3) 模拟 React 删除头像并核对自动恢复
+     * 目标：视频文件名前面不加头像；文件夹如果匹配到演员，则在文件夹名称前挂载头像并代替原生图标。
      */
-    const row = page.locator('.file-list-item[data-file-id="official-file-1"]')
-    const sora = page.locator('[data-115master-row-addon][data-115master-name="SORA-636.mp4"]')
-    const avatar = row.locator('[data-115master-actress]')
+    /** 1. 验证视频文件不展示头像 */
+    const videoRow = page.locator('.file-list-item[data-file-id="official-file-1"]')
+    await expect(videoRow.locator('[data-115master-actress]')).toHaveCount(0)
+
+    /** 2. 验证文件夹挂载头像并代替原生图标 */
+    const folderRow = page.locator('.file-list-item[data-file-id="actress-folder-1"]')
+    const avatar = folderRow.locator('[data-115master-actress]')
     await expect(avatar).toHaveCount(1)
-    await expect(avatar).toHaveAttribute('alt', 'SORA-636.mp4.jpg?t=1')
+    await expect(avatar).toHaveAttribute('alt', '三上悠亚.jpg?t=1')
     await expect(avatar).toHaveCSS('width', '50px')
     await expect(avatar).toHaveCSS('height', '50px')
     await expect(avatar).toHaveCSS('border-radius', '50%')
     await expect(avatar).toHaveCSS('object-fit', 'cover')
     await expect(avatar.locator('xpath=..')).toHaveAttribute('data-115master-actress-host', '')
-    await expect(sora.locator('[data-115master-actress]')).toHaveCount(0)
-    expect(await row.evaluate(element =>
+
+    expect(await folderRow.evaluate(element =>
       element.querySelector('[data-115master-actress]')?.nextElementSibling
       === element.querySelector('.file-name-responsive'),
     )).toBe(true)
-    await expect.poll(async () => sora.evaluate(element =>
-      element.getBoundingClientRect().height,
-    )).toBeLessThan(50)
 
+    // 3. 模拟 React 重新渲染并删除头像，核对自动恢复
     await avatar.evaluate(node => node.remove())
-    await expect(row.locator('[data-115master-actress]')).toHaveCount(1)
-    expect(await row.evaluate(element =>
+    await expect(folderRow.locator('[data-115master-actress]')).toHaveCount(1)
+    expect(await folderRow.evaluate(element =>
       element.querySelector('[data-115master-actress]')?.nextElementSibling
       === element.querySelector('.file-name-responsive'),
     )).toBe(true)

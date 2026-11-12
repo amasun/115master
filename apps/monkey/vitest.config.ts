@@ -6,6 +6,11 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 import vite from './.storybook/vite.config'
 
 export default mergeConfig(vite, defineConfig({
+  resolve: {
+    alias: {
+      $: resolve(dirname(fileURLToPath(import.meta.url)), 'test/mockTampermonkey.ts'),
+    },
+  },
   optimizeDeps: {
     include: [
       '@storybook/addon-a11y',
