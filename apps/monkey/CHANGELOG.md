@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.6.2
+
+### Patch Changes
+
+- [`52fbbec`](https://github.com/amasun/115master/commit/52fbbec4483b862c5cec4b151c10222dc89c4171) Thanks [@amasun](https://github.com/amasun)! - 修复旧版 115 页面演员头像没有替换到文件夹图标位置、头像与文件名整体右移的问题；收窄新版页面选中态隐藏行内操作栏的规则，避免未选中时误隐藏原生操作按钮
+
 ## 2.6.1
 
 ### Patch Changes
