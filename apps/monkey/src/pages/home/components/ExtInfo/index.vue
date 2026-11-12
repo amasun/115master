@@ -31,7 +31,7 @@
       </div>
 
       <!-- 加载骨架 -->
-      <template v-else-if="props.variant === 'legacy' && !props.compact && extInfo.isLoading.value">
+      <template v-else-if="props.variant === 'legacy' && !isCompact && extInfo.isLoading.value">
         <div :class="[styles.cover.container, styles.cover.legacy]" data-115master-legacy-cover-skeleton>
           <div class="skeleton h-full w-full rounded-xl" />
         </div>
@@ -235,6 +235,7 @@ import { createFanzaCoverLoader } from '@/utils/imageLoader'
 import { createJavInfoSources } from '@/utils/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
+import { userSettings } from '@/utils/userSettings'
 
 const props = withDefaults(defineProps<{
   avNumber: string
@@ -248,8 +249,14 @@ const props = withDefaults(defineProps<{
 const logger = appLogger.sub('ExtInfo')
 /** 嵌入官方页面（旧版或新版） */
 const isEmbedded = props.variant !== 'drive'
-const isCompactEmbedded = isEmbedded && props.compact
-const isLegacyVisual = isEmbedded && !props.compact
+const isCompact = computed(() => {
+  if (isEmbedded) {
+    return userSettings.value.compactAvInfo
+  }
+  return props.compact
+})
+const isCompactEmbedded = computed(() => isEmbedded && isCompact.value)
+const isLegacyVisual = computed(() => isEmbedded && !isCompact.value)
 const legacySkeletonWidths = ['72%', '88%', '64%', '80%']
 
 /** 样式常量定义 */

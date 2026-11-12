@@ -1204,10 +1204,9 @@ export class NewOfficialFileListMod {
     const inlineActresses = Array.from(
       row.querySelectorAll<HTMLElement>(ACTRESS_SELECTOR),
     ).filter(node => !enhanced.addon.contains(node))
-    const name = row.querySelector<HTMLElement>('.file-name-responsive')
     const hasInlineActress = enhanced.addon.hasAttribute(ACTRESS_INLINE_ATTRIBUTE)
     const inlineActressMatches = inlineActresses.length === 1
-      && inlineActresses[0]?.nextElementSibling === name
+      && Boolean(inlineActresses[0] && row.contains(inlineActresses[0]))
     const inlineActressCurrent = hasInlineActress
       ? inlineActressMatches
       : inlineActresses.length === 0

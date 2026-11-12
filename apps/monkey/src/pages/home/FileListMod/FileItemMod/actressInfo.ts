@@ -101,7 +101,8 @@ export class FileItemModActressInfo extends FileItemModBase {
     actressDom.style.flex = `0 0 ${avatarSize}px`
     actressDom.style.borderRadius = '50%'
     actressDom.style.objectFit = 'cover'
-    actressDom.style.marginRight = '8px'
+    actressDom.style.margin = '0 auto'
+    actressDom.style.display = 'block'
     actressDom.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.12)'
     actressDom.style.border = '2px solid rgba(255, 255, 255, 0.8)'
     logger.info('演员头像显示模式设置完成', isOfficialSurface ? 'official' : 'legacy')
@@ -119,25 +120,37 @@ export class FileItemModActressInfo extends FileItemModBase {
       else {
         const interactionRoot = this.itemInfo.interactionNode ?? this.itemNode
         const inlineName = interactionRoot.querySelector<HTMLElement>('.file-name-responsive') ?? null
-        const nameContainer = inlineName?.parentElement ?? this.itemNode
+        const nameCol = inlineName?.closest<HTMLElement>('.flex-1')
+          ?? inlineName?.parentElement
+          ?? this.itemNode
 
-        /** 代替原生文件夹图标：定位 inlineName 之前或父级之前的原生图标节点 */
+        /**
+         * 代替原生文件夹图标并占用其原生位置：
+         * 优先定位 nameCol 左侧的原生图标列（如 .flex-shrink-0 或原生图标容器）
+         */
         let nativeIcon: HTMLElement | null = null
-        if (inlineName?.previousElementSibling) {
-          const prev = inlineName.previousElementSibling as HTMLElement
-          if (prev !== actressDom && !prev.hasAttribute('data-115master-actress')) {
+
+        // 尝试从 nameCol 的左侧兄弟节点找原生图标容器
+        if (nameCol && nameCol !== interactionRoot && nameCol.previousElementSibling) {
+          const prev = nameCol.previousElementSibling as HTMLElement
+          if (!prev.closest('input, [role="checkbox"]') && !prev.querySelector('input[type="checkbox"]')) {
             nativeIcon = prev
           }
         }
-        if (!nativeIcon && nameContainer !== interactionRoot && nameContainer.previousElementSibling) {
-          const prev = nameContainer.previousElementSibling as HTMLElement
-          if (prev !== actressDom && !prev.hasAttribute('data-115master-actress')) {
-            nativeIcon = prev
+
+        // 兜底：在 interactionRoot 中查找原生图标节点
+        if (!nativeIcon) {
+          if (inlineName?.previousElementSibling) {
+            const prev = inlineName.previousElementSibling as HTMLElement
+            if (prev !== actressDom && !prev.hasAttribute('data-115master-actress')) {
+              nativeIcon = prev
+            }
           }
         }
+
         if (!nativeIcon) {
           const icons = Array.from(interactionRoot.querySelectorAll<HTMLElement>(
-            '.file-thumb, .file-type, svg, img, [class*="icon"]',
+            '.file-thumb, .file-type, [class*="thumb"], [class*="icon"], svg, img',
           ))
           nativeIcon = icons.find(n => !n.closest('input, [role="checkbox"], [data-115master-row-addon]')
             && !n.hasAttribute('data-115master-actress')) ?? null
@@ -146,37 +159,59 @@ export class FileItemModActressInfo extends FileItemModBase {
         if (nativeIcon && nativeIcon !== actressDom) {
           this.nativeIconNode = nativeIcon
           this.nativeIconDisplay = nativeIcon.style.display
-          nativeIcon.style.display = 'none'
-          nativeIcon.before(actressDom)
+
+          /** 如果 nativeIcon 是一个容器（有子元素），隐藏其原有子元素并把头像装入容器内部居中 */
+          const iconChildren = Array.from(nativeIcon.children).filter(
+            c => c !== actressDom && !c.hasAttribute('data-115master-actress'),
+          ) as HTMLElement[]
+
+          if (iconChildren.length > 0) {
+            iconChildren.forEach((child) => {
+              child.style.display = 'none'
+            })
+            nativeIcon.style.display = 'flex'
+            nativeIcon.style.alignItems = 'center'
+            nativeIcon.style.justifyContent = 'center'
+            nativeIcon.append(actressDom)
+            this.actressContainer = nativeIcon
+          }
+          else {
+            // 叶子节点：隐藏该叶子节点并在其原位前置插入头像
+            nativeIcon.style.display = 'none'
+            nativeIcon.before(actressDom)
+            this.actressContainer = nativeIcon.parentElement ?? interactionRoot
+          }
         }
         else if (inlineName) {
           inlineName.before(actressDom)
+          this.actressContainer = inlineName.parentElement ?? interactionRoot
         }
         else {
-          nameContainer.prepend(actressDom)
+          nameCol.prepend(actressDom)
+          this.actressContainer = nameCol
         }
 
-        nameContainer.setAttribute('data-115master-actress-host', '')
-        nameContainer.classList.add('with-actress-info')
+        this.actressContainer.setAttribute('data-115master-actress-host', '')
+        this.actressContainer.classList.add('with-actress-info')
         this.itemNode.setAttribute('data-115master-actress-inline', '')
-        this.actressContainer = nameContainer
       }
     }
     else {
-      /** 旧版 115 页面：代替原生文件夹图标（.file-thumb 或 .file-type） */
+      /** 旧版 115 页面：代替原生文件夹图标（.file-thumb 或 .file-type）占用其原来显示位置 */
       const thumbNode = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
       if (thumbNode) {
         this.nativeIconNode = thumbNode
         this.nativeIconDisplay = thumbNode.style.display
         thumbNode.style.display = 'none'
         thumbNode.before(actressDom)
+        this.actressContainer = thumbNode.parentElement ?? this.itemNode
       }
       else {
         const nameContainer = this.itemNode.querySelector<HTMLElement>('.file-name-wrap') ?? this.itemNode
         nameContainer.prepend(actressDom)
+        this.actressContainer = nameContainer
       }
       this.itemNode.classList.add('with-actress-info')
-      this.actressContainer = this.itemNode
     }
 
     this.actressDom = actressDom
@@ -229,6 +264,11 @@ export class FileItemModActressInfo extends FileItemModBase {
     this.actressDom?.remove()
     this.actressDom = null
     if (this.nativeIconNode) {
+      Array.from(this.nativeIconNode.children).forEach((child) => {
+        if (child instanceof HTMLElement) {
+          child.style.removeProperty('display')
+        }
+      })
       if (this.nativeIconDisplay !== null && this.nativeIconDisplay !== '') {
         this.nativeIconNode.style.display = this.nativeIconDisplay
       }
