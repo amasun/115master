@@ -29,3 +29,27 @@
     }
   }
 }
+
+.master-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  height: 30px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+
+  iconify-icon {
+    font-size: 17px;
+  }
+
+  &.active {
+    color: var(--official-theme, #2878ed);
+    border-color: var(--official-theme, #2878ed);
+    background-color: rgba(40, 120, 237, 0.08);
+  }
+}

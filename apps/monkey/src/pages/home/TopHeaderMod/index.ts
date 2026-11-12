@@ -1,5 +1,6 @@
 import type { TopRootSearchParams } from '@/pages/home/global'
 import { unsafeWindow } from '$'
+import { showPreferencesDialog } from '@/components/Preferences'
 import { I } from '@/icons'
 import { BaseMod } from '@/pages/home/BaseMod'
 import { appLogger } from '@/utils/logger'
@@ -53,6 +54,9 @@ export class TopHeaderMod extends BaseMod {
     this.menuFrame = null
     this.topHeaderNode?.querySelector('.master-offline-task-btn')?.remove()
     this.topHeaderNode?.querySelector('.master-preview-switch-btn')?.remove()
+    this.topHeaderNode?.querySelector('.master-av-switch-btn')?.remove()
+    this.topHeaderNode?.querySelector('.master-actress-switch-btn')?.remove()
+    this.topHeaderNode?.querySelector('.master-settings-btn')?.remove()
 
     this.logger.info('旧版页面顶栏增强释放完成')
   }
@@ -70,6 +74,9 @@ export class TopHeaderMod extends BaseMod {
     this.deleteOfficialDownloadButton()
     this.addMasterOfflineTaskButton()
     this.addPreviewSwitchButton()
+    this.addAvInfoSwitchButton()
+    this.addActressFacesSwitchButton()
+    this.addSettingsButton()
     this.watchContextMenuPosition()
   }
 
@@ -158,6 +165,82 @@ export class TopHeaderMod extends BaseMod {
     }
     this.logger.info('旧版文件预览开关创建完成')
     return button
+  }
+
+  /** 添加作品介绍切换开关 */
+  private addAvInfoSwitchButton() {
+    const button = document.createElement('a')
+    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-av-switch-btn')
+    button.href = 'javascript:void(0)'
+    button.setAttribute('role', 'button')
+    button.innerHTML = `
+      <iconify-icon icon="${I.DOCUMENT}" noobserver></iconify-icon>
+      <span>介绍</span>
+    `
+    const syncState = () => {
+      const enabled = userSettings.value.enableAvInfo
+      button.classList.toggle('active', enabled)
+      button.setAttribute('aria-pressed', String(enabled))
+      button.setAttribute(
+        'aria-label',
+        enabled ? '关闭作品介绍' : '开启作品介绍',
+      )
+      button.title = enabled ? '关闭作品介绍' : '开启作品介绍'
+    }
+    syncState()
+
+    button.onclick = () => {
+      userSettings.value.enableAvInfo = !userSettings.value.enableAvInfo
+      syncState()
+    }
+    this.topHeaderNode?.append(button)
+  }
+
+  /** 添加演员头像切换开关 */
+  private addActressFacesSwitchButton() {
+    const button = document.createElement('a')
+    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-actress-switch-btn')
+    button.href = 'javascript:void(0)'
+    button.setAttribute('role', 'button')
+    button.innerHTML = `
+      <iconify-icon icon="${I.ACCOUNT}" noobserver></iconify-icon>
+      <span>头像</span>
+    `
+    const syncState = () => {
+      const enabled = userSettings.value.enableActressFaces
+      button.classList.toggle('active', enabled)
+      button.setAttribute('aria-pressed', String(enabled))
+      button.setAttribute(
+        'aria-label',
+        enabled ? '关闭演员头像' : '开启演员头像',
+      )
+      button.title = enabled ? '关闭演员头像' : '开启演员头像'
+    }
+    syncState()
+
+    button.onclick = () => {
+      userSettings.value.enableActressFaces = !userSettings.value.enableActressFaces
+      syncState()
+    }
+    this.topHeaderNode?.append(button)
+  }
+
+  /** 添加偏好设置按钮 */
+  private addSettingsButton() {
+    const button = document.createElement('a')
+    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-settings-btn')
+    button.href = 'javascript:void(0)'
+    button.setAttribute('role', 'button')
+    button.title = '偏好设置'
+    button.setAttribute('aria-label', '偏好设置')
+    button.innerHTML = `
+      <iconify-icon icon="${I.SETTINGS}" noobserver></iconify-icon>
+      <span>设置</span>
+    `
+    button.onclick = () => {
+      showPreferencesDialog()
+    }
+    this.topHeaderNode?.append(button)
   }
 
   /** 修正右键菜单位置 */
