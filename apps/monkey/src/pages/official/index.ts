@@ -1,4 +1,5 @@
 import type { IconifyIcon } from 'iconify-icon'
+import { showPreferencesDialog } from '@/components/Preferences'
 import { MASTER_BASE_URL } from '@/constants'
 import { appLogger } from '@/utils/logger'
 import { userSettings } from '@/utils/userSettings'
@@ -19,6 +20,10 @@ class OfficialPage {
   private previewButton: HTMLButtonElement | null = null
   private previewIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
   private previewDisposer: (() => void) | null = null
+  private avInfoButton: HTMLButtonElement | null = null
+  private avInfoDisposer: (() => void) | null = null
+  private actressFacesButton: HTMLButtonElement | null = null
+  private actressFacesDisposer: (() => void) | null = null
   private scheduledFrame: number | null = null
   private toolbarRetryAttempts = 0
   private toolbarRetryId: number | null = null
@@ -55,6 +60,10 @@ class OfficialPage {
     this.frameLoadDisposers.clear()
     this.previewDisposer?.()
     this.previewDisposer = null
+    this.avInfoDisposer?.()
+    this.avInfoDisposer = null
+    this.actressFacesDisposer?.()
+    this.actressFacesDisposer = null
     this.fileListMod?.destroy()
     this.fileListMod = null
     this.host?.remove()
@@ -62,6 +71,8 @@ class OfficialPage {
     this.toolbarMount = null
     this.previewButton = null
     this.previewIcon = null
+    this.avInfoButton = null
+    this.actressFacesButton = null
 
     this.logger.info('新版页面适配销毁完成')
   }
@@ -182,7 +193,7 @@ class OfficialPage {
         outline-offset: 2px;
       }
 
-      .preview.active {
+      .control.active {
         border-color: #8bb9fb;
         background: #eaf3ff;
         color: #1468d8;
@@ -211,11 +222,15 @@ class OfficialPage {
       }
     `
 
-    /** 2.1 只有新版存储页面创建预览开关，旧版顶层由 iframe 内真实开关负责。 */
+    /** 2.1 只有新版存储页面创建功能控制开关，旧版顶层由 iframe 内真实开关负责。 */
     this.logger.info('开始判定当前页面预览入口', window.location.pathname)
     let preview: HTMLButtonElement | null = null
     let previewIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
+    let avInfo: HTMLButtonElement | null = null
+    let actressFaces: HTMLButtonElement | null = null
+
     if (supportsPreview) {
+      // 1. 截图开关
       preview = document.createElement('button')
       preview.type = 'button'
       preview.className = 'control preview'
@@ -223,14 +238,58 @@ class OfficialPage {
       previewIcon = this.createIcon(officialIcons.eye)
       const previewLabel = document.createElement('span')
       previewLabel.className = 'label'
-      previewLabel.textContent = '预览'
+      previewLabel.textContent = '截图'
       preview.append(previewIcon, previewLabel)
       preview.addEventListener('click', () => {
         userSettings.value.enableFilelistPreview
           = !userSettings.value.enableFilelistPreview
       })
+
+      // 2. 介绍开关
+      avInfo = document.createElement('button')
+      avInfo.type = 'button'
+      avInfo.className = 'control av-info'
+      avInfo.setAttribute('data-115master-av-toggle', '')
+      const avInfoIcon = this.createIcon(officialIcons.documentText)
+      const avInfoLabel = document.createElement('span')
+      avInfoLabel.className = 'label'
+      avInfoLabel.textContent = '介绍'
+      avInfo.append(avInfoIcon, avInfoLabel)
+      avInfo.addEventListener('click', () => {
+        userSettings.value.enableAvInfo = !userSettings.value.enableAvInfo
+      })
+
+      // 3. 头像开关
+      actressFaces = document.createElement('button')
+      actressFaces.type = 'button'
+      actressFaces.className = 'control actress-faces'
+      actressFaces.setAttribute('data-115master-actress-toggle', '')
+      const actressFacesIcon = this.createIcon(officialIcons.person)
+      const actressFacesLabel = document.createElement('span')
+      actressFacesLabel.className = 'label'
+      actressFacesLabel.textContent = '头像'
+      actressFaces.append(actressFacesIcon, actressFacesLabel)
+      actressFaces.addEventListener('click', () => {
+        userSettings.value.enableActressFaces = !userSettings.value.enableActressFaces
+      })
     }
     this.logger.info('当前页面预览入口判定完成', supportsPreview)
+
+    /** 4. 设置按钮 */
+    const settings = document.createElement('button')
+    settings.type = 'button'
+    settings.className = 'control settings'
+    settings.setAttribute('data-115master-settings-toggle', '')
+    settings.title = '偏好设置'
+    settings.setAttribute('aria-label', '偏好设置')
+    const settingsIcon = this.createIcon(officialIcons.settings)
+    const settingsLabel = document.createElement('span')
+    settingsLabel.className = 'label'
+    settingsLabel.textContent = '设置'
+    settings.append(settingsIcon, settingsLabel)
+    settings.addEventListener('click', () => {
+      showPreferencesDialog()
+    })
 
     /** 2.2 创建 MASTER 独立文件页入口。 */
     const launcher = document.createElement('a')
@@ -249,17 +308,41 @@ class OfficialPage {
     controls.className = 'controls'
     if (preview)
       controls.append(preview)
+    if (avInfo)
+      controls.append(avInfo)
+    if (actressFaces)
+      controls.append(actressFaces)
+    controls.append(settings)
     controls.append(launcher)
     root.append(style, controls)
     this.host = host
     this.previewButton = preview
     this.previewIcon = previewIcon
+    this.avInfoButton = avInfo
+    this.actressFacesButton = actressFaces
+
     if (preview) {
       this.previewDisposer = userSettings.watch(
         'enableFilelistPreview',
         (_, enabled) => this.syncPreviewButton(enabled),
       )
       this.syncPreviewButton(userSettings.value.enableFilelistPreview)
+    }
+
+    if (avInfo) {
+      this.avInfoDisposer = userSettings.watch(
+        'enableAvInfo',
+        (_, enabled) => this.syncAvInfoButton(enabled),
+      )
+      this.syncAvInfoButton(userSettings.value.enableAvInfo)
+    }
+
+    if (actressFaces) {
+      this.actressFacesDisposer = userSettings.watch(
+        'enableActressFaces',
+        (_, enabled) => this.syncActressFacesButton(enabled),
+      )
+      this.syncActressFacesButton(userSettings.value.enableActressFaces)
     }
     this.attach()
     this.syncTitle()
@@ -306,10 +389,38 @@ class OfficialPage {
     this.previewButton.setAttribute('aria-pressed', String(enabled))
     this.previewButton.setAttribute(
       'aria-label',
-      enabled ? '关闭视频预览' : '开启视频预览',
+      enabled ? '关闭视频截图' : '开启视频截图',
     )
-    this.previewButton.title = enabled ? '关闭视频预览' : '开启视频预览'
+    this.previewButton.title = enabled ? '关闭视频截图' : '开启视频截图'
     this.previewIcon.icon = enabled ? officialIcons.eye : officialIcons.eyeOff
+  }
+
+  /** 同步介绍开关的状态和提示。 */
+  private syncAvInfoButton(enabled: boolean): void {
+    if (!this.avInfoButton)
+      return
+
+    this.avInfoButton.classList.toggle('active', enabled)
+    this.avInfoButton.setAttribute('aria-pressed', String(enabled))
+    this.avInfoButton.setAttribute(
+      'aria-label',
+      enabled ? '关闭作品介绍' : '开启作品介绍',
+    )
+    this.avInfoButton.title = enabled ? '关闭作品介绍' : '开启作品介绍'
+  }
+
+  /** 同步头像开关的状态和提示。 */
+  private syncActressFacesButton(enabled: boolean): void {
+    if (!this.actressFacesButton)
+      return
+
+    this.actressFacesButton.classList.toggle('active', enabled)
+    this.actressFacesButton.setAttribute('aria-pressed', String(enabled))
+    this.actressFacesButton.setAttribute(
+      'aria-label',
+      enabled ? '关闭演员头像' : '开启演员头像',
+    )
+    this.actressFacesButton.title = enabled ? '关闭演员头像' : '开启演员头像'
   }
 
   /** 把高频 DOM 变化合并为每帧最多一次位置同步。 */

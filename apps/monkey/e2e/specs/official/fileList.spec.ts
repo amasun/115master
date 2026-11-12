@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import {
   CORS,
@@ -10,6 +11,8 @@ import {
   video,
 } from '../../support'
 import { gmStore, watch, watchTabs } from '../../support/homeUtils'
+
+const pkg = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'))
 
 const items = [
   video('SORA-636.mp4', '0'),
@@ -546,7 +549,7 @@ test.describe('新版 115 原生文件列表适配', () => {
       '__115masterOfficialFileCapture__' in window.fetch,
     )).toBe(true)
     expect(await page.locator('html').getAttribute('data-115master-official-file-list'))
-      .toBe('2.0.0-beta.101')
+      .toBe(pkg.version)
 
     /**
      * ================================================================================
@@ -922,6 +925,9 @@ test.describe('新版 115 原生文件列表适配', () => {
      * 2) 重新开启并核对截图行恢复
      */
     const toggle = page.locator('[data-115master-preview-toggle]')
+    const avToggle = page.locator('[data-115master-av-toggle]')
+    const actressToggle = page.locator('[data-115master-actress-toggle]')
+    const settingsToggle = page.locator('[data-115master-settings-toggle]')
     const controls = page.locator('[data-115master-controls]')
     const toolbar = page.locator('[data-native-toolbar]')
     const nativeNewAction = page.locator('[data-native-new-action]')
@@ -934,15 +940,29 @@ test.describe('新版 115 原生文件列表适配', () => {
     const nativeHeight = await soraNative.evaluate(row => row.getBoundingClientRect().height)
 
     await expect(toggle).toBeVisible()
+    await expect(avToggle).toBeVisible()
+    await expect(actressToggle).toBeVisible()
+    await expect(settingsToggle).toBeVisible()
+    await expect(launcher).toBeVisible()
     await expect(controls).toHaveAttribute('data-placement', 'toolbar')
     await expect(controls.locator('xpath=..')).toHaveAttribute('data-native-toolbar', '')
     await expect(controls.locator('xpath=preceding-sibling::*[1]')).toHaveAttribute('data-native-new-action', '')
-    await expect(launcher).toBeVisible()
     await expect(toggle.locator('xpath=following-sibling::*[1]'))
+      .toHaveAttribute('data-115master-av-toggle', '')
+    await expect(avToggle.locator('xpath=following-sibling::*[1]'))
+      .toHaveAttribute('data-115master-actress-toggle', '')
+    await expect(actressToggle.locator('xpath=following-sibling::*[1]'))
+      .toHaveAttribute('data-115master-settings-toggle', '')
+    await expect(settingsToggle.locator('xpath=following-sibling::*[1]'))
       .toHaveAttribute('data-115master-launcher-link', '')
     await expect(toggle.locator('svg')).toBeVisible()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
-    await expect(toggle).toHaveAttribute('title', '关闭视频预览')
+    await expect(toggle).toHaveAttribute('title', '关闭视频截图')
+    await expect(avToggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(avToggle).toHaveAttribute('title', '关闭作品介绍')
+    await expect(actressToggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(actressToggle).toHaveAttribute('title', '关闭演员头像')
+    await expect(settingsToggle).toHaveAttribute('title', '偏好设置')
 
     /** 1.1 工具组必须与原生按钮同排、等高，不能撑高“新建”外层工具项。 */
     const [toolbarBox, newActionBox, nativeNewBox, controlsBox, toggleBox] = await Promise.all([
@@ -962,10 +982,10 @@ test.describe('新版 115 原生文件列表适配', () => {
     expect(newActionBox!.height).toBe(nativeNewBox!.height)
     expect(toolbarBox!.height).toBe(64)
 
-    // 1.2 关闭预览后，两行详情保留，全部视频截图容器卸载。
+    // 1.2 关闭视频截图后，两行详情保留，全部视频截图容器卸载。
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
-    await expect(toggle).toHaveAttribute('title', '开启视频预览')
+    await expect(toggle).toHaveAttribute('title', '开启视频截图')
     await expect(toggle.locator('svg')).toBeVisible()
     await expect(page.locator('[data-115master-preview]')).toHaveCount(0)
     await expect(sora.locator('[data-115master-detail]')).toHaveCount(1)
@@ -977,11 +997,17 @@ test.describe('新版 115 原生文件列表适配', () => {
         ?.enableFilelistPreview
     }).toBe(false)
 
-    // 1.3 重新开启预览后，每个视频恢复一份截图容器。
+    // 1.3 重新开启视频截图后，每个视频恢复一份截图容器。
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(toggle).toHaveAttribute('title', '关闭视频截图')
     await expect(page.locator('[data-115master-preview]')).toHaveCount(3)
     expect(await soraNative.evaluate(row => row.getBoundingClientRect().height)).toBe(nativeHeight)
+
+    // 1.4 点击原生设置按钮，呼出全局偏好设置弹窗
+    await settingsToggle.click()
+    const preferencesRoot = page.locator('[id="115master-preferences-dialog-root"]')
+    await expect(preferencesRoot).toBeAttached()
     expect(errors).toEqual([])
   })
 
@@ -2134,7 +2160,10 @@ test.describe('新版 115 原生文件列表适配', () => {
     await expect(page.locator('[data-native-cloud-download]'))
       .toHaveAttribute('href', '/storage/clouddownload')
     await expect(page.locator('[data-115master-cloud-download]')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /视频预览/ })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: /视频截图/ })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: /作品介绍/ })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: /演员头像/ })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: '偏好设置' })).toHaveCount(1)
     await expect(page.getByRole('link', { name: '打开 115Master Fusion' })).toHaveCount(1)
     expect(errors).toEqual([])
   })
