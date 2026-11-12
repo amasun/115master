@@ -143,7 +143,7 @@ describe('fileItemModActressInfo', () => {
     const mod = new FileItemModActressInfo(itemNode, itemInfo)
     await mod.onLoad()
 
-    expect(actressFaceDB.findActress).toHaveBeenCalledWith('三上悠亚')
+    expect(actressFaceDB.findActress).toHaveBeenCalledWith('三上悠亚', 'name')
 
     // 原生图标容器被隐藏
     expect(thumbNode.style.display).toBe('none')
@@ -202,15 +202,55 @@ describe('fileItemModActressInfo', () => {
     // 原生图标被隐藏
     expect(nativeIcon.style.display).toBe('none')
 
-    /** 头像替代原生图标位置，紧邻 inlineName 之前 */
+    /** 头像替代原生图标位置，插入在 nativeIcon 前面 */
     const avatar = itemNode.querySelector<HTMLImageElement>('[data-115master-actress]')
     expect(avatar).not.toBeNull()
-    expect(avatar?.nextElementSibling).toBe(inlineName)
+    expect(avatar?.nextElementSibling).toBe(nativeIcon)
+    expect(nativeIcon.nextElementSibling).toBe(inlineName)
 
     // 卸载后复原
     mod.onDestroy()
     expect(itemNode.querySelector('[data-115master-actress]')).toBeNull()
     expect(nativeIcon.style.display).toBe('')
+  })
+
+  it('文件夹名称带有 [FHD] 标签和括号修饰词时依然能提取并匹配演员头像', async () => {
+    vi.mocked(actressFaceDB.findActress).mockImplementation(async (name) => {
+      if (name === '三上悠亚') {
+        return {
+          url: 'https://example.com/yua.jpg',
+          folder: 's',
+          filename: '三上悠亚.jpg',
+          timestamp: 123456,
+        }
+      }
+      return undefined
+    })
+
+    const itemNode = document.createElement('li')
+    const thumbNode = document.createElement('div')
+    thumbNode.className = 'file-thumb'
+    const nameWrap = document.createElement('div')
+    nameWrap.className = 'file-name-wrap'
+    itemNode.append(thumbNode, nameWrap)
+
+    const itemInfo: ItemInfo = {
+      avNumber: null,
+      attributes: createFakeAttributes({
+        title: '[FHD] 三上悠亚 (2020)',
+        file_type: FileType.folder,
+      }),
+      fileListType: FileListType.list,
+      duration: 0,
+      listScrollBoxNode: document.createElement('div'),
+      surface: 'legacy',
+    }
+
+    const mod = new FileItemModActressInfo(itemNode, itemInfo)
+    await mod.onLoad()
+
+    expect(actressFaceDB.findActress).toHaveBeenCalledWith('三上悠亚', 'name')
+    expect(itemNode.querySelector('[data-115master-actress]')).not.toBeNull()
   })
 
   it('文件夹未匹配到演员时不隐藏原生图标也不插入头像', async () => {

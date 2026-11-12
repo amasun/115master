@@ -1063,6 +1063,7 @@ test.describe('新版 115 原生文件列表适配', () => {
       return Boolean(top?.closest('[data-native-selection-toolbar]'))
     })).toBe(true)
     await expect(controls).toHaveJSProperty('isConnected', true)
+    await expect(page.locator('[data-115master-native-actions]').first()).toBeHidden()
     expect(errors).toEqual([])
   })
 

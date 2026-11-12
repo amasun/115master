@@ -28,6 +28,17 @@
   white-space: nowrap;
 }
 
+/* 关键修复：当选中某个文件或进入批量多选态时，彻底隐藏所有独立操作栏与悬浮菜单 */
+.file-list-item:has(input[type='checkbox']:checked) [data-115master-native-actions],
+.file-list-item[class*='selected'] [data-115master-native-actions],
+.file-list-item[data-selected='true'] [data-115master-native-actions],
+body:has([data-native-selection-toolbar]) [data-115master-native-actions],
+body:has([data-native-selection-toolbar]) [data-115master-merged-actions],
+[data-native-selection-toolbar] ~ * [data-115master-native-actions],
+body:has(input[type='checkbox']:checked) [data-115master-native-actions]:not([data-115master-merged-actions]) {
+  display: none !important;
+}
+
 /* 新版原生悬停条承载 Fusion 入口；不再复制一条独立操作栏。 */
 [data-115master-native-actions][data-115master-merged-actions] {
   /* 合并模式沿用 115 原生外观，不再额外套 Fusion 外框。 */
@@ -35,11 +46,15 @@
   gap: 0;
   width: max-content;
   max-width: calc(100% - 24px);
+  flex-shrink: 0;
 }
 
-/* 115 新版把原生按钮包在一层 React 分组中；分组本身参与同一条 flex 布局。 */
+/* 保持原生按钮分组的稳定尺寸测量，防止 display: contents 引起原生容器折叠抖动 */
 [data-115master-native-actions][data-115master-merged-actions] [data-115master-native-action-group] {
-  display: contents;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: max-content;
 }
 
 [data-115master-native-actions][data-115master-merged-actions] > a {
