@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.4.0
+
+### Minor Changes
+
+- [#2](https://github.com/amasun/115master/pull/2) [`27558e4`](https://github.com/amasun/115master/commit/27558e4876c34c0ed1ceb81f2089ea50f5c74c11) Thanks [@amasun](https://github.com/amasun)! - feat(monkey/actress): 限制仅文件夹显示演员头像并直接替代原生文件夹图标
+
 ## 2.3.0
 
 ### Minor Changes
