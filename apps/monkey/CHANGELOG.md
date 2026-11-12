@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.5.0
+
+### Minor Changes
+
+- [#3](https://github.com/amasun/115master/pull/3) [`a3e1ff4`](https://github.com/amasun/115master/commit/a3e1ff4616eefc27916f1246d8dec0d8c4a8e6be) Thanks [@amasun](https://github.com/amasun)! - feat(monkey/controls): OPT3/OPT4 扩展工具栏独立控制按钮组（截图/介绍/头像/偏好设置）
+
 ## 2.4.0
 
 ### Minor Changes
