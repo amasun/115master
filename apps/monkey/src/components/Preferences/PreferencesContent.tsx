@@ -4,10 +4,12 @@ import { GM_info } from '$'
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import PKG from '@/../package.json'
 import ThemeToggle from '@/components/ThemeToggle'
+import { useDriveListMode } from '@/hooks/useDriveListMode'
 import { I, Icon } from '@/icons'
 import { useUserSetting } from '@/utils/userSettings'
+import AccountPreferences from './AccountPreferences'
 
-export type PreferenceSection = 'layout' | 'enhancements' | 'appearance' | 'about'
+export type PreferenceSection = 'layout' | 'files' | 'enhancements' | 'appearance' | 'account' | 'about'
 
 interface SectionItem {
   id: PreferenceSection
@@ -17,8 +19,10 @@ interface SectionItem {
 
 export const PREFERENCE_SECTIONS: SectionItem[] = [
   { id: 'layout', label: '布局模式', icon: I.VIEW },
+  { id: 'files', label: '文件列表', icon: I.LIST },
   { id: 'enhancements', label: '功能增强', icon: I.EXTENSION },
   { id: 'appearance', label: '外观主题', icon: I.THEME_LIGHT },
+  { id: 'account', label: '账号', icon: I.ACCOUNT },
   { id: 'about', label: '关于与赞助', icon: I.ABOUT },
 ]
 
@@ -79,6 +83,7 @@ const PreferencesContent = defineComponent({
   },
 
   setup(props, { emit }) {
+    const mode = useDriveListMode()
     const preview = useUserSetting('enableFilelistPreview')
     const avInfo = useUserSetting('enableAvInfo')
     const compactAvInfo = useUserSetting('compactAvInfo')
@@ -212,6 +217,32 @@ const PreferencesContent = defineComponent({
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* 文件列表加载方式 */}
+            {display.value === 'files' && (
+              <div class="flex flex-col gap-4">
+                <div>
+                  <h3 class="text-base-content text-base font-semibold">加载方式</h3>
+                  <p class="text-base-content/60 mt-1 text-xs">选择使用分页器，或在滚动到底部时继续加载。</p>
+                </div>
+                <label class="flex flex-col gap-2" for="drive-list-load-mode">
+                  <span class="text-base-content/80 text-xs">文件列表加载方式</span>
+                  <select
+                    id="drive-list-load-mode"
+                    class="select select-bordered select-sm w-full max-w-xs"
+                    value={mode.value}
+                    onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
+                  >
+                    <option value="pagination">分页加载</option>
+                    <option value="infinite">滚动无限加载</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {display.value === 'account' && (
+              <AccountPreferences onLoggedOut={() => emit('loggedOut')} />
             )}
 
             {/* 2. 功能增强开关 */}
