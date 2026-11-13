@@ -2,6 +2,13 @@
 
 115 网盘本地 MCP 通道（方案 A）：本地 MCP 服务器直连 115 Web API，让 Agent 查看文件目录。
 
+**安装 Cookie 桥油猴脚本（独立脚本，与 115master 主插件无关）：**
+
+```
+https://github.com/amasun/115master/releases/latest/download/115-mcp-cookie-bridge.user.js
+```
+
+
 ## 组成
 
 | 文件 | 作用 |
