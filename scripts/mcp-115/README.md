@@ -5,7 +5,7 @@
 **安装 Cookie 桥油猴脚本（独立脚本，与 115master 主插件无关）：**
 
 ```
-https://github.com/amasun/115master/releases/latest/download/115-mcp-cookie-bridge.user.js
+https://github.com/amasun/115master/releases/download/mcp-cookie-bridge-v0.2.0/115-mcp-cookie-bridge.user.js
 ```
 
 
