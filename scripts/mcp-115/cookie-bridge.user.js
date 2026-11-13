@@ -2,7 +2,7 @@
 // @name         115 MCP Cookie Bridge
 // @name:zh-CN   115 MCP Cookie 桥
 // @namespace    115-mcp-cookie-bridge
-// @version      0.2.0
+// @version      0.2.1
 // @description  Standalone helper: reads 115 login cookies and pushes them to a local MCP server bridge (http://127.0.0.1:26315/cookie). Independent of any other userscript.
 // @description:zh-CN  独立辅助脚本：读取 115 登录 Cookie 并推送给本地 MCP 服务器桥（http://127.0.0.1:26315/cookie）。不依赖任何其他脚本。
 // @author       you
@@ -81,19 +81,31 @@
   }
 
   function collect(silent) {
-    GM_cookie.list({ domain: '115.com' }, (cookies, error) => {
+    // 优先按当前页面 URL 查询（115Browser 下 domain 过滤可能取不全），失败再退回 domain 查询
+    GM_cookie.list({ url: location.href }, (cookies, error) => {
       if (error) {
-        toast(`GM_cookie 读取失败：${error}`, false);
+        GM_cookie.list({ domain: '115.com' }, handleList);
+      } else {
+        handleList(cookies);
+      }
+    });
+
+    function handleList(cookies) {
+      if (!cookies || !cookies.length) {
+        if (!silent) toast('没有读到任何 115 Cookie，请确认已在此浏览器登录 115', false);
         return;
       }
       const names = cookies.map((c) => c.name);
       if (!REQUIRED.every((k) => names.includes(k))) {
-        if (!silent) toast('未找到完整的 UID/CID/SEID，请确认已在浏览器登录 115', false);
+        if (!silent) {
+          const found = names.filter((n) => REQUIRED.includes(n)).join(', ') || '无';
+          toast(`Cookie 不完整（${found}）。缺 UID/CID/SEID。\n已读到的 Cookie：${names.slice(0, 12).join(', ')}`, false);
+        }
         return;
       }
       const cookie = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
       sendCookie(cookie);
-    });
+    }
   }
 
   GM_registerMenuCommand('推送 Cookie 到本地 MCP 桥', () => collect(false));
