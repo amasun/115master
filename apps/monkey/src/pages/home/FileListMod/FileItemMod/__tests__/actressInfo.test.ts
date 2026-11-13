@@ -143,7 +143,7 @@ describe('fileItemModActressInfo', () => {
     const mod = new FileItemModActressInfo(itemNode, itemInfo)
     await mod.onLoad()
 
-    expect(actressFaceDB.findActress).toHaveBeenCalledWith('三上悠亚', 'name')
+    expect(actressFaceDB.findActress).toHaveBeenCalledWith('三上悠亚', 'title')
 
     // 原生图标容器被隐藏
     expect(thumbNode.style.display).toBe('none')

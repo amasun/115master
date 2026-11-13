@@ -59,8 +59,11 @@ export class FileItemModActressInfo extends FileItemModBase {
 
     await actressFaceDB.init()
     const candidates = extractActressCandidates(this.itemInfo.attributes.title)
-    let actress: Awaited<ReturnType<typeof actressFaceDB.findActress>>
+    /** 先按"标题里包含演员名"匹配（如"精品 三上悠亚"），再用候选词做整名匹配 */
+    let actress = await actressFaceDB.findActress(this.itemInfo.attributes.title, 'title')
     for (const name of candidates) {
+      if (actress)
+        break
       actress = await actressFaceDB.findActress(name, 'name')
       if (actress)
         break
@@ -119,7 +122,9 @@ export class FileItemModActressInfo extends FileItemModBase {
       else {
         const interactionRoot = this.itemInfo.interactionNode ?? this.itemNode
         const inlineName = interactionRoot.querySelector<HTMLElement>('.file-name-responsive') ?? null
-        const nameCol = inlineName?.closest<HTMLElement>('.flex-1')
+        /** 名称列必须在当前行内；closest 爬到行外（页面级 .flex-1）时放弃，避免隐藏行外元素 */
+        const column = inlineName?.closest<HTMLElement>('.flex-1')
+        const nameCol = (column && interactionRoot.contains(column) && column !== interactionRoot ? column : null)
           ?? inlineName?.parentElement
           ?? this.itemNode
 
@@ -132,7 +137,7 @@ export class FileItemModActressInfo extends FileItemModBase {
         // 尝试从 nameCol 的左侧兄弟节点找原生图标容器
         if (nameCol && nameCol !== interactionRoot && nameCol.previousElementSibling) {
           const prev = nameCol.previousElementSibling as HTMLElement
-          if (!prev.closest('input, [role="checkbox"]') && !prev.querySelector('input[type="checkbox"]')) {
+          if (!prev.closest('input, [role="checkbox"]') && !prev.querySelector('input[type="checkbox"], [role="checkbox"], [class*="checkbox"]')) {
             nativeIcon = prev
           }
         }

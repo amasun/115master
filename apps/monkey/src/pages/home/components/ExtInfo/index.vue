@@ -235,7 +235,7 @@ import { createFanzaCoverLoader } from '@/utils/imageLoader'
 import { createJavInfoSources } from '@/utils/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
-import { userSettings } from '@/utils/userSettings'
+import { useUserSetting } from '@/utils/userSettings'
 
 const props = withDefaults(defineProps<{
   avNumber: string
@@ -249,9 +249,10 @@ const props = withDefaults(defineProps<{
 const logger = appLogger.sub('ExtInfo')
 /** 嵌入官方页面（旧版或新版） */
 const isEmbedded = props.variant !== 'drive'
+const compactSetting = useUserSetting('compactAvInfo')
 const isCompact = computed(() => {
   if (isEmbedded) {
-    return userSettings.value.compactAvInfo
+    return compactSetting.value
   }
   return props.compact
 })

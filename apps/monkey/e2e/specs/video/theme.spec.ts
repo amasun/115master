@@ -131,7 +131,7 @@ test.describe('主题与设置', () => {
     const dialog = page.locator('.ui-dialog')
     await dialog.getByRole('button', { name: '增强' }).click()
 
-    const labels = ['文件视频封面', '番号资料', '演员头像', '播放页影片详情']
+    const labels = ['视频截图预览', '番号作品资料', '演员头像替代文件夹图标', '播放页影片详情']
     for (const label of labels)
       await expect(dialog.getByRole('checkbox', { name: label })).toBeChecked()
 
