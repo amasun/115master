@@ -40,9 +40,6 @@ export class FileItemModActressInfo extends FileItemModBase {
   private actressContainer: HTMLElement | null = null
   private nativeIconNode: HTMLElement | null = null
   private nativeIconDisplay: string | null = null
-  /** 旧版页面为头像腾位置时改过内边距的节点及其原值 */
-  private paddedNode: HTMLElement | null = null
-  private paddedValue = ''
   private loadId = 0
   private objectUrl: string | null = null
 
@@ -209,19 +206,29 @@ export class FileItemModActressInfo extends FileItemModBase {
          * 头像会排在留白之后，文件名再被头像顶开，两者都向右偏。
          */
         const absolute = getComputedStyle(thumbNode).position === 'absolute'
-        const left = thumbNode.offsetLeft
+        const center = thumbNode.offsetLeft + thumbNode.offsetWidth / 2
         this.nativeIconNode = thumbNode
         this.nativeIconDisplay = thumbNode.style.display
         thumbNode.style.display = 'none'
         thumbNode.before(actressDom)
         this.actressContainer = thumbNode.parentElement ?? this.itemNode
         if (absolute) {
+          /** 头像缩到图标留白内，以图标中心对齐；文件名保持原位，不改任何内边距 */
+          const size = 40
+          const px = `${size}px`
+          actressDom.style.boxSizing = 'border-box'
+          actressDom.style.width = px
+          actressDom.style.height = px
+          actressDom.style.minWidth = px
+          actressDom.style.maxWidth = px
+          actressDom.style.minHeight = px
+          actressDom.style.maxHeight = px
+          actressDom.style.flex = `0 0 ${px}`
           actressDom.style.position = 'absolute'
-          actressDom.style.left = `${left}px`
+          actressDom.style.left = `${center - size / 2}px`
           actressDom.style.top = '50%'
           actressDom.style.transform = 'translateY(-50%)'
           actressDom.style.margin = '0'
-          this.reserve(actressDom)
         }
       }
       else {
@@ -296,11 +303,6 @@ export class FileItemModActressInfo extends FileItemModBase {
       this.nativeIconNode = null
       this.nativeIconDisplay = null
     }
-    if (this.paddedNode) {
-      this.paddedNode.style.paddingLeft = this.paddedValue
-      this.paddedNode = null
-      this.paddedValue = ''
-    }
     this.actressContainer?.classList.remove('with-actress-info')
     this.actressContainer?.removeAttribute('data-115master-actress-host')
     this.actressContainer = null
@@ -309,18 +311,5 @@ export class FileItemModActressInfo extends FileItemModBase {
       URL.revokeObjectURL(this.objectUrl)
     this.objectUrl = null
     logger.info('页面演员头像卸载完成')
-  }
-
-  /** 头像比原图标宽时，加大文件名所在节点的左内边距，避免头像盖住文件名 */
-  private reserve(avatar: HTMLElement) {
-    const name = this.itemNode.querySelector<HTMLElement>('.file-name-wrap, .file-name')
-    if (!name)
-      return
-    const overlap = avatar.getBoundingClientRect().right + 12 - name.getBoundingClientRect().left
-    if (overlap <= 0)
-      return
-    this.paddedNode = name
-    this.paddedValue = name.style.paddingLeft
-    name.style.paddingLeft = `${Number.parseFloat(getComputedStyle(name).paddingLeft) + overlap}px`
   }
 }
