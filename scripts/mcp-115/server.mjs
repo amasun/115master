@@ -40,7 +40,9 @@ function enqueueTask(url) {
     const task = { id, url, createdAt: Date.now(), delivered: false };
     taskQueue.push(task);
     pendingTasks.set(id, { task, resolve, reject });
-    for (const wake of taskWaiters.splice(0)) wake();
+    const waiters = [...taskWaiters];
+    taskWaiters.clear();
+    for (const wake of waiters) wake();
     setTimeout(() => {
       if (!pendingTasks.has(id)) return;
       pendingTasks.delete(id);
@@ -105,13 +107,13 @@ function normalizeItem(item) {
   const isDir = item.fid === undefined;
   return {
     id: isDir ? item.cid : item.fid,
-    name: item.fn,
+    name: item.n,
     type: isDir ? 'dir' : 'file',
     parentId: item.pid,
-    size: isDir ? undefined : item.siv,
+    size: isDir ? undefined : item.s,
     ext: isDir ? undefined : item.ico,
     stars: item.stars ?? 0,
-    updateTime: item.upt,
+    updateTime: item.te,
     pickCode: item.pc,
   };
 }
@@ -119,11 +121,11 @@ function normalizeItem(item) {
 function summarize(data, offset) {
   const list = (data.data ?? []).map(normalizeItem);
   return {
-    total: data.total,
     count: data.count,
+    total: data.total,
     offset,
     list,
-    hasMore: (offset ?? 0) + list.length < (data.total ?? 0),
+    hasMore: (offset ?? 0) + list.length < (data.count ?? 0),
     folderName: data.path?.map((p) => p.name).join(' / '),
   };
 }
