@@ -7,7 +7,7 @@
 | 文件 | 作用 |
 |---|---|
 | `server.mjs` | MCP 服务器（stdio），工具 `list_files` / `get_cookie_status`；同时监听 `127.0.0.1:26315` 接收 Cookie 推送 |
-| `cookie-bridge.user.js` | 油猴脚本：浏览器打开 115 页面时用 `GM_cookie` 读取 UID/CID/SEID 并 POST 到本地桥 |
+| `cookie-bridge.user.js` | **独立油猴脚本**（与 115master 主插件无任何关系）：读取 115 登录 Cookie 并推送到本地桥；菜单支持手动推送、改端口，带页面提示 |
 | `dsh-bundle/` | DSH 配置 bundle：注册 `@deepseek-ai/dsh-mcp-client`（stdio → server.mjs） |
 
 ## Cookie
