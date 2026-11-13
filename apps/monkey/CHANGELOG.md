@@ -1,5 +1,13 @@
 # @115master/monkey
 
+## 2.6.3
+
+### Patch Changes
+
+- [`cf2011f`](https://github.com/amasun/115master/commit/cf2011f54eaa19d8b976dcd6882b91e4a0523044) Thanks [@amasun](https://github.com/amasun)! - 文件夹头像恢复"标题包含演员名"匹配；新版页面头像替换限定在当前行内；番号资料紧凑样式开关即时生效
+
+- [`a74a804`](https://github.com/amasun/115master/commit/a74a804aa54372d072fa9356d37c82286456198e) Thanks [@amasun](https://github.com/amasun)! - 旧版 115 页面演员头像缩小到 40px 并以原图标中心对齐，文件名恢复原位
+
 ## 2.6.2
 
 ### Patch Changes
