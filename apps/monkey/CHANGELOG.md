@@ -1,5 +1,13 @@
 # @115master/monkey
 
+## 2.7.0
+
+### Minor Changes
+
+- [`a677cca`](https://github.com/amasun/115master/commit/a677cca4a1de6f36a43ea371f96239cd20ac191f) Thanks [@amasun](https://github.com/amasun)! - 偏好设置改为单页分类卡片布局（bento）；修复 115 旧版 / 新版页面里设置弹窗没有底色、账号卡片不显示的问题
+
+- [`a677cca`](https://github.com/amasun/115master/commit/a677cca4a1de6f36a43ea371f96239cd20ac191f) Thanks [@amasun](https://github.com/amasun)! - 视频截图预览张数改为可选设置（4/5/6/8，默认 6，从原有 8 个时间点中均匀挑选，旧缓存继续可用）；紧凑布局下预览条高度缩小
+
 ## 2.6.4
 
 ### Patch Changes
