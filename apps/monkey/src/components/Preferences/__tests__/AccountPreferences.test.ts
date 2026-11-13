@@ -64,10 +64,7 @@ it('用户名等于 UID 时只显示一次 UID 数值', () => {
   const app = createApp(AccountPreferences)
   app.mount(root)
 
-  const values = [...root.querySelectorAll('p, dd')]
-    .filter(item => item.textContent?.trim() === '340263991')
-
-  expect(values).toHaveLength(1)
+  expect(root.textContent?.split('340263991')).toHaveLength(2)
   expect(root.textContent).not.toContain('115 用户')
   expect(root.textContent).not.toContain('登录账号')
   expect(root.textContent).not.toContain('当前 MasterApp 使用的 115 账号。')
@@ -81,10 +78,8 @@ it('退出前使用简洁确认文案', async () => {
 
   const button = [...root.querySelectorAll('button')]
     .find(item => item.textContent?.trim() === '退出登录')
-  expect(root.querySelector('[data-account-preferences]')?.classList).toContain('h-full')
-  expect(button?.parentElement?.classList).toContain('mt-auto')
-  expect(button?.classList).toContain('w-full')
-  expect(button?.classList).toContain('sm:w-auto')
+  // 退出按钮与账号信息同一行，不单独占行
+  expect(button?.parentElement?.querySelector('img, [class*="rounded-full"]')).not.toBeNull()
   button?.click()
   await nextTick()
 

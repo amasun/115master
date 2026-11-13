@@ -106,10 +106,9 @@ test.describe('主题与设置', () => {
     await page.locator('button[title="偏好设置"]:visible').click()
     const dialog = page.getByRole('dialog', { name: '偏好设置' })
     await expect(dialog.getByRole('heading', { name: '偏好设置' })).toBeVisible()
-    await expect(dialog).toHaveAttribute('data-ui-dialog-size', 'lg')
+    await expect(dialog).toHaveAttribute('data-ui-dialog-size', 'xl')
 
     // 切换为深色：data-theme 立即生效，GM 值持久化
-    await dialog.getByRole('button', { name: '外观' }).click()
     await dialog.getByRole('radio', { name: '深色' }).click()
     await expect(page.locator('#my-app')).toHaveAttribute('data-theme', 'dark')
     await expect(dialog.getByRole('radio', { name: '深色' })).toHaveAttribute('aria-checked', 'true')
@@ -129,7 +128,6 @@ test.describe('主题与设置', () => {
 
     await page.locator('button[title="偏好设置"]:visible').click()
     const dialog = page.locator('.ui-dialog')
-    await dialog.getByRole('button', { name: '增强' }).click()
 
     const labels = ['视频截图预览', '番号作品资料', '演员头像替代文件夹图标', '播放页影片详情']
     for (const label of labels)
@@ -183,7 +181,6 @@ test.describe('主题与设置', () => {
       has: page.locator('[data-ui-navigation-stack]'),
     })
     const panel = dialog.locator('[data-ui-drawer-panel]')
-    const stack = dialog.locator('[data-ui-navigation-stack]')
     const handle = dialog.locator('[data-ui-drawer-drag-handle]')
     await expect(page.getByRole('dialog', { name: '偏好设置' })).toBeVisible()
     await expect(dialog.getByRole('heading', { name: '偏好设置' })).toBeVisible()
@@ -208,18 +205,12 @@ test.describe('主题与设置', () => {
     await expect(panel).toHaveCSS('border-top-left-radius', '32px')
     await expect(panel).toHaveCSS('border-bottom-left-radius', '0px')
 
-    await dialog.getByRole('button', { name: '外观' }).click()
-    await expect(stack).toHaveAttribute('data-ui-navigation-direction', 'forward')
-    await expect(page.getByRole('dialog', { name: '外观' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '外观' })).toBeVisible()
+    // 单页布局：所有分类同屏，内容区是唯一滚动容器
+    await expect(dialog.getByRole('region', { name: '外观主题' })).toBeVisible()
     const scrollOwner = dialog.locator('.ui-navigation-stack__content')
     await expect(scrollOwner).toHaveCount(1)
     await expect(scrollOwner).toHaveCSS('overflow-y', 'auto')
     await expect(scrollOwner.locator('[class~="overflow-y-auto"]')).toHaveCount(0)
-
-    await page.getByRole('button', { name: '返回偏好设置' }).click()
-    await expect(stack).toHaveAttribute('data-ui-navigation-direction', 'back')
-    await expect(page.getByRole('dialog', { name: '偏好设置' })).toBeVisible()
 
     const grip = await handle.boundingBox()
 

@@ -1,6 +1,7 @@
 <template>
   <div
     ref="rootRef"
+    :style="{ '--cover-h': compact ? '96px' : '150px' }"
     :class="[
       props.variant === 'official'
         ? videoCover.isReady
@@ -63,6 +64,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useSmartVideoCover } from '@/hooks/useVideoCover'
 import { clsx } from '@/utils/clsx'
 import { errorFeedback } from '@/utils/errorFeedback'
+import { useUserSetting } from '@/utils/userSettings'
 import 'photoswipe/style.css'
 
 const props = withDefaults(defineProps<{
@@ -80,16 +82,21 @@ const isLegacyVisual = props.variant === 'legacy'
   || props.variant === 'official'
   || props.variant === 'official-panel'
 
-/** 旧版文件列表预览帧数量，保持横向 150px 预览的密度。 */
+/** 截图时间点固定按 8 张计算，保持与旧缓存一致 */
 const FILELIST_VIDEO_COVER_NUM = 8
+
+/** 实际显示张数：从 8 个时间点中均匀挑选（用户设置，非法值回退到 6） */
+const count = useUserSetting('filelistPreviewCount')
+/** 紧凑布局下缩小预览条高度 */
+const compact = useUserSetting('compactAvInfo')
 
 /** 样式常量定义 */
 const styles = clsx({
   // 容器样式
   container: {
-    legacyMain: 'h-[150px] w-full [content-visibility:auto]',
-    officialMain: 'h-[150px] w-full [content-visibility:auto]',
-    officialPanelMain: 'h-[150px] w-full [content-visibility:auto]',
+    legacyMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
+    officialMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
+    officialPanelMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
     officialPending: 'h-px overflow-hidden',
     content:
       'bg-base-300 relative flex h-full items-center overflow-hidden rounded',
@@ -114,9 +121,9 @@ const styles = clsx({
       'transition-opacity ease-[var(--ui-ease-standard)] hover:opacity-90',
     ],
     officialThumbItem: 'aspect-video overflow-hidden',
-    legacyThumbItem: '!h-[150px] !w-auto',
+    legacyThumbItem: '!h-[var(--cover-h)] !w-auto',
     thumbImage: ['h-full w-full object-contain object-center align-top'],
-    legacyThumbImage: '!h-[150px] !w-auto !object-cover',
+    legacyThumbImage: '!h-[var(--cover-h)] !w-auto !object-cover',
   },
 })
 
@@ -133,6 +140,7 @@ const options = computed(() => ({
   sha1: props.sha1,
   pickCode: props.pickCode,
   coverNum: FILELIST_VIDEO_COVER_NUM,
+  pickNum: Number.isInteger(count.value) && count.value > 0 ? count.value : 6,
   duration: Number(props.duration),
 }))
 

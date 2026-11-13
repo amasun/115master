@@ -9,6 +9,7 @@ import { videoCoverCache } from '@/utils/cache'
 import { M3U8ClipperNew } from '@/utils/clipper/m3u8Clipper'
 import { drive115 } from '@/utils/drive115Instance'
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
+import { pickTimes } from './pickTimes'
 
 /** 最大宽度 */
 const MAX_WIDTH = 1280
@@ -59,6 +60,8 @@ export interface VideoCoverOptions {
   pickCode: string
   /** 数量 */
   coverNum: number
+  /** 从 coverNum 个时间点中均匀挑选的张数，缺省为全部 */
+  pickNum?: number
   /** 持续时间 */
   duration: number
 }
@@ -83,7 +86,7 @@ export interface SmartLoadConfig {
  * 生成任务ID
  */
 function generateTaskId(options: VideoCoverOptions): string {
-  return `cover_${options.sha1}_${options.pickCode}_${options.coverNum}_${options.duration}`
+  return `cover_${options.sha1}_${options.pickCode}_${options.coverNum}_${options.pickNum ?? options.coverNum}_${options.duration}`
 }
 
 /**
@@ -263,9 +266,9 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
   const taskId = generateTaskId(options.value)
 
   /** 时间点 */
-  const times = calculateVideoCoverTimes(
-    options.value.duration,
-    options.value.coverNum,
+  const times = pickTimes(
+    calculateVideoCoverTimes(options.value.duration, options.value.coverNum),
+    options.value.pickNum,
   )
 
   /** 可见性 */

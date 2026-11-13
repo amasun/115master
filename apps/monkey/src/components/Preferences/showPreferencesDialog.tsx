@@ -1,8 +1,12 @@
-import { ModalHost, OverlayHost } from '@115master/ui'
+import { DialogHost, ModalHost, OverlayHost } from '@115master/ui'
+import { usePreferredDark } from '@vueuse/core'
 import { createPinia } from 'pinia'
-import { createApp, defineComponent } from 'vue'
+import { createApp, defineComponent, provide } from 'vue'
+import { appDialog } from '@/app/dialog'
 import mainStyles from '@/styles/main.css?inline'
 import { adoptShadowStyle } from '@/utils/adoptShadowStyle'
+import { useUserSetting } from '@/utils/userSettings'
+import { PREFERENCES_NATIVE } from './AccountPreferences'
 import { PreferencesDialog, usePreferencesDialog } from './PreferencesDialog'
 
 let hostApp: ReturnType<typeof createApp> | null = null
@@ -26,12 +30,23 @@ export function showPreferencesDialog(): void {
     const Wrapper = defineComponent({
       name: 'PreferencesDialogWrapper',
       setup() {
+        provide(PREFERENCES_NATIVE, true)
+        const mode = useUserSetting('theme')
+        const dark = usePreferredDark()
+        /** Shadow DOM 内匹配不到 :root，必须显式写 data-theme，否则颜色变量为空、弹窗透明 */
         return () => (
-          <OverlayHost>
-            <ModalHost>
-              <PreferencesDialog />
-            </ModalHost>
-          </OverlayHost>
+          <div
+            class="text-base-content"
+            data-theme={mode.value === 'system' ? (dark.value ? 'dark' : 'light') : mode.value}
+          >
+            <OverlayHost>
+              <ModalHost>
+                <DialogHost service={appDialog}>
+                  <PreferencesDialog />
+                </DialogHost>
+              </ModalHost>
+            </OverlayHost>
+          </div>
         )
       },
     })

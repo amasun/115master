@@ -1,15 +1,12 @@
-import type { PreferenceSection } from './PreferencesContent'
 import { Dialog, Drawer, NavigationStack } from '@115master/ui'
 import { useMediaQuery } from '@vueuse/core'
-import { computed, defineComponent, ref } from 'vue'
-import PreferencesContent, { PREFERENCE_SECTIONS } from './PreferencesContent'
+import { defineComponent, ref } from 'vue'
+import PreferencesContent from './PreferencesContent'
 
 const open = ref(false)
-const section = ref<PreferenceSection | null>(null)
 
 export function usePreferencesDialog() {
   return () => {
-    section.value = null
     open.value = true
   }
 }
@@ -23,40 +20,21 @@ export const PreferencesDialog = defineComponent({
 
   setup() {
     const desktop = useMediaQuery('(min-width: 640px)')
-    const title = computed(() => {
-      if (desktop.value || section.value === null)
-        return '偏好设置'
-      return PREFERENCE_SECTIONS.find(item => item.id === section.value)?.label ?? '偏好设置'
-    })
-    const canGoBack = computed(() => !desktop.value && section.value !== null)
-    const pageKey = computed(() => desktop.value ? 'desktop' : (section.value ?? 'root'))
-    const depth = computed(() => !desktop.value && section.value !== null ? 1 : 0)
 
     function update(value: boolean) {
       open.value = value
     }
 
-    function closed() {
-      if (!open.value)
-        section.value = null
-    }
-
     const navigation = () => (
       <NavigationStack
-        title={title.value}
-        pageKey={pageKey.value}
-        depth={depth.value}
-        canGoBack={canGoBack.value}
-        backLabel="返回偏好设置"
+        title="偏好设置"
+        pageKey="root"
+        depth={0}
+        canGoBack={false}
         closeLabel="关闭偏好设置"
-        onBack={() => section.value = null}
         onDismiss={closePreferencesDialog}
       >
-        <PreferencesContent
-          section={section.value}
-          onUpdate:section={value => section.value = value}
-          onLoggedOut={closePreferencesDialog}
-        />
+        <PreferencesContent onLoggedOut={closePreferencesDialog} />
       </NavigationStack>
     )
 
@@ -64,10 +42,9 @@ export const PreferencesDialog = defineComponent({
       ? (
           <Dialog
             open={open.value}
-            label={title.value}
-            size="lg"
+            label="偏好设置"
+            size="xl"
             onUpdate:open={update}
-            onClosed={closed}
           >
             {navigation}
           </Dialog>
@@ -75,12 +52,11 @@ export const PreferencesDialog = defineComponent({
       : (
           <Drawer
             open={open.value}
-            label={title.value}
+            label="偏好设置"
             placement="bottom"
             size="lg"
             style="--ui-drawer-size: min(75dvh, 44rem)"
             onUpdate:open={update}
-            onClosed={closed}
           >
             {navigation}
           </Drawer>

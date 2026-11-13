@@ -69,7 +69,6 @@ test.describe('分页', () => {
 
     await page.locator('button[title="偏好设置"]:visible').click()
     const dialog = page.getByRole('dialog', { name: '偏好设置' })
-    await dialog.getByRole('button', { name: '文件列表' }).click()
     await dialog.getByLabel('文件列表加载方式').selectOption('infinite')
 
     expect(await page.evaluate(() => localStorage.getItem('115Master_drive_list_load_mode'))).toBe('infinite')

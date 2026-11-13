@@ -8,6 +8,8 @@ import { appLogger } from './logger'
 export interface Settings {
   /** 启动文件列表预览 */
   enableFilelistPreview: boolean
+  /** 文件列表每个视频的预览截图张数 */
+  filelistPreviewCount: number
   /** 显示番号资料 */
   enableAvInfo: boolean
   /** 官方页面的番号资料使用紧凑样式 */
@@ -25,6 +27,7 @@ export type UserSettingKey = keyof Settings
 /** 默认设置 */
 const DEFAULT_SETTINGS: Settings = {
   enableFilelistPreview: true,
+  filelistPreviewCount: 6,
   enableAvInfo: true,
   compactAvInfo: false,
   enableActressFaces: true,

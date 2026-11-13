@@ -18,6 +18,16 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 
 需要 Tampermonkey 5.3.3+，Chrome 130+ 或 115Browser 35+，并开启扩展开发者模式。安装前停用原版 115Master，两者不能同时运行。
 
+## 三个界面的编号
+
+脚本在三个界面里工作，下文和问题反馈里用编号称呼：
+
+| 编号 | 界面 | 说明 | 代码位置 |
+|---|---|---|---|
+| **U1** | 115 旧版 | 115 官方旧版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/home` |
+| **U2** | 115 新版 | 115 官方新版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/official` |
+| **U3** | Fusion | 脚本自带的独立文件管理界面，不使用 115 的页面 | `apps/monkey/src/app`、`apps/monkey/src/pages/drive` |
+
 ## 在上游基础上新增的功能
 
 ### 播放器打点（Markers）

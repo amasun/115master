@@ -1008,6 +1008,14 @@ test.describe('新版 115 原生文件列表适配', () => {
     await settingsToggle.click()
     const preferencesRoot = page.locator('[id="115master-preferences-dialog-root"]')
     await expect(preferencesRoot).toBeAttached()
+    /** Shadow DOM 内必须带主题，否则颜色变量为空、面板透明 */
+    const panel = preferencesRoot.locator('[data-ui-dialog-panel]')
+    await expect(panel).toBeVisible()
+    await expect(preferencesRoot.locator('[data-theme]').first()).toHaveAttribute('data-theme', /^(light|dark)$/)
+    expect(await panel.evaluate(node => getComputedStyle(node).getPropertyValue('--color-base-100').trim())).not.toBe('')
+    for (const name of ['布局模式', '外观主题', '功能增强', '账号', '文件列表', '关于'])
+      await expect(preferencesRoot.getByRole('region', { name })).toBeVisible()
+    await expect(preferencesRoot.getByRole('button', { name: '退出登录' })).toBeVisible()
     expect(errors).toEqual([])
   })
 
