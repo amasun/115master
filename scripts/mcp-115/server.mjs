@@ -23,6 +23,33 @@ const CONFIG_PATH = process.env.MCP_115_CONFIG
   ?? path.join(os.homedir(), '.115-mcp', 'config.json');
 const BRIDGE_PORT = Number(process.env.MCP_115_BRIDGE_PORT ?? 26315);
 const FILES_API = 'https://webapi.115.com/files';
+const TASK_TIMEOUT_MS = 30_000;
+
+// 浏览器代理任务队列：油猴脚本轮询 GET /task 领取任务，POST /result 回传结果
+const taskQueue = [];
+const taskWaiters = new Set();
+const pendingTasks = new Map();
+
+function nextQueuedTask() {
+  return taskQueue.shift() ?? null;
+}
+
+function enqueueTask(url) {
+  return new Promise((resolve, reject) => {
+    const id = crypto.randomUUID();
+    const task = { id, url, createdAt: Date.now(), delivered: false };
+    taskQueue.push(task);
+    pendingTasks.set(id, { task, resolve, reject });
+    for (const wake of taskWaiters.splice(0)) wake();
+    setTimeout(() => {
+      if (!pendingTasks.has(id)) return;
+      pendingTasks.delete(id);
+      const idx = taskQueue.indexOf(task);
+      if (idx >= 0) taskQueue.splice(idx, 1);
+      reject(new Error('浏览器代理超时：请确认已打开 115 页面且油猴桥脚本在运行（v0.3.0+）'));
+    }, TASK_TIMEOUT_MS);
+  });
+}
 
 function loadCookie() {
   try {
@@ -40,19 +67,23 @@ function saveCookie(cookie) {
 }
 
 async function call115(params) {
-  const cookie = loadCookie();
-  if (!cookie) {
-    throw new Error(
-      '尚未配置 115 Cookie。两种方式：\n'
-      + '1) 在浏览器安装 scripts/mcp-115/cookie-bridge.user.js 油猴桥（自动推送）\n'
-      + `2) 手动把 Cookie 写入 ${CONFIG_PATH}：{"cookie":"UID=...;CID=...;SEID=..."}\n`
-      + '需要 UID、CID、SEID 三个字段。',
-    );
-  }
   const url = new URL(FILES_API);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
   }
+  const cookie = loadCookie();
+  const data = cookie ? await directFetch(url, cookie) : await proxyFetchJson(url.href);
+  if (!data.state) {
+    throw new Error(`115 API 返回失败（可能是登录态失效，请重新推送 Cookie）: ${JSON.stringify({
+      state: data.state,
+      error: data.error ?? data.message ?? null,
+      noLogin: data.noLogin ?? null,
+    })}`);
+  }
+  return data;
+}
+
+async function directFetch(url, cookie) {
   const res = await fetch(url, {
     headers: {
       cookie,
@@ -62,15 +93,12 @@ async function call115(params) {
     },
   });
   if (!res.ok) throw new Error(`115 API HTTP ${res.status}`);
-  const data = await res.json();
-  if (!data.state) {
-    throw new Error(`115 API 返回失败（可能是登录态失效，请重新推送 Cookie）: ${JSON.stringify({
-      state: data.state,
-      error: data.error ?? data.message ?? null,
-      noLogin: data.noLogin ?? null,
-    })}`);
-  }
-  return data;
+  return res.json();
+}
+
+// 通过油猴脚本代理：GM_xmlhttpRequest 自动携带浏览器登录态（含 httpOnly）
+async function proxyFetchJson(url) {
+  return enqueueTask(url);
 }
 
 function normalizeItem(item) {
@@ -155,8 +183,71 @@ server.registerTool(
   },
 );
 
-// Cookie 桥：油猴脚本 POST /cookie 推送登录态
-const bridge = http.createServer((req, res) => {
+// Cookie 桥：油猴脚本 POST /cookie 推送登录态（DSH 探针进程会并发抢端口，失败则用新实例重试）
+function handleBridge(req, res) {
+  const sendJson = (code, obj) => {
+    res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify(obj));
+  };
+
+  // 油猴脚本领取代理任务（长轮询：无任务时挂起，直到有任务或超时）
+  if (req.method === 'GET' && req.url.startsWith('/task')) {
+    const task = nextQueuedTask();
+    if (task) {
+      task.delivered = true;
+      sendJson(200, { ok: true, task: { id: task.id, url: task.url } });
+      return;
+    }
+    const wake = () => {
+      const t = nextQueuedTask();
+      if (t) {
+        t.delivered = true;
+        sendJson(200, { ok: true, task: { id: t.id, url: t.url } });
+      } else {
+        sendJson(200, { ok: true, task: null });
+      }
+    };
+    const waiter = () => {
+      clearTimeout(timer);
+      taskWaiters.delete(wake);
+      wake();
+    };
+    taskWaiters.add(wake);
+    const timer = setTimeout(() => {
+      taskWaiters.delete(wake);
+      sendJson(200, { ok: true, task: null });
+    }, 15_000);
+    return;
+  }
+
+  // 油猴脚本回传 115 API 结果
+  if (req.method === 'POST' && req.url.startsWith('/result')) {
+    let body = '';
+    req.on('data', (c) => {
+      body += c;
+      if (body.length > 8 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const { id, status, body: resultBody } = JSON.parse(body);
+        const pending = pendingTasks.get(id);
+        if (!pending) return sendJson(200, { ok: false, error: 'unknown task id' });
+        pendingTasks.delete(id);
+        const idx = taskQueue.indexOf(pending.task);
+        if (idx >= 0) taskQueue.splice(idx, 1);
+        const parsed = JSON.parse(resultBody);
+        if (status !== 200) {
+          pending.reject(new Error(`115 API HTTP ${status}（浏览器代理）`));
+        } else {
+          pending.resolve(parsed);
+        }
+        sendJson(200, { ok: true });
+      } catch (e) {
+        sendJson(400, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
+
   if (req.method !== 'POST' || !req.url.startsWith('/cookie')) {
     res.writeHead(404).end();
     return;
@@ -170,25 +261,38 @@ const bridge = http.createServer((req, res) => {
     try {
       const { cookie } = JSON.parse(body);
       if (!cookie || !/UID=/.test(cookie) || !/CID=/.test(cookie) || !/SEID=/.test(cookie)) {
-        res.writeHead(400, { 'content-type': 'application/json' })
-          .end(JSON.stringify({ ok: false, error: 'cookie 必须包含 UID/CID/SEID' }));
+        sendJson(400, { ok: false, error: 'cookie 必须包含 UID/CID/SEID' });
         return;
       }
       saveCookie(cookie);
-      res.writeHead(200, { 'content-type': 'application/json' })
-        .end(JSON.stringify({ ok: true, savedTo: CONFIG_PATH }));
+      sendJson(200, { ok: true, savedTo: CONFIG_PATH });
     } catch (e) {
-      res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false, error: e.message }));
+      sendJson(400, { ok: false, error: e.message });
     }
   });
-});
-bridge.listen(BRIDGE_PORT, '127.0.0.1', () => {
-  console.error(`[mcp-115] cookie bridge listening on http://127.0.0.1:${BRIDGE_PORT}/cookie`);
-});
-bridge.on('error', (err) => {
-  // 端口被占用时（例如另一个实例已在跑桥）不阻断 MCP 服务本身
-  console.error(`[mcp-115] cookie bridge unavailable: ${err.message}`);
-});
+}
+
+let bridgeRetryTimer = null;
+function listenBridge() {
+  if (bridgeRetryTimer) return;
+  const b = http.createServer(handleBridge);
+  b.on('error', (err) => {
+    if (err.code !== 'EADDRINUSE') {
+      console.error(`[mcp-115] cookie bridge error: ${err.message}`);
+      return;
+    }
+    console.error(`[mcp-115] cookie bridge port ${BRIDGE_PORT} busy, retrying in 5s...`);
+    b.close();
+    bridgeRetryTimer = setTimeout(() => {
+      bridgeRetryTimer = null;
+      listenBridge();
+    }, 5000);
+  });
+  b.listen(BRIDGE_PORT, '127.0.0.1', () => {
+    console.error(`[mcp-115] cookie bridge listening on http://127.0.0.1:${BRIDGE_PORT}/cookie`);
+  });
+}
+listenBridge();
 
 process.on('exit', () => bridge.close());
 
