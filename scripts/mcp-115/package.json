@@ -1,0 +1,14 @@
+{
+  "name": "@115master/mcp-115",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "115 网盘本地 MCP 服务器（stdio）+ Cookie 推送桥",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  }
+}

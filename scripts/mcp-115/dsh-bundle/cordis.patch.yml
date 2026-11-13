@@ -1,0 +1,10 @@
+- insert:
+    - id: drive115-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: drive115
+        transport: stdio
+        command: C:\Program Files\nodejs\node.exe
+        args:
+          - X:\XCoding\115master\scripts\mcp-115\server.mjs
+        failOnStartupError: true

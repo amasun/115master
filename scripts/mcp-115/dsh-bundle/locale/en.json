@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Drive115 MCP",
+    "description": "Connects a local stdio MCP server that exposes read-only 115 drive file tools (list_files, get_cookie_status) to the agent.",
+    "detail": "docs/DETAIL.md"
+  }
+}

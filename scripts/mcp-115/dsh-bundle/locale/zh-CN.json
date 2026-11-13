@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "115 网盘 MCP 通道",
+    "description": "连接本地 stdio MCP 服务器，向 Agent 暴露只读的 115 网盘工具（list_files 列目录/搜索、get_cookie_status）。Cookie 由油猴桥推送到本机配置文件，不上传。",
+    "detail": "docs/DETAIL.md"
+  }
+}
