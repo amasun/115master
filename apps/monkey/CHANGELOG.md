@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.6.4
+
+### Patch Changes
+
+- [#6](https://github.com/amasun/115master/pull/6) [`56bc8f7`](https://github.com/amasun/115master/commit/56bc8f799eb6e4c6d6d16b533d934402e9ab4f95) Thanks [@amasun](https://github.com/amasun)! - 设置面板恢复"账号（退出登录）"和"文件列表加载方式"两项
+
 ## 2.6.3
 
 ### Patch Changes
