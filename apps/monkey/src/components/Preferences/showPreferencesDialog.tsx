@@ -36,7 +36,7 @@ export function showPreferencesDialog(): void {
         /** Shadow DOM 内匹配不到 :root，必须显式写 data-theme，否则颜色变量为空、弹窗透明 */
         return () => (
           <div
-            class="text-base-content"
+            class="text-base-content font-sans leading-normal antialiased"
             data-theme={mode.value === 'system' ? (dark.value ? 'dark' : 'light') : mode.value}
           >
             <OverlayHost>

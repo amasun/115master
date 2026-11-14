@@ -36,8 +36,8 @@ const ThemeToggle = defineComponent({
       <div
         class={clsx({
           root: [
-            'flex items-center gap-1 rounded-xl',
-            'bg-base-content/10 p-1',
+            'flex items-center gap-1 rounded-xl border p-1',
+            'border-base-content/5 bg-base-content/[0.07]',
           ],
         }).root}
         role="radiogroup"
@@ -56,9 +56,9 @@ const ThemeToggle = defineComponent({
                 btn: [
                   'flex-1 cursor-pointer rounded-lg px-2 py-1.5',
                   'flex items-center justify-center gap-1',
-                  'text-xs transition-colors ease-[var(--ui-ease-standard)]',
+                  'text-xs transition-all ease-[var(--ui-ease-standard)]',
                   active
-                    ? 'bg-base-100 text-base-content shadow-sm'
+                    ? 'bg-base-100 text-base-content ring-base-content/8 font-medium shadow-xs ring-1'
                     : 'text-base-content/60 hover:text-base-content',
                 ],
               }).btn}

@@ -1,7 +1,13 @@
 import type { PropType } from 'vue'
 import type { IconSize, IconValue } from './types'
-import { Icon as IconifyIcon } from '@iconify/vue'
+import { addCollection as addVueIconCollection, Icon as IconifyIcon } from '@iconify/vue'
+import { addCollection as addWebComponentIconCollection } from 'iconify-icon'
 import { computed, defineAsyncComponent, defineComponent, h } from 'vue'
+import { ionCollection } from './ionCollection'
+
+// 预注册离线 Ionicons 图标子集，防止运行环境 CSP/断网导致设置及功能图标显示空白
+addVueIconCollection(ionCollection)
+addWebComponentIconCollection(ionCollection)
 
 const sizeClasses: Record<IconSize, string> = {
   'xs': 'size-3.5',

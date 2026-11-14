@@ -84,10 +84,10 @@ const AccountPreferences = defineComponent({
       const displayName = name && name !== uid ? name : ''
 
       return (
-        <div class="flex flex-col gap-2" data-account-preferences>
-          <div class="flex items-center gap-2.5">
+        <div class="flex flex-col gap-2.5" data-account-preferences>
+          <div class="flex items-center gap-3">
             <Image
-              class="border-base-content/10 size-10 shrink-0 rounded-full border"
+              class="border-base-content/10 ring-primary/20 size-11 shrink-0 rounded-full border shadow-xs ring-2"
               src={data.face?.face_l || ''}
               alt={displayName || '115 用户头像'}
               fit="cover"
@@ -98,29 +98,39 @@ const AccountPreferences = defineComponent({
               )}
             />
             <div class="min-w-0 flex-1">
-              <p class="text-base-content flex items-center gap-1.5 text-sm font-medium">
+              <p class="text-base-content flex flex-wrap items-center gap-2 text-sm font-semibold">
                 <span class="truncate">{displayName || uid}</span>
-                <span class="text-base-content/55 flex shrink-0 items-center gap-0.5 text-xs font-normal">
+                <span
+                  class={[
+                    'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
+                    data.vip?.is_vip
+                      ? 'border-warning/25 bg-warning/15 text-warning'
+                      : 'border-base-content/10 bg-base-content/5 text-base-content/65',
+                  ]}
+                >
                   {data.vip?.is_vip && <Icon name={I.STAR_RATING} size="xs" class="text-warning" />}
                   <span>{data.vip?.is_vip ? (data.vip.desc || 'VIP 用户') : '普通用户'}</span>
                 </span>
               </p>
-              <p class="text-base-content/55 mt-0.5 flex flex-wrap gap-x-2 text-xs">
-                {displayName && (
-                  <span>
-                    UID
-                    {' '}
-                    <span>{uid}</span>
-                  </span>
-                )}
-                {data.vip?.is_vip && data.vip.expire_str && (
-                  <span>
-                    到期
-                    {' '}
-                    <span>{data.vip.expire_str}</span>
-                  </span>
-                )}
-              </p>
+              {(displayName || (data.vip?.is_vip && data.vip.expire_str)) && (
+                <p class="text-base-content/55 mt-1 flex flex-wrap items-center gap-x-2.5 text-xs tabular-nums">
+                  {displayName && (
+                    <span class="inline-flex items-center gap-1">
+                      <span class="text-base-content/40">UID</span>
+                      <span>{uid}</span>
+                    </span>
+                  )}
+                  {displayName && data.vip?.is_vip && data.vip.expire_str && (
+                    <span aria-hidden="true" class="text-base-content/25">·</span>
+                  )}
+                  {data.vip?.is_vip && data.vip.expire_str && (
+                    <span class="inline-flex items-center gap-1">
+                      <span class="text-base-content/40">到期</span>
+                      <span>{data.vip.expire_str}</span>
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <Button
               class="shrink-0"
