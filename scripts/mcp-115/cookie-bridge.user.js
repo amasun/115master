@@ -2,9 +2,9 @@
 // @name         115 MCP Cookie Bridge
 // @name:zh-CN   115 MCP 浏览器代理桥
 // @namespace    115-mcp-cookie-bridge
-// @version      0.3.0
-// @description  Standalone helper: polls a local MCP bridge and executes 115 API requests with the browser's login state (GM_xmlhttpRequest auto-attaches httpOnly cookies). Independent of any other userscript.
-// @description:zh-CN  独立辅助脚本：轮询本地 MCP 桥领取任务，用浏览器登录态（GM_xmlhttpRequest 自动携带 httpOnly Cookie）执行 115 API 请求并回传结果。不依赖任何其他脚本，不需要读取 Cookie。
+// @version      0.4.0
+// @description  Standalone helper, dual mode: (1) auto-pushes 115 login cookies (incl. httpOnly) to the local MCP bridge where GM_cookie works (Chrome/Edge) for auto renewal; (2) proxy mode - polls the bridge and executes 115 API requests with the browser's login state (115Browser fallback). Independent of any other userscript.
+// @description:zh-CN  独立辅助脚本，双模式：Chrome/Edge 下自动推送 115 登录 Cookie（含 httpOnly）给本地 MCP 桥实现自动续期；115Browser 下退化为代理模式（轮询领任务、用登录态执行请求）。不依赖任何其他脚本。
 // @author       you
 // @match        https://115.com/*
 // @match        https://*.115.com/*
@@ -17,6 +17,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_cookie
 // @run-at       document-idle
 // @license      MIT
 // ==/UserScript==
@@ -99,6 +100,39 @@
     });
   }
 
+
+  // ---------- 模式一：Cookie 自动续期（Chrome/Edge 可读 httpOnly，115Browser 不行） ----------
+  const COOKIE_PUSH_INTERVAL = 30 * 60 * 1000;
+
+  function pushCookie(silent) {
+    if (typeof GM_cookie === 'undefined' || !GM_cookie?.list) {
+      if (!silent) toast('当前脚本管理器不支持 GM_cookie，仅代理模式可用', false);
+      return;
+    }
+    GM_cookie.list({ url: location.href }, (cookies, error) => {
+      if (error || !cookies?.length) {
+        if (!silent) toast(`读取 Cookie 失败：${error ?? '没有 Cookie'}`, false);
+        return;
+      }
+      const names = cookies.map((c) => c.name);
+      if (!['UID', 'CID', 'SEID'].every((k) => names.includes(k))) {
+        if (!silent) toast('读到的 Cookie 不含 UID/CID/SEID（此浏览器可能读不到 httpOnly），仅代理模式可用', false);
+        return;
+      }
+      const cookie = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+      bridgePost('/cookie', { cookie })
+        .then((res) => {
+          const body = JSON.parse(res.responseText);
+          if (body.ok) toast(silent ? 'Cookie 已自动续期' : 'Cookie 已推送到本地 MCP 桥');
+          else toast(`推送被拒绝：${body.error}`, false);
+        })
+        .catch(() => {
+          if (!silent) toast('本地桥不可达（MCP server 未运行？）', false);
+        });
+    });
+  }
+
+  // ---------- 模式二：代理模式（轮询领任务，用登录态执行请求） ----------
   let polling = false;
   async function poll() {
     if (polling) return;
@@ -126,20 +160,11 @@
     }
   }
 
-  GM_registerMenuCommand('修改本地桥端口', () => {
-    const input = prompt(`本地 MCP 桥端口（当前 ${port()}）：`, String(port()));
-    if (input === null) return;
-    const n = Number(input);
-    if (!Number.isInteger(n) || n < 1 || n > 65535) {
-      alert('端口无效');
-      return;
-    }
-    GM_setValue(BRIDGE_PORT_KEY, n);
-    toast(`端口已改为 ${n}`);
-  });
+  GM_registerMenuCommand('立即推送 Cookie（续期）', () => pushCookie(false));
 
-  GM_registerMenuCommand('立即轮询一次任务', poll);
-
+  // 启动：推送一次 Cookie + 开始轮询任务；每 30 分钟续推一次 Cookie
+  pushCookie(true);
+  setInterval(() => pushCookie(true), COOKIE_PUSH_INTERVAL);
   setInterval(poll, POLL_INTERVAL);
   poll();
 })();
