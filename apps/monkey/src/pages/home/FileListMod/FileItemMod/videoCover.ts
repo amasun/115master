@@ -24,6 +24,9 @@ export class FileItemModVideoCover extends FileItemModBase {
   private vueApp: App | null = null
   private visibilityObserver: IntersectionObserver | null = null
   private stopPreloadWatch: (() => void) | null = null
+  /** 被对齐的文件图标节点与原始 top，用于卸载时还原 */
+  private iconNode: HTMLElement | null = null
+  private iconOriginalTop: string | null = null
 
   onLoad() {
     logger.info('开始加载旧版页面视频封面')
@@ -39,6 +42,8 @@ export class FileItemModVideoCover extends FileItemModBase {
     }
 
     this.itemNode.classList.add('with-ext-video-cover')
+
+    this.alignFileIconWithFileNameRow()
 
     /** 创建容器元素 */
     const container = document.createElement('div')
@@ -110,8 +115,40 @@ export class FileItemModVideoCover extends FileItemModBase {
     this.vueApp = null
     this.container?.remove()
     this.container = null
+    if (this.iconNode) {
+      if (this.iconOriginalTop !== null)
+        this.iconNode.style.top = this.iconOriginalTop
+      else
+        this.iconNode.style.removeProperty('top')
+      this.iconNode = null
+      this.iconOriginalTop = null
+    }
     this.itemNode.classList.remove('with-ext-video-cover')
     logger.info('旧版页面视频封面卸载完成')
+  }
+
+  /**
+   * 把绝对定位的文件图标对齐回文件名行的垂直中心
+   * @description 截图条撑高 li 后，图标默认的 top:50% 会落到截图图片上。
+   * 这里用矩形实测文件名行中心（相对 li），写入内联 top；卸载时还原。
+   */
+  private alignFileIconWithFileNameRow() {
+    const icon = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
+    if (!icon || getComputedStyle(icon).position !== 'absolute')
+      return
+    const nameWrap = this.itemNode.querySelector<HTMLElement>('.file-name-wrap')
+    if (!nameWrap)
+      return
+    const liRect = this.itemNode.getBoundingClientRect()
+    const nameRect = nameWrap.getBoundingClientRect()
+    if (liRect.height <= 0 || nameRect.height <= 0)
+      return
+    this.iconNode = icon
+    this.iconOriginalTop = icon.style.top
+    const center = nameRect.top - liRect.top + nameRect.height / 2
+    icon.style.top = `${center}px`
+    icon.style.transform = 'translateY(-50%)'
+    logger.info('文件图标对齐文件名行中心', this.itemInfo.attributes.pick_code, `${center}px`)
   }
 
   private mountApp() {
