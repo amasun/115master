@@ -24,9 +24,6 @@ export class FileItemModVideoCover extends FileItemModBase {
   private vueApp: App | null = null
   private visibilityObserver: IntersectionObserver | null = null
   private stopPreloadWatch: (() => void) | null = null
-  /** 被对齐的文件图标节点与原始 top，用于卸载时还原 */
-  private iconNode: HTMLElement | null = null
-  private iconOriginalTop: string | null = null
 
   onLoad() {
     logger.info('开始加载旧版页面视频封面')
@@ -43,8 +40,6 @@ export class FileItemModVideoCover extends FileItemModBase {
 
     this.itemNode.classList.add('with-ext-video-cover')
 
-    this.alignFileIconWithFileNameRow()
-
     /** 创建容器元素 */
     const container = document.createElement('div')
     container.style.width = '100%'
@@ -55,6 +50,7 @@ export class FileItemModVideoCover extends FileItemModBase {
     )
     this.itemNode.append(container)
     this.container = container
+    this.reserveIconColumnForPreview(container)
 
     /*
      * ================================================================================
@@ -115,40 +111,32 @@ export class FileItemModVideoCover extends FileItemModBase {
     this.vueApp = null
     this.container?.remove()
     this.container = null
-    if (this.iconNode) {
-      if (this.iconOriginalTop !== null)
-        this.iconNode.style.top = this.iconOriginalTop
-      else
-        this.iconNode.style.removeProperty('top')
-      this.iconNode = null
-      this.iconOriginalTop = null
-    }
     this.itemNode.classList.remove('with-ext-video-cover')
     logger.info('旧版页面视频封面卸载完成')
   }
 
   /**
-   * 把绝对定位的文件图标对齐回文件名行的垂直中心
-   * @description 截图条撑高 li 后，图标默认的 top:50% 会落到截图图片上。
-   * 这里用矩形实测文件名行中心（相对 li），写入内联 top；卸载时还原。
+   * 给截图条预留文件图标列宽度
+   * @description 绝对定位的文件图标留在 li 左侧（top:50% 垂直居中，不改动），
+   * 截图条加同等左侧外边距避开图标，与文件名靠左内边距给图标留位同一逻辑。
+   * 图标占位按矩形实测，无图标时不加外边距。
    */
-  private alignFileIconWithFileNameRow() {
+  private reserveIconColumnForPreview(container: HTMLDivElement) {
     const icon = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
-    if (!icon || getComputedStyle(icon).position !== 'absolute')
+    if (!icon) {
+      logger.info('截图条预留图标列跳过：未找到文件图标', this.itemInfo.attributes.pick_code)
       return
-    const nameWrap = this.itemNode.querySelector<HTMLElement>('.file-name-wrap')
-    if (!nameWrap)
+    }
+    const iconStyle = getComputedStyle(icon)
+    const width = iconStyle.position === 'absolute'
+      ? icon.offsetLeft + icon.offsetWidth + Number.parseFloat(iconStyle.marginRight) + 8
+      : 0
+    if (width <= 0) {
+      logger.info('截图条预留图标列跳过：图标不在常规位置', this.itemInfo.attributes.pick_code)
       return
-    const liRect = this.itemNode.getBoundingClientRect()
-    const nameRect = nameWrap.getBoundingClientRect()
-    if (liRect.height <= 0 || nameRect.height <= 0)
-      return
-    this.iconNode = icon
-    this.iconOriginalTop = icon.style.top
-    const center = nameRect.top - liRect.top + nameRect.height / 2
-    icon.style.top = `${center}px`
-    icon.style.transform = 'translateY(-50%)'
-    logger.info('文件图标对齐文件名行中心', this.itemInfo.attributes.pick_code, `${center}px`)
+    }
+    container.style.marginLeft = `${width}px`
+    logger.info('截图条预留图标列完成', this.itemInfo.attributes.pick_code, `${width}px`)
   }
 
   private mountApp() {
