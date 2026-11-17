@@ -62,4 +62,23 @@
     display: flex;
     margin-top: 16px;
   }
+
+  /*
+   * 截图条撑高 li 后，绝对定位的文件图标（默认 top:50% 垂直居中）
+   * 会落到截图图片上。固定回第一行文件名行的中心。
+   */
+  .file-thumb,
+  .file-type {
+    top: 41px;
+  }
+
+  /*
+   * 介绍与截图同时开启时，保证介绍在上、截图在下，与 DOM 顺序无关。
+   */
+  [data-115master-detail] {
+    order: 1;
+  }
+  [data-115master-preview] {
+    order: 2;
+  }
 }
