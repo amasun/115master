@@ -6,17 +6,14 @@ import { BaseMod } from '@/pages/home/BaseMod'
 import { appLogger } from '@/utils/logger'
 import { getUrlParams } from '@/utils/url'
 import { userSettings } from '@/utils/userSettings'
-import { openOfflineTask } from './openOfflineTask'
 import './index.css'
 import 'iconify-icon'
 
 /**
  * 顶部导航栏修改器
  * @description
- * 1. 添加自定义的云下载一级按钮
- * 2. 删除官方的云下载按钮
- * 3. 云下载按钮免除刷新重定向
- * 4. 添加预览切换开关
+ * 1. 保留官方云下载按钮，不再注入插件版离线下载入口
+ * 2. 添加预览切换开关
  */
 export class TopHeaderMod extends BaseMod {
   private readonly logger = appLogger.sub('TopHeaderMod')
@@ -52,7 +49,6 @@ export class TopHeaderMod extends BaseMod {
     if (this.menuFrame !== null)
       cancelAnimationFrame(this.menuFrame)
     this.menuFrame = null
-    this.topHeaderNode?.querySelector('.master-offline-task-btn')?.remove()
     this.topHeaderNode?.querySelector('.master-preview-switch-btn')?.remove()
     this.topHeaderNode?.querySelector('.master-av-switch-btn')?.remove()
     this.topHeaderNode?.querySelector('.master-actress-switch-btn')?.remove()
@@ -71,47 +67,11 @@ export class TopHeaderMod extends BaseMod {
     if (params.mode === 'search') {
       return
     }
-    this.deleteOfficialDownloadButton()
-    this.addMasterOfflineTaskButton()
     this.addPreviewSwitchButton()
     this.addAvInfoSwitchButton()
     this.addActressFacesSwitchButton()
     this.addSettingsButton()
     this.watchContextMenuPosition()
-  }
-
-  /** 删除官方的离线任务按钮 */
-  private deleteOfficialDownloadButton() {
-    const downloadButton = this.topHeaderNode?.querySelector(
-      '.button[menu=\'offline_task\']',
-    )
-    if (downloadButton) {
-      downloadButton.remove()
-    }
-  }
-
-  /** 添加 Master 离线任务按钮 */
-  private addMasterOfflineTaskButton() {
-    const button = this.createMasterOfflineTaskButton()
-    this.topHeaderNode?.prepend(button)
-  }
-
-  /** 创建 Master 离线任务按钮 */
-  private createMasterOfflineTaskButton() {
-    const button = document.createElement('a')
-    button.classList.add('button', 'master-topbar-btn', 'master-offline-task-btn')
-    button.href = 'javascript:void(0)'
-    button.innerHTML = `
-            <i class="icon-operate ifo-linktask"></i>
-            <span>云下载</span>
-        `
-    button.style.background = '#3a4783'
-    button.style.borderColor = '#3a4783'
-    button.style.color = '#fff'
-    button.onclick = () => {
-      openOfflineTask()
-    }
-    return button
   }
 
   /** 添加预览切换开关 */
