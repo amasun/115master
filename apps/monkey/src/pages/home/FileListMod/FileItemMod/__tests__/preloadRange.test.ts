@@ -276,4 +276,42 @@ describe('watchFileItemPreloadRange', () => {
     vi.useRealTimers()
     logger.info('原生列表无滚动重排兜底验证完成')
   })
+
+  it('measures scrollBox rect only once per batch across multiple pending items', () => {
+    const frames: FrameRequestCallback[] = []
+    const ownerWindow = {
+      innerHeight: 800,
+      requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => {
+        frames.push(callback)
+        return frames.length
+      }),
+      cancelAnimationFrame: vi.fn(),
+    } as unknown as Window
+    let scrollListener: EventListener | undefined
+    const getScrollBoxRect = vi.fn(() => ({ top: 100, bottom: 700 }))
+    const scrollBox = {
+      addEventListener: vi.fn((_type: string, listener: EventListener) => {
+        scrollListener = listener
+      }),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: getScrollBoxRect,
+    } as unknown as Element
+    const createContainer = (top: number) => ({
+      isConnected: true,
+      ownerDocument: { defaultView: ownerWindow },
+      getBoundingClientRect: () => ({ top, bottom: top + 96 }),
+    }) as unknown as HTMLElement
+
+    const stopA = watchFileItemPreloadRange(createContainer(650), scrollBox, vi.fn())
+    const stopB = watchFileItemPreloadRange(createContainer(2000), scrollBox, vi.fn())
+    const stopC = watchFileItemPreloadRange(createContainer(2200), scrollBox, vi.fn())
+
+    scrollListener?.(new Event('scroll'))
+    frames.shift()?.(0)
+
+    expect(getScrollBoxRect).toHaveBeenCalledOnce()
+    stopA()
+    stopB()
+    stopC()
+  })
 })

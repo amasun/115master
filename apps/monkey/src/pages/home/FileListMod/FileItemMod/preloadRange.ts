@@ -22,17 +22,49 @@ interface PreloadScrollGroup {
 
 const preloadScrollGroups = new WeakMap<Element, PreloadScrollGroup>()
 
+function resolveRootRect(
+  scrollBox: Element,
+  ownerDocument: Document,
+  ownerWindow: Window,
+) {
+  const measured = scrollBox === ownerDocument.body
+    || scrollBox === ownerDocument.documentElement
+    ? { top: 0, bottom: ownerWindow.innerHeight }
+    : scrollBox.getBoundingClientRect()
+  return measured.bottom > measured.top
+    ? measured
+    : { top: 0, bottom: ownerWindow.innerHeight }
+}
+
+function isContainerWithinRootRect(
+  container: HTMLElement,
+  rootRect: { top: number, bottom: number },
+) {
+  const rect = container.getBoundingClientRect()
+  return rect.bottom >= rootRect.top - FILE_ITEM_PRELOAD_MARGIN
+    && rect.top <= rootRect.bottom + FILE_ITEM_PRELOAD_MARGIN
+}
+
 /** 挂载已经进入预加载范围的待处理项。 */
 function mountPendingPreloadItems(
   scrollBox: Element,
   group: PreloadScrollGroup,
 ) {
+  if (group.items.size === 0)
+    return
+
+  let rootRect: { top: number, bottom: number } | null = null
   for (const pendingItem of [...group.items]) {
     if (!pendingItem.container.isConnected) {
       group.items.delete(pendingItem)
       continue
     }
-    if (!isWithinFileItemPreloadRange(pendingItem.container, scrollBox))
+    rootRect ??= resolveRootRect(
+      scrollBox,
+      pendingItem.container.ownerDocument,
+      group.ownerWindow,
+    )
+    if (!isContainerWithinRootRect(pendingItem.container, rootRect))
       continue
     group.items.delete(pendingItem)
     pendingItem.onEnter()
@@ -54,26 +86,12 @@ export function isWithinFileItemPreloadRange(
    * 1) 优先读取有效滚动容器矩形
    * 2) 零尺寸容器回退浏览器视口并扩展 600px
    */
-  logger.info('开始判断文件增强预加载范围')
   const ownerWindow = container.ownerDocument.defaultView
-  if (!ownerWindow) {
-    logger.info('文件增强预加载范围判断完成，无页面窗口')
+  if (!ownerWindow)
     return false
-  }
 
-  const containerRect = container.getBoundingClientRect()
-  const measuredRootRect = scrollBox === container.ownerDocument.body
-    || scrollBox === container.ownerDocument.documentElement
-    ? { top: 0, bottom: ownerWindow.innerHeight }
-    : scrollBox.getBoundingClientRect()
-  const rootRect = measuredRootRect.bottom > measuredRootRect.top
-    ? measuredRootRect
-    : { top: 0, bottom: ownerWindow.innerHeight }
-  const result = containerRect.bottom >= rootRect.top - FILE_ITEM_PRELOAD_MARGIN
-    && containerRect.top <= rootRect.bottom + FILE_ITEM_PRELOAD_MARGIN
-
-  logger.info('文件增强预加载范围判断完成', result)
-  return result
+  const rootRect = resolveRootRect(scrollBox, container.ownerDocument, ownerWindow)
+  return isContainerWithinRootRect(container, rootRect)
 }
 
 /**
@@ -151,7 +169,6 @@ export function watchFileItemPreloadRange(
          * 1) 大跨度滚动同步检查几何范围
          * 2) 小跨度滚动仍由原有批处理合并
          */
-        logger.info('开始检查大跨度滚动预加载')
         const currentScrollTop = scrollBox.scrollTop
         const scrollDistance = Math.abs(
           currentScrollTop - activeGroup.lastObservedScrollTop,
@@ -163,7 +180,6 @@ export function watchFileItemPreloadRange(
           activeGroup.lastObservedScrollTop = currentScrollTop
           mountPendingPreloadItems(scrollBox, activeGroup)
         }
-        logger.info('大跨度滚动预加载检查完成', scrollDistance)
 
         /** 3.1 同步挂载可能由最后一个 disposer 删除共享组。 */
         if (
