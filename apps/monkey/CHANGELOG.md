@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.7.1
+
+### Patch Changes
+
+- [`e580f65`](https://github.com/amasun/115master/commit/e580f65) - 视频截图预览按设定张数独立计算时间点并实时响应张数切换；部分命中缓存时仅补截缺失帧
+
 ## 2.7.0
 
 ### Minor Changes
