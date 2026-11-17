@@ -49,10 +49,7 @@ export class TopHeaderMod extends BaseMod {
     if (this.menuFrame !== null)
       cancelAnimationFrame(this.menuFrame)
     this.menuFrame = null
-    this.topHeaderNode?.querySelector('.master-preview-switch-btn')?.remove()
-    this.topHeaderNode?.querySelector('.master-av-switch-btn')?.remove()
-    this.topHeaderNode?.querySelector('.master-actress-switch-btn')?.remove()
-    this.topHeaderNode?.querySelector('.master-settings-btn')?.remove()
+    this.topHeaderNode?.querySelector('.master-topbar-cluster')?.remove()
 
     this.logger.info('旧版页面顶栏增强释放完成')
   }
@@ -67,17 +64,25 @@ export class TopHeaderMod extends BaseMod {
     if (params.mode === 'search') {
       return
     }
-    this.addPreviewSwitchButton()
-    this.addAvInfoSwitchButton()
-    this.addActressFacesSwitchButton()
-    this.addSettingsButton()
+    this.addMasterTopbarCluster()
     this.watchContextMenuPosition()
   }
 
-  /** 添加预览切换开关 */
-  private addPreviewSwitchButton() {
-    const button = this.createPreviewSwitchButton()
-    this.topHeaderNode?.append(button)
+  /**
+   * 添加注入按钮簇
+   * @description 四个注入按钮装进同一个 flex 簇容器，作为单一子项参与顶栏换行：
+   * 宽度足够时整簇留在第一行，不够时整簇换行，不再被原生容器拆散错位。
+   */
+  private addMasterTopbarCluster() {
+    const cluster = document.createElement('div')
+    cluster.classList.add('master-topbar-cluster')
+    cluster.append(
+      this.createPreviewSwitchButton(),
+      this.createAvInfoSwitchButton(),
+      this.createActressFacesSwitchButton(),
+      this.createSettingsButton(),
+    )
+    this.topHeaderNode?.append(cluster)
   }
 
   /** 创建预览切换开关 */
@@ -127,8 +132,8 @@ export class TopHeaderMod extends BaseMod {
     return button
   }
 
-  /** 添加作品介绍切换开关 */
-  private addAvInfoSwitchButton() {
+  /** 创建作品介绍切换开关 */
+  private createAvInfoSwitchButton() {
     const button = document.createElement('a')
     button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-av-switch-btn')
     button.href = 'javascript:void(0)'
@@ -153,11 +158,11 @@ export class TopHeaderMod extends BaseMod {
       userSettings.value.enableAvInfo = !userSettings.value.enableAvInfo
       syncState()
     }
-    this.topHeaderNode?.append(button)
+    return button
   }
 
-  /** 添加演员头像切换开关 */
-  private addActressFacesSwitchButton() {
+  /** 创建演员头像切换开关 */
+  private createActressFacesSwitchButton() {
     const button = document.createElement('a')
     button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-actress-switch-btn')
     button.href = 'javascript:void(0)'
@@ -182,11 +187,11 @@ export class TopHeaderMod extends BaseMod {
       userSettings.value.enableActressFaces = !userSettings.value.enableActressFaces
       syncState()
     }
-    this.topHeaderNode?.append(button)
+    return button
   }
 
-  /** 添加偏好设置按钮 */
-  private addSettingsButton() {
+  /** 创建偏好设置按钮 */
+  private createSettingsButton() {
     const button = document.createElement('a')
     button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-settings-btn')
     button.href = 'javascript:void(0)'
@@ -200,7 +205,7 @@ export class TopHeaderMod extends BaseMod {
     button.onclick = () => {
       showPreferencesDialog()
     }
-    this.topHeaderNode?.append(button)
+    return button
   }
 
   /** 修正右键菜单位置 */

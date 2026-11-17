@@ -13,6 +13,19 @@
   box-sizing: border-box;
 }
 
+/*
+ * 注入按钮簇：四个按钮装进同一个 flex 容器，作为顶栏的单一子项。
+ * 宽度足够时整簇留在第一行；不够时整簇一起换行，不再被原生容器拆散。
+ */
+.master-topbar-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
+}
+
 .master-preview-switch-btn {
   display: flex;
   align-items: center;
