@@ -1,10 +1,26 @@
+/*
+ * 旧版顶栏注入按钮公共约束。
+ *
+ * 旧版顶栏的原生按钮很多，注入按钮必须：
+ * 1) 不参与换行（flex: none），避免小屏下被挤到第二行
+ * 2) 固定 30px 高并垂直居中，与原生按钮基线对齐
+ * 3) 文字不折行，宽度只由内容决定
+ */
+.master-topbar-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
 .master-preview-switch-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  aspect-ratio: 1;
   border-radius: 50%;
 
   iconify-icon {
@@ -51,5 +67,39 @@
     color: var(--official-theme, #2878ed);
     border-color: var(--official-theme, #2878ed);
     background-color: rgba(40, 120, 237, 0.08);
+  }
+}
+
+/*
+ * 小屏折叠：原生按钮过多时，注入按钮依次退化为纯图标圆钮，
+ * 优先隐藏文字标签，最后折叠云下载，避免整行换行。
+ */
+@media (max-width: 1500px) {
+  .master-topbar-btn.master-control-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 50%;
+
+    span {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 1280px) {
+  .master-topbar-btn.master-offline-task-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+
+    span {
+      display: none;
+    }
   }
 }

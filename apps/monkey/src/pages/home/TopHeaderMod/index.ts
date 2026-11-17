@@ -99,7 +99,7 @@ export class TopHeaderMod extends BaseMod {
   /** 创建 Master 离线任务按钮 */
   private createMasterOfflineTaskButton() {
     const button = document.createElement('a')
-    button.classList.add('button', 'master-offline-task-btn')
+    button.classList.add('button', 'master-topbar-btn', 'master-offline-task-btn')
     button.href = 'javascript:void(0)'
     button.innerHTML = `
             <i class="icon-operate ifo-linktask"></i>
@@ -136,7 +136,7 @@ export class TopHeaderMod extends BaseMod {
 
     /** 1.1 创建按钮和离线图标。 */
     const button = document.createElement('a')
-    button.classList.add('button', 'btn-line', 'master-preview-switch-btn')
+    button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-preview-switch-btn')
     button.href = 'javascript:void(0)'
     button.setAttribute('role', 'button')
     button.innerHTML = `
@@ -170,7 +170,7 @@ export class TopHeaderMod extends BaseMod {
   /** 添加作品介绍切换开关 */
   private addAvInfoSwitchButton() {
     const button = document.createElement('a')
-    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-av-switch-btn')
+    button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-av-switch-btn')
     button.href = 'javascript:void(0)'
     button.setAttribute('role', 'button')
     button.innerHTML = `
@@ -199,7 +199,7 @@ export class TopHeaderMod extends BaseMod {
   /** 添加演员头像切换开关 */
   private addActressFacesSwitchButton() {
     const button = document.createElement('a')
-    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-actress-switch-btn')
+    button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-actress-switch-btn')
     button.href = 'javascript:void(0)'
     button.setAttribute('role', 'button')
     button.innerHTML = `
@@ -228,7 +228,7 @@ export class TopHeaderMod extends BaseMod {
   /** 添加偏好设置按钮 */
   private addSettingsButton() {
     const button = document.createElement('a')
-    button.classList.add('button', 'btn-line', 'master-control-btn', 'master-settings-btn')
+    button.classList.add('button', 'btn-line', 'master-topbar-btn', 'master-control-btn', 'master-settings-btn')
     button.href = 'javascript:void(0)'
     button.setAttribute('role', 'button')
     button.title = '偏好设置'
