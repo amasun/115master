@@ -82,10 +82,7 @@ const isLegacyVisual = props.variant === 'legacy'
   || props.variant === 'official'
   || props.variant === 'official-panel'
 
-/** 截图时间点固定按 8 张计算，保持与旧缓存一致 */
-const FILELIST_VIDEO_COVER_NUM = 8
-
-/** 实际显示张数：从 8 个时间点中均匀挑选（用户设置，非法值回退到 6） */
+/** 显示与截图张数（用户设置，非法值回退到 6） */
 const count = useUserSetting('filelistPreviewCount')
 /** 紧凑布局下缩小预览条高度 */
 const compact = useUserSetting('compactAvInfo')
@@ -139,8 +136,7 @@ const scrollTargetRef = computed(() => props.listScrollBoxNode)
 const options = computed(() => ({
   sha1: props.sha1,
   pickCode: props.pickCode,
-  coverNum: FILELIST_VIDEO_COVER_NUM,
-  pickNum: Number.isInteger(count.value) && count.value > 0 ? count.value : 6,
+  coverNum: Number.isInteger(count.value) && count.value > 0 ? count.value : 6,
   duration: Number(props.duration),
 }))
 

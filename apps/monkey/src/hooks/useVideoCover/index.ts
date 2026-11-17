@@ -3,13 +3,12 @@ import { Core } from '@115master/drive115'
 
 import { image as imageUtil } from '@115master/utils'
 import { useElementVisibility, useScroll } from '@vueuse/core'
-import { onUnmounted, reactive, watch } from 'vue'
+import { computed, onUnmounted, reactive, watch } from 'vue'
 import { FRIENDLY_ERROR_MESSAGE } from '@/constants'
 import { videoCoverCache } from '@/utils/cache'
 import { M3U8ClipperNew } from '@/utils/clipper/m3u8Clipper'
 import { drive115 } from '@/utils/drive115Instance'
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
-import { pickTimes } from './pickTimes'
 
 /** 最大宽度 */
 const MAX_WIDTH = 1280
@@ -60,8 +59,6 @@ export interface VideoCoverOptions {
   pickCode: string
   /** 数量 */
   coverNum: number
-  /** 从 coverNum 个时间点中均匀挑选的张数，缺省为全部 */
-  pickNum?: number
   /** 持续时间 */
   duration: number
 }
@@ -86,7 +83,7 @@ export interface SmartLoadConfig {
  * 生成任务ID
  */
 function generateTaskId(options: VideoCoverOptions): string {
-  return `cover_${options.sha1}_${options.pickCode}_${options.coverNum}_${options.pickNum ?? options.coverNum}_${options.duration}`
+  return `cover_${options.sha1}_${options.pickCode}_${options.coverNum}_${options.duration}`
 }
 
 /**
@@ -100,7 +97,7 @@ const getCacheKey = (sha1: string, time: number): string => `${sha1}_${time}`
  * @param coverNum 封面数量
  * @returns 视频封面时间点数组
  */
-function calculateVideoCoverTimes(duration: number, coverNum: number): number[] {
+export function calculateVideoCoverTimes(duration: number, coverNum: number): number[] {
   /** 偏移量 */
   const offset = duration / 5
   /** 获取最小时间 */
@@ -184,26 +181,37 @@ async function generateVideoCoverRaw(clipper: M3U8ClipperNew, time: number): Pro
 }
 
 /**
- * 从缓存获取视频封面
+ * 批量读取缓存中的原始视频封面
  */
-async function getVideoCoversFromCache(sha1: string, times: number[]): Promise<VideoCover[]> {
-  const covers: VideoCover[] = []
-  for (const time of times) {
-    const cacheKey = getCacheKey(sha1, time)
-    const cache = await videoCoverCache.get(cacheKey)
-    if (!cache) {
-      return []
-    }
-    const cacheData = cache.value
-    covers.push(toDisplayableData(cacheData))
-  }
-  return covers
+async function readCachedCovers(sha1: string, times: number[]): Promise<Array<VideoCoverRaw | null>> {
+  return Promise.all(
+    times.map(async (time) => {
+      const cache = await videoCoverCache.get(getCacheKey(sha1, time))
+      return cache ? cache.value : null
+    }),
+  )
 }
 
 /**
- * 获取视频封面
+ * 从缓存获取视频封面（仅当全部时间点都命中缓存时返回）
  */
-async function getVideoCover(sha1: string, pickCode: string, times: number[]): Promise<VideoCover[]> {
+async function getVideoCoversFromCache(sha1: string, times: number[]): Promise<VideoCover[]> {
+  const cached = await readCachedCovers(sha1, times)
+  if (cached.includes(null)) {
+    return []
+  }
+  return cached.filter((item): item is VideoCoverRaw => item !== null).map(toDisplayableData)
+}
+
+/**
+ * 获取视频封面（优先复用已命中的缓存帧，仅补截缺失时间点）
+ */
+export async function getVideoCover(sha1: string, pickCode: string, times: number[]): Promise<VideoCover[]> {
+  const cached = await readCachedCovers(sha1, times)
+  if (cached.every((item): item is VideoCoverRaw => item !== null)) {
+    return cached.map(toDisplayableData)
+  }
+
   /** 获取 m3u8 列表 */
   const m3u8List = await drive115.video.getM3u8(pickCode)
 
@@ -218,19 +226,28 @@ async function getVideoCover(sha1: string, pickCode: string, times: number[]): P
     url: source.url,
   })
 
-  // 打开 clipper
-  await clipper.open()
+  try {
+    // 打开 clipper
+    await clipper.open()
 
-  /** 获取每个时间点的视频封面 */
-  const promises = times.map(async (time) => {
-    const cacheKey = getCacheKey(sha1, time)
-    const raw = await generateVideoCoverRaw(clipper, time)
-    videoCoverCache.set(cacheKey, raw)
-    return toDisplayableData(raw)
-  })
+    /** 仅截取未命中缓存的时间点，已命中的直接复用 */
+    const rawList = await Promise.all(
+      times.map(async (time, index) => {
+        const hit = cached[index]
+        if (hit) {
+          return hit
+        }
+        const raw = await generateVideoCoverRaw(clipper, time)
+        videoCoverCache.set(getCacheKey(sha1, time), raw)
+        return raw
+      }),
+    )
 
-  // 返回用于显示的数据
-  return Promise.all(promises)
+    return rawList.map(toDisplayableData)
+  }
+  finally {
+    clipper.destroy()
+  }
 }
 
 /**
@@ -263,12 +280,11 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
   })
 
   /** 任务ID */
-  const taskId = generateTaskId(options.value)
+  const taskId = computed(() => generateTaskId(options.value))
 
   /** 时间点 */
-  const times = pickTimes(
+  const times = computed(() =>
     calculateVideoCoverTimes(options.value.duration, options.value.coverNum),
-    options.value.pickNum,
   )
 
   /** 可见性 */
@@ -278,16 +294,25 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
     scrollTarget: config.scrollTarget,
   })
 
+  /** 清理当前已生成的封面资源 */
+  const revokeCurrentState = () => {
+    cleanupBlobUrl(
+      videoCover.state
+        .map(item => item?.img)
+        .filter((item): item is string => item !== undefined),
+    )
+  }
+
   /** 添加任务 */
   const addTask = (
     id: string,
     sha1: string,
     pickCode: string,
-    times: number[],
+    targetTimes: number[],
   ) => {
     return videoCoverScheduler.add(
       () => {
-        return getVideoCover(sha1, pickCode, times)
+        return getVideoCover(sha1, pickCode, targetTimes)
       },
       {
         id,
@@ -297,18 +322,18 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
   }
 
   /** 取消任务 */
-  const cancelTask = () => {
-    const task = videoCoverScheduler.get(taskId)
+  const cancelTask = (id = taskId.value) => {
+    const task = videoCoverScheduler.get(id)
     if (task && task.status === TaskStatus.Pending) {
-      videoCoverScheduler.cancel(taskId)
+      videoCoverScheduler.cancel(id)
     }
   }
 
   /**
    * 获取数据
    */
-  const getData = async (id: string, options: VideoCoverOptions) => {
-    if (videoCover.isReady || videoCover.error) {
+  const getData = async (id: string, currentOptions: VideoCoverOptions, targetTimes: number[]) => {
+    if (videoCover.isReady || videoCover.error || taskId.value !== id) {
       return
     }
 
@@ -318,12 +343,16 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
     }
     videoCover.isLoading = true
     try {
-      const data = await addTask(id, options.sha1, options.pickCode, times)
+      const data = await addTask(id, currentOptions.sha1, currentOptions.pickCode, targetTimes)
+      if (taskId.value !== id) {
+        cleanupBlobUrl(data.map(item => item.img))
+        return
+      }
       videoCover.state = data
       videoCover.isReady = true
     }
     catch (error) {
-      if (error instanceof SchedulerError.TaskCancelled) {
+      if (taskId.value !== id || error instanceof SchedulerError.TaskCancelled) {
         return
       }
       if (
@@ -337,19 +366,25 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
       videoCover.error = error
     }
     finally {
-      videoCover.isLoading = false
+      if (taskId.value === id) {
+        videoCover.isLoading = false
+      }
     }
   }
 
   /** 从缓存获取数据 */
-  const getDataByCache = async (options: VideoCoverOptions) => {
-    if (videoCover.isReady || videoCover.error) {
+  const getDataByCache = async (id: string, currentOptions: VideoCoverOptions, targetTimes: number[]) => {
+    if (videoCover.isReady || videoCover.error || taskId.value !== id) {
       return
     }
 
     videoCover.isLoading = true
     try {
-      const data = await getVideoCoversFromCache(options.sha1, times)
+      const data = await getVideoCoversFromCache(currentOptions.sha1, targetTimes)
+      if (taskId.value !== id) {
+        cleanupBlobUrl(data.map(item => item.img))
+        return
+      }
       if (data.length > 0) {
         videoCover.state = data
         videoCover.isLoading = false
@@ -357,11 +392,28 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
       }
     }
     catch (error) {
-      videoCover.error = error
+      if (taskId.value === id) {
+        videoCover.error = error
+      }
     }
     finally {
-      videoCover.isLoading = false
+      if (taskId.value === id) {
+        videoCover.isLoading = false
+      }
     }
+  }
+
+  /** 加载当前可见项 */
+  const loadVisible = async (scrolling: boolean) => {
+    const id = taskId.value
+    const currentOptions = options.value
+    const targetTimes = times.value
+    if (scrolling) {
+      getDataByCache(id, currentOptions, targetTimes)
+      return
+    }
+    await getDataByCache(id, currentOptions, targetTimes)
+    getData(id, currentOptions, targetTimes)
   }
 
   /** 滚动 */
@@ -370,8 +422,7 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
     idle: 100,
     onStop: async () => {
       if (visibility.value) {
-        await getDataByCache(options.value)
-        getData(taskId, options.value)
+        await loadVisible(false)
       }
     },
   })
@@ -379,27 +430,30 @@ export function useSmartVideoCover(options: Ref<VideoCoverOptions>, config: Smar
   /** 监听可见性 */
   watch(visibility, async (value) => {
     if (value) {
-      if (isScrolling.value) {
-        getDataByCache(options.value)
-      }
-      else {
-        await getDataByCache(options.value)
-        getData(taskId, options.value)
-      }
+      await loadVisible(isScrolling.value)
     }
     else {
       cancelTask()
     }
   })
 
+  /** 监听参数变化（如切换截图张数），重置并按新参数重新加载 */
+  watch(taskId, async (_newId, oldId) => {
+    videoCoverScheduler.remove(oldId)
+    revokeCurrentState()
+    videoCover.state = []
+    videoCover.isReady = false
+    videoCover.error = undefined
+    videoCover.isLoading = false
+    if (visibility.value) {
+      await loadVisible(isScrolling.value)
+    }
+  })
+
   /** 卸载 */
   onUnmounted(() => {
-    videoCoverScheduler.remove(taskId)
-    cleanupBlobUrl(
-      videoCover.state
-        .map(item => item?.img)
-        .filter(item => item !== undefined),
-    )
+    videoCoverScheduler.remove(taskId.value)
+    revokeCurrentState()
   })
 
   return {
