@@ -111,7 +111,7 @@ const styles = clsx({
     container: [
       'flex h-full w-full overflow-hidden select-none',
     ],
-    legacyContainer: 'justify-center gap-px overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+    legacyContainer: 'justify-start gap-px overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
     thumbItem: [
       'h-full',
       'cursor-zoom-in no-underline',

@@ -1,5 +1,11 @@
 # @115master/monkey
 
+## 2.7.2
+
+### Patch Changes
+
+- 旧版文件列表的截图预览条从居中改为与文件名左对齐
+
 ## 2.7.1
 
 ### Patch Changes
