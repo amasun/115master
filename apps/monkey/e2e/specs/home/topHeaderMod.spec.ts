@@ -3,32 +3,30 @@ import { HOME_URL, setupHarness } from '../../support'
 import { watch } from '../../support/homeUtils'
 
 /**
- * TopHeaderMod：顶栏增强
- * - 删除官方云下载按钮，注入 Master 云下载按钮（点击走 Core.OFFL5Plug，免刷新重定向）
- * - 注入文件预览开关（绑定 userSettings.enableFilelistPreview）
+ * TopHeaderMod：顶栏与面包屑控制栏增强
+ * - 保留官方原生云下载按钮，不再注入插件版离线下载入口
+ * - 在 .list-topheader（面包屑栏）右侧注入统一分段按钮组（截图/介绍/头像/设置）
  * - 修正上传/新建下拉菜单位置
  * - mode=search 时整体跳过
  */
 test.describe('TopHeaderMod', () => {
-  test('注入云下载按钮与预览开关，移除官方云下载按钮', async ({ page }) => {
+  test('保留官方云下载按钮并在面包屑栏右侧注入统一控制按钮组', async ({ page }) => {
     const errors = watch(page)
     await setupHarness(page)
     await page.goto(HOME_URL)
 
-    /** Master 云下载按钮被 prepend 到顶栏最前 */
-    const offline = page.locator('a.master-offline-task-btn')
-    await expect(offline).toBeAttached()
-    await expect(offline).toContainText('云下载')
-    await expect(offline.locator('i.icon-operate.ifo-linktask')).toBeAttached()
-    await expect(offline).toHaveCSS('background-color', 'rgb(58, 71, 131)')
-    await expect(offline).toHaveCSS('border-color', 'rgb(58, 71, 131)')
-    await expect(page.locator('#js_top_panel_box > div > a:first-child')).toHaveClass(/master-offline-task-btn/)
+    // 官方云下载按钮保持保留，不再注入重复的插件版云下载按钮
+    await expect(page.locator('a.master-offline-task-btn')).toHaveCount(0)
+    await expect(page.locator('.button[menu="offline_task"]')).toBeAttached()
 
-    // 官方云下载按钮被移除
-    await expect(page.locator('.button[menu="offline_task"]')).toHaveCount(0)
+    /** 控制按钮组挂载在面包屑栏右侧，不挤占顶部操作栏 */
+    await expect(page.locator('#js_top_panel_box .master-topbar-cluster')).toHaveCount(0)
+    const cluster = page.locator('.list-topheader > .master-topbar-cluster')
+    await expect(cluster).toBeAttached()
+    await expect(cluster.locator('a.master-topbar-btn')).toHaveCount(4)
 
     /** 预览开关：默认 enableFilelistPreview=true → active */
-    const preview = page.locator('a.master-preview-switch-btn')
+    const preview = cluster.locator('a.master-preview-switch-btn')
     await expect(preview).toBeAttached()
     await expect(preview).toHaveAttribute('title', '关闭文件预览')
     await expect(preview).toHaveAttribute('aria-label', '关闭文件预览')
@@ -50,28 +48,6 @@ test.describe('TopHeaderMod', () => {
     expect(errors).toEqual([])
   })
 
-  test('点击云下载按钮：调用 Core.OFFL5Plug.OpenLink（免刷新重定向）', async ({ page }) => {
-    const errors = watch(page)
-    await setupHarness(page)
-    await page.goto(HOME_URL)
-
-    // 官方页面提供 window.Core；fixture 中由测试桩代替
-    await page.evaluate(() => {
-      (window as unknown as { Core: unknown }).Core = {
-        OFFL5Plug: {
-          OpenLink() {
-            (window as unknown as { __offlineOpened: boolean }).__offlineOpened = true
-          },
-        },
-      }
-    })
-    await page.locator('a.master-offline-task-btn').click()
-    await expect.poll(async () =>
-      page.evaluate(() => (window as unknown as { __offlineOpened?: boolean }).__offlineOpened),
-    ).toBe(true)
-    expect(errors).toEqual([])
-  })
-
   test('搜索模式：跳过顶栏修改，保留官方按钮', async ({ page }) => {
     const errors = watch(page)
     await setupHarness(page)
@@ -79,6 +55,7 @@ test.describe('TopHeaderMod', () => {
 
     await expect(page.locator('li[title="动漫"]')).toBeAttached()
     await expect(page.locator('a.master-offline-task-btn')).toHaveCount(0)
+    await expect(page.locator('.master-topbar-cluster')).toHaveCount(0)
     await expect(page.locator('a.master-preview-switch-btn')).toHaveCount(0)
     await expect(page.locator('.button[menu="offline_task"]')).toBeAttached()
     expect(errors).toEqual([])

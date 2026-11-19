@@ -1,45 +1,96 @@
 /*
- * 旧版顶栏注入按钮公共约束。
- *
- * 旧版顶栏的原生按钮很多，注入按钮必须：
- * 1) 不参与换行（flex: none），避免小屏下被挤到第二行
- * 2) 固定 30px 高并垂直居中，与原生按钮基线对齐
- * 3) 文字不折行，宽度只由内容决定
+ * 旧版面包屑栏承载插件控制按钮组：
+ * 左侧保留返回目录与面包屑路径，右侧固定展示统一分段按钮组，
+ * 避免塞进已满载的顶部操作栏导致挤换行和浮动错位。
  */
-.master-topbar-btn {
-  flex: 0 0 auto;
-  align-self: center;
-  white-space: nowrap;
-  box-sizing: border-box;
+.list-topheader.master-has-topbar-cluster {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+
+.list-topheader.master-has-topbar-cluster > .top-file-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.list-topheader > .master-topbar-cluster {
+  margin-left: auto;
+  margin-right: 4px;
 }
 
 /*
- * 注入按钮簇：四个按钮装进同一个 flex 容器，作为顶栏的单一子项。
- * 宽度足够时整簇留在第一行；不够时整簇一起换行，不再被原生容器拆散。
+ * 统一分段按钮组：截图 / 介绍 / 头像 / 设置共框排布，
+ * 视觉与原生视图切换按钮组保持一致，隔离旧版 .button 浮动样式。
  */
 .master-topbar-cluster {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
+  height: 28px;
   flex: 0 0 auto;
   align-self: center;
   white-space: nowrap;
+  box-sizing: border-box;
+  border: 1px solid #d4d9e1;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
 }
 
-.master-preview-switch-btn {
-  display: flex;
+.master-topbar-cluster .master-topbar-btn {
+  float: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border-radius: 50%;
+  height: 26px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #27364a;
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 
   iconify-icon {
-    font-size: 20px;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+    font-size: 15px;
   }
 
+  &:hover {
+    background: #f5f9ff;
+    color: var(--official-theme, #2777f8);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(39, 119, 248, 0.45);
+    outline-offset: -2px;
+  }
+
+  &.active {
+    background: #eaf3ff;
+    color: var(--official-theme, #2777f8);
+  }
+}
+
+.master-topbar-cluster .master-topbar-btn + .master-topbar-btn {
+  border-left: 1px solid #e5e9f0;
+}
+
+.master-topbar-cluster .master-preview-switch-btn {
   .preview-off {
     display: block;
   }
@@ -51,48 +102,19 @@
   &.active {
     .preview-on {
       display: block;
-      color: var(--official-theme);
     }
+
     .preview-off {
       display: none;
     }
   }
 }
 
-.master-control-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 10px;
-  height: 30px;
-  font-size: 13px;
-  border-radius: 4px;
-  cursor: pointer;
-  text-decoration: none;
-  box-sizing: border-box;
-
-  iconify-icon {
-    font-size: 17px;
-  }
-
-  &.active {
-    color: var(--official-theme, #2878ed);
-    border-color: var(--official-theme, #2878ed);
-    background-color: rgba(40, 120, 237, 0.08);
-  }
-}
-
-/*
- * 小屏折叠：原生按钮过多时，注入按钮依次退化为纯图标圆钮，
- * 优先隐藏文字标签，最后折叠云下载，避免整行换行。
- */
-@media (max-width: 1500px) {
-  .master-topbar-btn.master-control-btn {
-    width: 30px;
-    height: 30px;
+/* 极窄窗口下收起文字标签，仅保留紧凑图标分段 */
+@media (max-width: 900px) {
+  .master-topbar-cluster .master-topbar-btn {
+    width: 28px;
     padding: 0;
-    border-radius: 50%;
 
     span {
       display: none;
