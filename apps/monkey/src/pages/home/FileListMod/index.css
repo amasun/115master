@@ -48,12 +48,24 @@
   flex-wrap: wrap;
   align-content: flex-start;
   padding-top: 12px;
-  padding-bottom: 32px;
+  padding-bottom: 16px;
   &:first-child {
     padding-top: 16px;
   }
   .file-name-wrap {
     margin-bottom: 0;
+  }
+
+  /*
+   * 截图条放到文件图标正下方：左缘对齐图标（复选框占位 40px，左右外边距 -10px/3px，合计 33px），
+   * 顶部距时长标签 10px。原生样式给首行各列加 margin-bottom:-8px，首行多补 8px。
+   * 截图条内容在 Shadow DOM 内，间距只能加在外层容器上；用静态规则避免运行时测量受加载时序影响。
+   */
+  > [data-115master-preview] {
+    margin: 10px 0 0 33px;
+  }
+  &:first-child > [data-115master-preview] {
+    margin-top: 18px;
   }
   .ext-video-cover-root {
     width: 100%;

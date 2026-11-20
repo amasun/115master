@@ -50,7 +50,9 @@ export class FileItemModVideoCover extends FileItemModBase {
     )
     this.itemNode.append(container)
     this.container = container
-    this.reserveIconColumnForPreview(container)
+    /* 旧版 115 页面的截图条位置由 FileListMod/index.css 静态规则决定 */
+    if (this.itemInfo.surface !== 'legacy')
+      this.reserveIconColumnForPreview(container)
 
     /*
      * ================================================================================
