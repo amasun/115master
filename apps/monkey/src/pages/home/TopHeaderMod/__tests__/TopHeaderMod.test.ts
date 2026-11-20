@@ -147,5 +147,6 @@ describe('topHeaderMod', () => {
 
     settings.click()
     expect(showPreferencesDialogMock).toHaveBeenCalledOnce()
+    expect(showPreferencesDialogMock).toHaveBeenCalledWith({ legacyPage: true })
   })
 })

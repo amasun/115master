@@ -236,7 +236,7 @@ export class TopHeaderMod extends BaseMod {
       <span>设置</span>
     `
     button.onclick = () => {
-      showPreferencesDialog()
+      showPreferencesDialog({ legacyPage: true })
     }
     return button
   }
