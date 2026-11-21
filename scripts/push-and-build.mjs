@@ -1,0 +1,102 @@
+import { spawnSync } from 'node:child_process'
+import { readFileSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
+import process from 'node:process'
+
+const root = process.cwd()
+const args = process.argv.slice(2)
+const allowDirty = args.includes('--allow-dirty')
+const release = args.includes('--release')
+const pushArgs = args.filter(arg => arg !== '--allow-dirty' && arg !== '--release')
+
+function run(command, argv) {
+  return spawnSync(command, argv, {
+    cwd: root,
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  })
+}
+
+function fail(message, result) {
+  console.error(`❌ ${message}`)
+  if (result?.stdout?.trim())
+    console.error(result.stdout.trim())
+  if (result?.stderr?.trim())
+    console.error(result.stderr.trim())
+  process.exit(result?.status || 1)
+}
+
+function formatSize(bytes) {
+  return `${(bytes / 1024).toFixed(1)} KB`
+}
+
+function main() {
+  const branchResult = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branchResult.status !== 0)
+    fail('无法获取当前 Git 分支', branchResult)
+
+  const branch = branchResult.stdout.trim()
+  if (!branch || branch === 'HEAD')
+    fail('当前处于 detached HEAD 状态，请先切换到目标分支')
+
+  if (!allowDirty) {
+    const status = run('git', ['status', '--porcelain'])
+    if (status.status !== 0)
+      fail('无法检查 Git 工作区状态', status)
+    if (status.stdout.trim())
+      fail('工作区存在未提交改动，请先提交（或传入 --allow-dirty）', status)
+  }
+
+  const head = run('git', ['rev-parse', '--short', 'HEAD']).stdout.trim()
+
+  const build = run('pnpm', ['build'])
+  if (build.status !== 0)
+    fail('userscript 构建失败，已中止推送', build)
+
+  const artifacts = [
+    'apps/monkey/dist/115master-fusion.user.js',
+    'apps/monkey/dist/115master-fusion.meta.js',
+  ].map((file) => {
+    try {
+      const stat = statSync(resolve(root, file))
+      if (stat.size <= 0)
+        fail(`构建产物为空：${file}`)
+      return { file, size: stat.size }
+    }
+    catch {
+      return fail(`缺少构建产物：${file}`)
+    }
+  })
+
+  const upstream = run('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+  const gitPushArgs = upstream.status === 0
+    ? ['push', ...pushArgs]
+    : ['push', '-u', 'origin', branch, ...pushArgs]
+  const push = run('git', gitPushArgs)
+  if (push.status !== 0)
+    fail(`推送分支 ${branch} 失败`, push)
+
+  const pkg = JSON.parse(readFileSync(resolve(root, 'apps/monkey/package.json'), 'utf8'))
+  const summary = [
+    `✅ 推送与 userscript 构建完成`,
+    `   branch : ${branch} (${head})`,
+    `   version: v${pkg.version}`,
+    ...artifacts.map(item => `   output : ${item.file} (${formatSize(item.size)})`),
+  ]
+
+  if (release) {
+    const tag = `v${pkg.version}`
+    const existing = run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`])
+    if (existing.status === 0 && existing.stdout.trim())
+      fail(`远端已存在 tag ${tag}，请先更新版本号或添加 changeset 后再触发 --release`)
+
+    const wf = run('gh', ['workflow', 'run', 'release.yml', '--ref', branch])
+    if (wf.status !== 0)
+      fail('触发 Release 工作流失败', wf)
+    summary.push(`   release: 已触发 release.yml (${branch})`)
+  }
+
+  console.log(summary.join('\n'))
+}
+
+main()

@@ -6,6 +6,7 @@
 pnpm install              # Node >= 20.12, pnpm 9.x
 pnpm dev                  # turbo 并行启动所有 packages 的 dev
 pnpm build                # turbo 并行 build
+pnpm push                 # 事务：构建 userscript 并推送当前分支（支持 --release / --allow-dirty / git push 参数）
 pnpm type-check           # vue-tsc / tsc --noEmit (全包)
 pnpm test                 # vitest run (全包)
 pnpm lint                 # eslint
@@ -58,6 +59,7 @@ drive115 / subtitle-source → shared, utils
 ## Git
 
 - 默认保持线性历史：合并走 fast-forward / rebase，不产生 merge commit，除非用户明确要求。
+- **推送与 userscript 构建同步事务**：禁止单独执行 `git push`；所有推送统一使用 `pnpm push`（`scripts/push-and-build.mjs`），单条命令内先执行 `pnpm build` 并校验 `apps/monkey/dist/115master-fusion.{user,meta}.js` 产物，校验通过后再推送远端（构建失败则中止推送），确保推送与最新 `.user.js` 构建同步且减少输出开销。需要同步发版时追加 `--release`（自动校验 tag 并触发 `release.yml`）。
 
 ## Packages
 
