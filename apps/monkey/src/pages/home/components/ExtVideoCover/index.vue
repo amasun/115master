@@ -5,11 +5,11 @@
     :class="[
       props.variant === 'official'
         ? videoCover.isReady
-          ? styles.container.officialMain
+          ? [styles.container.officialMain, compact ? styles.container.alignCompact : styles.container.alignDefault]
           : styles.container.officialPending
         : props.variant === 'official-panel'
-          ? styles.container.officialPanelMain
-          : styles.container.legacyMain,
+          ? [styles.container.officialPanelMain, compact ? styles.container.alignCompact : styles.container.alignDefault]
+          : [styles.container.legacyMain, compact ? styles.container.alignCompact : styles.container.alignDefault],
     ]"
   >
     <div
@@ -89,11 +89,13 @@ const compact = useUserSetting('compactAvInfo')
 
 /** 样式常量定义 */
 const styles = clsx({
-  // 容器样式
+  // 容器样式（与 ExtInfo 封面图左边缘对齐：宽大 ml-34 + px-16 = 50px，紧凑 ml-34 + px-0 = 34px）
   container: {
-    legacyMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
-    officialMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
-    officialPanelMain: 'h-[var(--cover-h)] w-full [content-visibility:auto]',
+    legacyMain: 'mr-[74px] box-border h-[var(--cover-h)] !w-auto [content-visibility:auto]',
+    officialMain: 'mr-[74px] box-border h-[var(--cover-h)] !w-auto [content-visibility:auto]',
+    officialPanelMain: 'mr-[74px] box-border h-[var(--cover-h)] !w-auto [content-visibility:auto]',
+    alignDefault: 'ml-[50px]',
+    alignCompact: 'ml-[34px]',
     officialPending: 'h-px overflow-hidden',
     content:
       'bg-base-300 relative flex h-full items-center overflow-hidden rounded',

@@ -50,7 +50,6 @@ export class FileItemModVideoCover extends FileItemModBase {
     )
     this.itemNode.append(container)
     this.container = container
-    this.reserveIconColumnForPreview(container)
 
     /*
      * ================================================================================
@@ -113,30 +112,6 @@ export class FileItemModVideoCover extends FileItemModBase {
     this.container = null
     this.itemNode.classList.remove('with-ext-video-cover')
     logger.info('旧版页面视频封面卸载完成')
-  }
-
-  /**
-   * 给截图条预留文件图标列宽度
-   * @description 绝对定位的文件图标留在 li 左侧（top:50% 垂直居中，不改动），
-   * 截图条加同等左侧外边距避开图标，与文件名靠左内边距给图标留位同一逻辑。
-   * 图标占位按矩形实测，无图标时不加外边距。
-   */
-  private reserveIconColumnForPreview(container: HTMLDivElement) {
-    const icon = this.itemNode.querySelector<HTMLElement>('.file-thumb, .file-type')
-    if (!icon) {
-      logger.info('截图条预留图标列跳过：未找到文件图标', this.itemInfo.attributes.pick_code)
-      return
-    }
-    const iconStyle = getComputedStyle(icon)
-    const width = iconStyle.position === 'absolute'
-      ? icon.offsetLeft + icon.offsetWidth + Number.parseFloat(iconStyle.marginRight) + 8
-      : 0
-    if (width <= 0) {
-      logger.info('截图条预留图标列跳过：图标不在常规位置', this.itemInfo.attributes.pick_code)
-      return
-    }
-    container.style.marginLeft = `${width}px`
-    logger.info('截图条预留图标列完成', this.itemInfo.attributes.pick_code, `${width}px`)
   }
 
   private mountApp() {
