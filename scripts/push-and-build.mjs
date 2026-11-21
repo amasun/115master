@@ -6,8 +6,10 @@ import process from 'node:process'
 const root = process.cwd()
 const args = process.argv.slice(2)
 const allowDirty = args.includes('--allow-dirty')
+const noRebase = args.includes('--no-rebase')
 const release = args.includes('--release')
-const pushArgs = args.filter(arg => arg !== '--allow-dirty' && arg !== '--release')
+const pushArgs = args.filter(arg => arg !== '--allow-dirty' && arg !== '--no-rebase' && arg !== '--release')
+const isForcePush = pushArgs.some(arg => arg === '-f' || arg === '--force' || arg.startsWith('--force-with-lease'))
 
 function run(command, argv) {
   return spawnSync(command, argv, {
@@ -47,6 +49,13 @@ function main() {
       fail('工作区存在未提交改动，请先提交（或传入 --allow-dirty）', status)
   }
 
+  const upstream = run('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+  if (upstream.status === 0 && !noRebase && !isForcePush) {
+    const pull = run('git', ['pull', '--rebase', '--autostash'])
+    if (pull.status !== 0)
+      fail('同步远端提交（git pull --rebase）失败，请解决冲突后重试（或传入 --no-rebase）', pull)
+  }
+
   const head = run('git', ['rev-parse', '--short', 'HEAD']).stdout.trim()
 
   const build = run('pnpm', ['build'])
@@ -68,7 +77,6 @@ function main() {
     }
   })
 
-  const upstream = run('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
   const gitPushArgs = upstream.status === 0
     ? ['push', ...pushArgs]
     : ['push', '-u', 'origin', branch, ...pushArgs]
