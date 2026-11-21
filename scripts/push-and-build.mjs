@@ -85,15 +85,10 @@ function main() {
   ]
 
   if (release) {
-    const tag = `v${pkg.version}`
-    const existing = run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`])
-    if (existing.status === 0 && existing.stdout.trim())
-      fail(`远端已存在 tag ${tag}，请先更新版本号或添加 changeset 后再触发 --release`)
-
     const wf = run('gh', ['workflow', 'run', 'release.yml', '--ref', branch])
     if (wf.status !== 0)
       fail('触发 Release 工作流失败', wf)
-    summary.push(`   release: 已触发 release.yml (${branch})`)
+    summary.push(`   release: 已触发 release.yml (${branch}，若当前版本 tag 已存在将自动递增 patch)`)
   }
 
   console.log(summary.join('\n'))
