@@ -1,6 +1,7 @@
 import type { TopRootSearchParams } from '@/pages/home/global'
 import { unsafeWindow } from '$'
 import { showPreferencesDialog } from '@/components/Preferences'
+import { registerSuperSearchShortcut, showSuperSearchDialog } from '@/components/SuperSearch'
 import { I } from '@/icons'
 import { BaseMod } from '@/pages/home/BaseMod'
 import { appLogger } from '@/utils/logger'
@@ -22,6 +23,7 @@ export class TopHeaderMod extends BaseMod {
   private cluster: HTMLDivElement | null = null
   private clusterHost: HTMLElement | null = null
   private settingDisposers: Array<() => void> = []
+  private shortcutDisposer: (() => void) | null = null
 
   constructor() {
     super()
@@ -57,6 +59,8 @@ export class TopHeaderMod extends BaseMod {
     if (this.menuFrame !== null)
       cancelAnimationFrame(this.menuFrame)
     this.menuFrame = null
+    this.shortcutDisposer?.()
+    this.shortcutDisposer = null
     this.settingDisposers.forEach(dispose => dispose())
     this.settingDisposers = []
     this.cluster?.remove()
@@ -78,6 +82,7 @@ export class TopHeaderMod extends BaseMod {
       return
     }
     this.addMasterTopbarCluster()
+    this.shortcutDisposer = registerSuperSearchShortcut()
     this.watchContextMenuPosition()
   }
 
@@ -92,6 +97,7 @@ export class TopHeaderMod extends BaseMod {
     cluster.setAttribute('role', 'group')
     cluster.setAttribute('aria-label', '115Master 快捷控制')
     cluster.append(
+      this.createSuperSearchButton(),
       this.createPreviewSwitchButton(),
       this.createAvInfoSwitchButton(),
       this.createActressFacesSwitchButton(),
@@ -219,6 +225,24 @@ export class TopHeaderMod extends BaseMod {
 
     button.onclick = () => {
       userSettings.value.enableActressFaces = !userSettings.value.enableActressFaces
+    }
+    return button
+  }
+
+  /** 创建超级搜索按钮 */
+  private createSuperSearchButton() {
+    const button = document.createElement('a')
+    button.classList.add('master-topbar-btn', 'master-control-btn', 'master-super-search-btn')
+    button.href = 'javascript:void(0)'
+    button.setAttribute('role', 'button')
+    button.title = '超级搜索 (Alt+K)'
+    button.setAttribute('aria-label', '超级搜索')
+    button.innerHTML = `
+      <iconify-icon icon="${I.SEARCH}" noobserver></iconify-icon>
+      <span>搜索</span>
+    `
+    button.onclick = () => {
+      showSuperSearchDialog()
     }
     return button
   }

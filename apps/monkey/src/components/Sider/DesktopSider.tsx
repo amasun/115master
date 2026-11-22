@@ -1,6 +1,7 @@
 import type { SlotsType } from 'vue'
 import { Button } from '@115master/ui'
 import { defineComponent } from 'vue'
+import { useSuperSearchDialog } from '@/components/SuperSearch'
 import { I, Icon } from '@/icons'
 import SiderMenuButton from './SiderMenuButton'
 
@@ -12,6 +13,8 @@ const DesktopSider = defineComponent({
     right: () => void
   }>,
   setup(_, { slots }) {
+    const openSuperSearch = useSuperSearchDialog()
+
     function backToNative() {
       window.location.href = '/?mode=wangpan'
     }
@@ -35,6 +38,15 @@ const DesktopSider = defineComponent({
         {slots.default?.()}
         <div class="mt-auto flex flex-col gap-2">
           {slots.left?.()}
+          <Button
+            variant="ghost"
+            class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+            onClick={openSuperSearch}
+            title="超级搜索 (Alt+K)"
+          >
+            <Icon class="text-lg" name={I.SEARCH} />
+            <span>超级搜索</span>
+          </Button>
           <Button
             variant="ghost"
             class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"

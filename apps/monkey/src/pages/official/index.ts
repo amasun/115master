@@ -1,5 +1,6 @@
 import type { IconifyIcon } from 'iconify-icon'
 import { showPreferencesDialog } from '@/components/Preferences'
+import { registerSuperSearchShortcut, showSuperSearchDialog } from '@/components/SuperSearch'
 import { MASTER_BASE_URL } from '@/constants'
 import { appLogger } from '@/utils/logger'
 import { userSettings } from '@/utils/userSettings'
@@ -24,6 +25,7 @@ class OfficialPage {
   private avInfoDisposer: (() => void) | null = null
   private actressFacesButton: HTMLButtonElement | null = null
   private actressFacesDisposer: (() => void) | null = null
+  private shortcutDisposer: (() => void) | null = null
   private scheduledFrame: number | null = null
   private toolbarRetryAttempts = 0
   private toolbarRetryId: number | null = null
@@ -58,6 +60,8 @@ class OfficialPage {
     this.toolbarRetryAttempts = 0
     this.frameLoadDisposers.forEach(dispose => dispose())
     this.frameLoadDisposers.clear()
+    this.shortcutDisposer?.()
+    this.shortcutDisposer = null
     this.previewDisposer?.()
     this.previewDisposer = null
     this.avInfoDisposer?.()
@@ -275,6 +279,22 @@ class OfficialPage {
     }
     this.logger.info('当前页面预览入口判定完成', supportsPreview)
 
+    /** 3.5 超级搜索按钮 */
+    const superSearch = document.createElement('button')
+    superSearch.type = 'button'
+    superSearch.className = 'control super-search'
+    superSearch.setAttribute('data-115master-super-search-toggle', '')
+    superSearch.title = '超级搜索 (Alt+K)'
+    superSearch.setAttribute('aria-label', '超级搜索')
+    const superSearchIcon = this.createIcon(officialIcons.search)
+    const superSearchLabel = document.createElement('span')
+    superSearchLabel.className = 'label'
+    superSearchLabel.textContent = '搜索'
+    superSearch.append(superSearchIcon, superSearchLabel)
+    superSearch.addEventListener('click', () => {
+      showSuperSearchDialog()
+    })
+
     /** 4. 设置按钮 */
     const settings = document.createElement('button')
     settings.type = 'button'
@@ -306,6 +326,7 @@ class OfficialPage {
 
     const controls = document.createElement('div')
     controls.className = 'controls'
+    controls.append(superSearch)
     if (preview)
       controls.append(preview)
     if (avInfo)
@@ -320,6 +341,7 @@ class OfficialPage {
     this.previewIcon = previewIcon
     this.avInfoButton = avInfo
     this.actressFacesButton = actressFaces
+    this.shortcutDisposer = registerSuperSearchShortcut()
 
     if (preview) {
       this.previewDisposer = userSettings.watch(

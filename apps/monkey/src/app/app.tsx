@@ -1,6 +1,6 @@
 import { DialogHost, DndRoot, ModalHost, OverlayHost, Watermark } from '@115master/ui'
 import { GM_info } from 'vite-plugin-monkey/dist/client'
-import { defineComponent, onErrorCaptured } from 'vue'
+import { defineComponent, onBeforeUnmount, onErrorCaptured, onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { appDialog } from '@/app/dialog'
 import {
@@ -9,11 +9,25 @@ import {
   useSponsorBoot,
 } from '@/components'
 import { PreferencesDialog } from '@/components/Preferences'
+import {
+  registerSuperSearchShortcut,
+  SuperSearchDialog,
+  useSuperSearchDialog,
+} from '@/components/SuperSearch'
 import { appLogger } from '@/utils/logger'
 
 const Boot = defineComponent({
   setup() {
     useSponsorBoot()
+    const openSuperSearch = useSuperSearchDialog()
+    let disposeShortcut: (() => void) | null = null
+    onMounted(() => {
+      disposeShortcut = registerSuperSearchShortcut(openSuperSearch)
+    })
+    onBeforeUnmount(() => {
+      disposeShortcut?.()
+      disposeShortcut = null
+    })
     return () => null
   },
 })
@@ -33,6 +47,7 @@ const App = defineComponent({
             <Boot />
             <ToastContainer>
               <GlobalSearchModal />
+              <SuperSearchDialog />
               <PreferencesDialog />
               <RouterView />
             </ToastContainer>

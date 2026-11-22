@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const gmStore = vi.hoisted(() => new Map<string, unknown>())
 const showPreferencesDialogMock = vi.hoisted(() => vi.fn())
+const showSuperSearchDialogMock = vi.hoisted(() => vi.fn())
 const mockWindow = vi.hoisted(() => ({
   Main: {
     CONFIG: {
@@ -19,6 +20,11 @@ vi.mock('$', () => ({
 
 vi.mock('@/components/Preferences', () => ({
   showPreferencesDialog: showPreferencesDialogMock,
+}))
+
+vi.mock('@/components/SuperSearch', () => ({
+  showSuperSearchDialog: showSuperSearchDialogMock,
+  registerSuperSearchShortcut: () => vi.fn(),
 }))
 
 vi.mock('@/utils/logger', () => ({
@@ -44,6 +50,7 @@ describe('topHeaderMod', () => {
   beforeEach(() => {
     gmStore.clear()
     showPreferencesDialogMock.mockClear()
+    showSuperSearchDialogMock.mockClear()
     userSettings.value.enableFilelistPreview = true
     userSettings.value.enableAvInfo = true
     userSettings.value.enableActressFaces = true
@@ -87,8 +94,9 @@ describe('topHeaderMod', () => {
     expect(listHeader.lastElementChild).toBe(cluster)
 
     const buttons = cluster.querySelectorAll('a.master-topbar-btn')
-    expect(buttons).toHaveLength(4)
+    expect(buttons).toHaveLength(5)
     expect(Array.from(buttons).map(btn => btn.textContent?.trim())).toEqual([
+      '搜索',
       '截图',
       '介绍',
       '头像',
