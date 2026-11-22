@@ -2,9 +2,26 @@
   <Header>
     <HeaderStart>
       <div class="flex min-w-0 items-center gap-2">
-        <span class="text-base-content truncate text-base font-semibold">
+        <Button
+          v-if="isDetail"
+          variant="glass-floating"
+          shape="circle"
+          size="xs"
+          title="返回海报墙"
+          aria-label="返回海报墙"
+          class="shrink-0"
+          @click="backToWall"
+        >
+          <Icon :name="I.BACK_DIR" class="text-sm" />
+        </Button>
+        <button
+          type="button"
+          class="text-base-content truncate text-left text-base font-semibold"
+          :class="isDetail && 'hover:text-primary cursor-pointer transition-colors'"
+          @click="isDetail ? backToWall() : undefined"
+        >
           {{ viewTitle }}
-        </span>
+        </button>
         <template v-if="store.filter.actor">
           <span class="text-base-content/35">/</span>
           <span class="badge badge-primary badge-soft badge-sm max-w-40 gap-1 truncate">
@@ -13,7 +30,7 @@
               type="button"
               class="hover:text-base-content"
               aria-label="清除演员筛选"
-              @click="store.selectActor(undefined)"
+              @click="clearActor"
             >
               <Icon :name="I.CLOSE" class="text-xs" />
             </button>
@@ -27,7 +44,7 @@
               type="button"
               class="hover:text-base-content"
               aria-label="清除题材筛选"
-              @click="store.selectGenre(undefined)"
+              @click="clearGenre"
             >
               <Icon :name="I.CLOSE" class="text-xs" />
             </button>
@@ -40,7 +57,7 @@
           v-if="hasActiveFilter"
           type="button"
           class="btn btn-ghost btn-xs text-base-content/65 hover:text-base-content shrink-0 rounded-full"
-          @click="store.resetFilters()"
+          @click="clearAllFilters"
         >
           清空条件
         </button>
@@ -56,6 +73,7 @@
           type="text"
           class="text-base-content placeholder:text-base-content/45 min-w-0 grow bg-transparent text-xs outline-none"
           placeholder="搜番号、片名、演员..."
+          @input="handleKeywordInput"
         >
         <button
           v-if="store.filter.keyword"
@@ -155,6 +173,7 @@
 <script setup lang="ts">
 import { Button, Header, HeaderEnd, HeaderStart, Tooltip } from '@115master/ui'
 import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 
@@ -166,7 +185,43 @@ defineEmits<{
   toggleFilters: []
 }>()
 
+const route = useRoute()
+const router = useRouter()
 const store = useMediaLibraryStore()
+const isDetail = computed(() => route.name === 'library-detail')
+
+function backToWall() {
+  void router.push({ name: 'library' })
+}
+
+function showWallFromFilter() {
+  if (isDetail.value) {
+    store.scrollTop = 0
+    void router.push({ name: 'library' })
+  }
+}
+
+function clearActor() {
+  store.selectActor(undefined)
+  showWallFromFilter()
+}
+
+function clearGenre() {
+  store.selectGenre(undefined)
+  showWallFromFilter()
+}
+
+function clearAllFilters() {
+  store.resetFilters()
+  showWallFromFilter()
+}
+
+function handleKeywordInput() {
+  if (isDetail.value && store.filter.keyword.trim()) {
+    store.scrollTop = 0
+    void router.push({ name: 'library' })
+  }
+}
 
 const viewTitle = computed(() => {
   if (store.filter.view === 'recent')

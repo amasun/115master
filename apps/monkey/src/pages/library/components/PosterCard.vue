@@ -15,7 +15,9 @@
         :src="thumbUrl"
         :alt="displayTitle"
         class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        :class="aspectMode === 'portrait' && isRightHalfPortrait ? 'object-right' : 'object-center'"
         draggable="false"
+        @load="handleThumbLoad"
       >
       <div
         v-else
@@ -104,7 +106,7 @@ import { useRouter } from 'vue-router'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
-import { getCoverCandidates, loadPosterThumbUrl } from '@/utils/mediaIndex'
+import { getCoverCandidates, loadPosterThumbUrl, shouldCropRightHalfForPortrait } from '@/utils/mediaIndex'
 
 const props = defineProps<{
   entry: LibraryEntry
@@ -115,6 +117,7 @@ const router = useRouter()
 const store = useMediaLibraryStore()
 
 const thumbUrl = shallowRef('')
+const isRightHalfPortrait = shallowRef(false)
 let activeController: AbortController | null = null
 let activeResource: PosterThumbResource | null = null
 
@@ -142,6 +145,18 @@ function cleanupResource() {
   activeResource?.dispose()
   activeResource = null
   thumbUrl.value = ''
+  isRightHalfPortrait.value = false
+}
+
+function handleThumbLoad(event: Event) {
+  const image = event.currentTarget as HTMLImageElement | null
+  if (!image)
+    return
+  isRightHalfPortrait.value = shouldCropRightHalfForPortrait(
+    image.naturalWidth,
+    image.naturalHeight,
+    props.entry.externalId,
+  )
 }
 
 async function refreshThumb() {

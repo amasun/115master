@@ -6,6 +6,7 @@ export {
   loadPosterThumbUrl,
   readAllCachedJavMeta,
   scrapeJavMeta,
+  shouldCropRightHalfForPortrait,
 } from './scraperRegistry'
 export type { PosterThumbResource } from './scraperRegistry'
 export type {

@@ -35,14 +35,20 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../pages/tags/tags'),
   },
   {
-    name: 'library',
     path: '/library',
     component: () => import('../pages/library/index.vue'),
-  },
-  {
-    name: 'library-detail',
-    path: '/library/item/:mediaKey',
-    component: () => import('../pages/library/detail.vue'),
+    children: [
+      {
+        name: 'library',
+        path: '',
+        component: () => import('../pages/library/wall.vue'),
+      },
+      {
+        name: 'library-detail',
+        path: 'item/:mediaKey',
+        component: () => import('../pages/library/detail.vue'),
+      },
+    ],
   },
   {
     name: 'video',

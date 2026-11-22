@@ -33,7 +33,12 @@ vi.mock('../videoIndexStore', () => ({
 }))
 
 const { JAV_SOURCE } = await import('@/utils/jav/jav')
-const { getCoverCandidates, javInfoToUnifiedMeta, readAllCachedJavMeta } = await import('../scraperRegistry')
+const {
+  getCoverCandidates,
+  javInfoToUnifiedMeta,
+  readAllCachedJavMeta,
+  shouldCropRightHalfForPortrait,
+} = await import('../scraperRegistry')
 
 describe('scraperRegistry', () => {
   it('正确将 JavInfo 转换为 UnifiedMediaMeta 并保留剧照与封面候选', () => {
@@ -70,6 +75,7 @@ describe('scraperRegistry', () => {
     expect(meta.year).toBe(2024)
     expect(meta.releaseDate).toBe('2024-05-15')
     expect(meta.coverUrl).toBe('https://img.example/cover.jpg')
+    expect(meta.posterUrl).toBe('https://img.example/cover-single.jpg')
     expect(meta.previews).toEqual([
       { thumbnail: 'https://img.example/p1-thumb.jpg', raw: 'https://img.example/p1.jpg' },
     ])
@@ -145,5 +151,13 @@ describe('scraperRegistry', () => {
     expect(map.size).toBe(1)
     expect(map.get('jav:SSIS001')?.title).toBe('Fusion 融合标题')
     expect(map.get('jav:SSIS001')?.source).toBe('JavLibrary')
+  })
+
+  it('仅对非 FC2 的横版双页封套在竖版模式启用右半裁切', () => {
+    expect(shouldCropRightHalfForPortrait(800, 538, 'SSIS-001')).toBe(true)
+    expect(shouldCropRightHalfForPortrait(200, 300, 'SSIS-001')).toBe(false)
+    expect(shouldCropRightHalfForPortrait(400, 400, 'SSIS-001')).toBe(false)
+    expect(shouldCropRightHalfForPortrait(800, 538, 'FC2-PPV-1234567')).toBe(false)
+    expect(shouldCropRightHalfForPortrait(0, 0, 'SSIS-001')).toBe(false)
   })
 })

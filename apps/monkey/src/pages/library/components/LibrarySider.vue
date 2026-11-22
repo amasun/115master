@@ -46,7 +46,7 @@
           :class="store.filter.view === 'recent'
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="store.setView('recent')"
+          @click="selectView('recent')"
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.HISTORY" class="text-lg" />
@@ -61,7 +61,7 @@
           :class="store.filter.view === 'marked'
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="store.setView('marked')"
+          @click="selectView('marked')"
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.MARKER" class="text-lg" />
@@ -137,7 +137,7 @@
             :class="store.filter.actor === actor.name
               ? 'bg-primary/15 text-primary font-medium'
               : 'hover:bg-base-content/5 text-base-content/80'"
-            @click="store.selectActor(actor.name)"
+            @click="handleSelectActor(actor.name)"
           >
             <span class="flex min-w-0 items-center gap-2">
               <img
@@ -181,7 +181,7 @@
             :class="store.filter.genre === genre.name
               ? 'bg-primary/15 text-primary font-medium'
               : 'hover:bg-base-content/5 text-base-content/80'"
-            @click="store.selectGenre(genre.name)"
+            @click="handleSelectGenre(genre.name)"
           >
             <span class="truncate">{{ genre.name }}</span>
             <span class="text-base-content/45 shrink-0 tabular-nums">{{ genre.count }}</span>
@@ -241,13 +241,16 @@
 </template>
 
 <script setup lang="ts">
+import type { LibraryView } from '@/utils/mediaIndex'
 import { Button, scrollbar } from '@115master/ui'
 import { computed, ref, shallowRef, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import LogoWordmark from '@/assets/logo-wordmark-inline.svg?component'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 
+const route = useRoute()
+const router = useRouter()
 const store = useMediaLibraryStore()
 const facetKeyword = shallowRef('')
 const actorLimit = shallowRef(120)
@@ -258,6 +261,13 @@ watch(() => store.siderTab, () => {
   facetKeyword.value = ''
 })
 
+function ensureLibraryWall() {
+  if (route.name === 'library-detail') {
+    store.scrollTop = 0
+    void router.push({ name: 'library' })
+  }
+}
+
 function markAvatarFailed(name: string) {
   failedAvatars.value = new Set([...failedAvatars.value, name])
 }
@@ -266,6 +276,22 @@ function selectAllWorks() {
   store.setView('all')
   store.selectActor(undefined)
   store.selectGenre(undefined)
+  ensureLibraryWall()
+}
+
+function selectView(view: LibraryView) {
+  store.setView(view)
+  ensureLibraryWall()
+}
+
+function handleSelectActor(name: string) {
+  store.selectActor(name)
+  ensureLibraryWall()
+}
+
+function handleSelectGenre(name: string) {
+  store.selectGenre(name)
+  ensureLibraryWall()
 }
 
 const filteredActors = computed(() => {

@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-base-100 text-base-content min-h-screen pb-20">
+  <div class="text-base-content px-(--main-content-gutter) pb-16">
     <!-- 未初始化加载态 -->
     <div
       v-if="(store.initializing || store.indexing) && !entry"
-      class="flex min-h-screen flex-col items-center justify-center gap-3"
+      class="flex min-h-[60vh] flex-col items-center justify-center gap-3"
     >
       <Icon :name="I.LOADING" class="text-primary animate-spin text-3xl" />
       <p class="text-base-content/65 text-sm">
@@ -14,7 +14,7 @@
     <!-- 未找到作品 -->
     <div
       v-else-if="!entry"
-      class="flex min-h-screen flex-col items-center justify-center gap-4 px-4"
+      class="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4"
     >
       <Empty description="未在本地索引中找到该作品" size="lg" />
       <Button variant="soft" class="rounded-full" @click="goBackToLibrary">
@@ -24,8 +24,8 @@
 
     <!-- 详情内容 -->
     <template v-else>
-      <!-- 沉浸式模糊背景头部 -->
-      <section class="border-base-content/8 relative overflow-hidden border-b">
+      <!-- 沉浸式模糊背景头部卡片 -->
+      <section class="border-base-content/8 relative overflow-hidden rounded-3xl border">
         <div
           v-if="heroImageSrc"
           class="pointer-events-none absolute inset-0 scale-110 bg-cover bg-center opacity-25 blur-3xl"
@@ -33,7 +33,7 @@
         />
         <div class="from-base-100/70 via-base-100/85 to-base-100 pointer-events-none absolute inset-0 bg-gradient-to-b" />
 
-        <div class="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-5 pb-8 sm:px-8">
+        <div class="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-6 sm:px-8 sm:py-7">
           <!-- 顶部操作栏 -->
           <div class="flex flex-wrap items-center justify-between gap-3">
             <Button
@@ -240,7 +240,7 @@
         </div>
       </section>
 
-      <div class="mx-auto flex max-w-6xl flex-col gap-8 px-4 pt-8 sm:px-8">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-6">
         <!-- 演员横排 -->
         <section v-if="entry.meta?.actors.length" class="flex flex-col gap-3">
           <h2 class="text-base-content text-base font-semibold">

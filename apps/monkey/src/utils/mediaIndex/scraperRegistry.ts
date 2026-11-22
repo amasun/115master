@@ -8,7 +8,7 @@ import type {
 import type { JavInfo } from '@/utils/jav/jav'
 import { format, image as imageUtil } from '@115master/utils'
 import { javCache } from '@/utils/cache/javCache'
-import { createJavInfoSources } from '@/utils/jav'
+import { createJavInfoSources, isFd2PpvAvNumber } from '@/utils/jav'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
@@ -96,6 +96,7 @@ export function javInfoToUnifiedMeta(
     coverUrl: covers[0]?.url,
     coverReferer: covers[0]?.referer ?? info.detailUrl,
     coverFallbacks: covers.slice(1),
+    posterUrl: info.coverSingle?.url,
     previews: mapPreviews(info),
     releaseDate,
     year: Number.isFinite(parsedYear) && parsedYear > 1900 ? parsedYear : undefined,
@@ -210,9 +211,9 @@ export async function loadPosterThumbUrl(
         continue
 
       const compressed = await imageUtil.compress(original, {
-        maxWidth: 480,
-        maxHeight: 480,
-        quality: 0.78,
+        maxWidth: 640,
+        maxHeight: 640,
+        quality: 0.8,
         type: 'image/webp',
       }).catch(() => original)
 
@@ -229,4 +230,17 @@ export async function loadPosterThumbUrl(
   }
 
   return null
+}
+
+/** 竖版海报模式下是否应取高清横版双页封套的右半正面区域 */
+export function shouldCropRightHalfForPortrait(
+  naturalWidth: number,
+  naturalHeight: number,
+  externalId?: string,
+): boolean {
+  if (naturalHeight <= 0 || naturalWidth <= 0)
+    return false
+  if (externalId && isFd2PpvAvNumber(externalId))
+    return false
+  return naturalWidth / naturalHeight >= 1.15
 }
