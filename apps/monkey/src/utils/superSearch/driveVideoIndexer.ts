@@ -45,23 +45,42 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
+/** 兼容 115 /files 不同接口形态的原始文件项 */
+interface RawDriveFileItem {
+  fc?: number | string
+  fid?: string
+  cid?: string
+  pid?: string
+  pc?: string
+  n?: string
+  s?: number | string
+  t?: number | string
+  tu?: number | string
+  tp?: number | string
+  te?: number | string
+  play_long?: number | string
+}
+
 /** 将 115 文件项转换为轻量的 IndexedVideo 记录 */
-export function toIndexedVideo(item: Share.Entity.FilesItem): IndexedVideo | null {
-  if (item.fc !== 1 || !item.fid || !item.pc)
+export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem): IndexedVideo | null {
+  const raw: RawDriveFileItem = item
+  if (raw.fc === 0 || raw.fc === '0')
+    return null
+  if (!raw.fid || !raw.pc || !raw.n)
     return null
 
-  const avNumber = getAvNumber(item.n) || null
-  const size = typeof item.s === 'number' ? item.s : Number(item.s) || 0
-  const mtime = Number(item.tu || item.t) || 0
+  const avNumber = getAvNumber(raw.n) || null
+  const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
+  const mtime = Number(raw.tu || raw.tp || raw.te || raw.t) || 0
 
   return {
-    fid: String(item.fid),
-    cid: String(item.pid || '0'),
-    pickCode: String(item.pc),
-    name: item.n,
+    fid: String(raw.fid),
+    cid: String(raw.pid || raw.cid || '0'),
+    pickCode: String(raw.pc),
+    name: raw.n,
     avNumber,
     size,
-    duration: Number(item.play_long) || 0,
+    duration: Number(raw.play_long) || 0,
     mtime,
   }
 }
@@ -97,6 +116,7 @@ export async function syncDriveVideoIndex(
 
   for (const rootCid of rootCids) {
     let offset = 0
+    let dirTotal = 0
     while (true) {
       if (options.signal?.aborted) {
         throw options.signal.reason ?? new DOMException('同步已取消', 'AbortError')
@@ -114,7 +134,8 @@ export async function syncDriveVideoIndex(
           r_all: 1,
           o: 'user_ptime',
           asc: 0,
-          cur: 1,
+          custom_order: 1,
+          cur: 0,
           natsort: 0,
         },
         options.signal,
@@ -123,7 +144,9 @@ export async function syncDriveVideoIndex(
       const list = Array.isArray(res.data) ? res.data : []
       pages += 1
       if (offset === 0) {
-        total += Number(res.count) || list.length
+        const resCount = Number(res.count)
+        dirTotal = resCount > 0 ? resCount : 0
+        total += dirTotal > 0 ? dirTotal : list.length
       }
 
       let hitOlder = false
@@ -146,11 +169,11 @@ export async function syncDriveVideoIndex(
         mode,
       })
 
-      if (hitOlder || list.length < PAGE_LIMIT)
+      if (hitOlder || list.length === 0)
         break
 
-      offset += PAGE_LIMIT
-      if (total > 0 && offset >= total)
+      offset += list.length
+      if (dirTotal > 0 ? offset >= dirTotal : list.length < PAGE_LIMIT)
         break
 
       await sleep(delayMs, options.signal)

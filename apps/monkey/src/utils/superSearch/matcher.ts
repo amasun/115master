@@ -1,7 +1,13 @@
-import type { IndexedVideo, SuperSearchMatchReason, SuperSearchResult } from './types'
+import type { ActorReverseMatch, IndexedVideo, SuperSearchMatchReason, SuperSearchResult } from './types'
 import type { JavInfo } from '@/utils/jav/jav'
+import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { getAvNumber } from '@/utils/getNumber'
 import { normalizeAvNumber } from '@/utils/jav/jav'
+
+export interface SearchIndexedVideosOptions {
+  /** 通道 A：在线演员作品反查匹配集合 */
+  actorReverse?: ActorReverseMatch | null
+}
 
 /** 规范化检索关键词 */
 function normalizeQuery(text: string): string {
@@ -9,20 +15,24 @@ function normalizeQuery(text: string): string {
 }
 
 /**
- * 本地多通道检索（Phase 1）
+ * 本地与演员反查三路检索
+ * - 通道 A：在线演员反查作品番号集合求交集
  * - 通道 1：番号精确 / 前缀匹配
- * - 通道 2：本地 javCache 元数据反查（演员、分类、导演、标题、年份）
+ * - 通道 2：本地 javCache 元数据反查（演员繁简/日文汉字归一化、分类、导演、标题、年份）
  * - 通道 3：网盘文件名多词模糊匹配
  */
 export function searchIndexedVideos(
   rawQuery: string,
   videos: IndexedVideo[],
   javMap: Map<string, JavInfo>,
+  options?: SearchIndexedVideosOptions,
 ): SuperSearchResult[] {
   const query = normalizeQuery(rawQuery)
   if (!query)
     return []
 
+  const actorQuery = normalizeActressName(rawQuery)
+  const actorReverse = options?.actorReverse ?? null
   const tokens = query.split(/\s+/).filter(Boolean)
   const extractedAv = getAvNumber(rawQuery)
   const normalizedQueryAv = normalizeAvNumber(extractedAv ?? rawQuery)
@@ -35,6 +45,12 @@ export function searchIndexedVideos(
     const javInfo = videoAvKey
       ? (javMap.get(videoAvKey) ?? (video.avNumber ? javMap.get(video.avNumber) : undefined) ?? null)
       : null
+
+    // 通道 A：在线演员反查作品集合求交集
+    if (actorReverse && videoAvKey && actorReverse.avNumbers.has(videoAvKey)) {
+      score += 95
+      reasons.push({ kind: 'actorReverse', label: `演员反查 · ${actorReverse.actorName}` })
+    }
 
     // 通道 1：番号匹配
     if (video.avNumber && videoAvKey && normalizedQueryAv.length >= 2) {
@@ -51,7 +67,7 @@ export function searchIndexedVideos(
     // 通道 2：本地 javCache 元数据反查
     if (javInfo) {
       const matchedActor = javInfo.actors?.find(actor =>
-        normalizeQuery(actor.name).includes(query),
+        actorQuery ? normalizeActressName(actor.name).includes(actorQuery) : false,
       )
       if (matchedActor) {
         score += 90

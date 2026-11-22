@@ -98,4 +98,66 @@ describe('searchIndexedVideos', () => {
   it('空查询返回空数组', () => {
     expect(searchIndexedVideos('   ', videos, javMap)).toEqual([])
   })
+
+  it('通道 A：即使未命中 javCache 且文件名不含演员名，也可通过演员作品集合反查命中', () => {
+    const uncachedVideos: IndexedVideo[] = [
+      ...videos,
+      {
+        fid: '4',
+        cid: '400',
+        pickCode: 'pc4',
+        name: 'raw-upload-PRED-456.mp4',
+        avNumber: 'PRED-456',
+        size: 1024,
+        duration: 3600,
+        mtime: 4000,
+      },
+    ]
+
+    const results = searchIndexedVideos('山岸逢花', uncachedVideos, javMap, {
+      actorReverse: {
+        actorName: '山岸逢花',
+        source: 'javbus',
+        avNumbers: new Set(['PRED456']),
+      },
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0]!.video.fid).toBe('4')
+    expect(results[0]!.reasons).toEqual([
+      { kind: 'actorReverse', label: '演员反查 · 山岸逢花' },
+    ])
+  })
+
+  it('通道 A 与通道 B 同时命中同一视频时合并去重并叠加排序分', () => {
+    const results = searchIndexedVideos('松下纱荣子', videos, javMap, {
+      actorReverse: {
+        actorName: '松下紗栄子',
+        source: 'javbus',
+        avNumbers: new Set(['SSIS001']),
+      },
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0]!.video.fid).toBe('1')
+    expect(results[0]!.reasons.map(r => r.kind)).toEqual(['actorReverse', 'actor'])
+    expect(results[0]!.score).toBe(185)
+  })
+
+  it('通道 B：支持繁简与日文汉字演员名归一化匹配', () => {
+    const jpJavMap = new Map<string, JavInfo>([
+      [
+        'SSIS-001',
+        {
+          ...javMap.get('SSIS-001')!,
+          actors: [{ name: '松下紗栄子' }],
+        },
+      ],
+    ])
+
+    const results = searchIndexedVideos('松下纱荣子', videos, jpJavMap)
+    expect(results).toHaveLength(1)
+    expect(results[0]!.video.fid).toBe('1')
+    expect(results[0]!.reasons[0]?.kind).toBe('actor')
+  })
 })

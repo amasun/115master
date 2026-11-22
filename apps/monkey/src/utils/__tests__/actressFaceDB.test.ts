@@ -57,4 +57,15 @@ describe('actressFaceDB findActress 降级匹配', () => {
     expect(res).toBeDefined()
     expect(res?.filename).toBe('美谷朱音.jpg')
   })
+
+  it('searchActresses 返回带头像地址的演员候选列表并遵守数量上限', () => {
+    const all = db.searchActresses('美谷')
+    expect(all.map(item => item.name)).toEqual(['美谷朱音', '美谷朱里'])
+    expect(all[0]?.avatarUrl).toContain('/Content/M/美谷朱音.jpg')
+
+    const limited = db.searchActresses('美谷', 1)
+    expect(limited).toHaveLength(1)
+    expect(limited[0]?.name).toBe('美谷朱音')
+    expect(db.searchActresses('  ')).toEqual([])
+  })
 })

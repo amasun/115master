@@ -62,6 +62,14 @@ vi.mock('@/components/Preferences', async () => {
     PreferencesDialog: defineComponent({ setup: () => () => null }),
   }
 })
+vi.mock('@/components/SuperSearch', async () => {
+  const { defineComponent } = await import('vue')
+  return {
+    SuperSearchDialog: defineComponent({ setup: () => () => null }),
+    registerSuperSearchShortcut: vi.fn(() => () => {}),
+    useSuperSearchDialog: vi.fn(() => () => {}),
+  }
+})
 vi.mock('@/utils/logger', () => ({ appLogger: { error: vi.fn() } }))
 vi.mock('vue-router', async () => {
   const { defineComponent } = await import('vue')

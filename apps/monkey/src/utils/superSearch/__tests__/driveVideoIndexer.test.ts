@@ -20,7 +20,7 @@ vi.mock('../videoIndexStore', () => ({
   }),
 }))
 
-const { syncDriveVideoIndex } = await import('../driveVideoIndexer')
+const { syncDriveVideoIndex, toIndexedVideo } = await import('../driveVideoIndexer')
 
 function makeFile(fid: string, name: string, tu: number, pid = '10') {
   return {
@@ -64,6 +64,8 @@ describe('syncDriveVideoIndex', () => {
         cid: '0',
         show_dir: 0,
         type: 4,
+        cur: 0,
+        custom_order: 1,
         limit: 1150,
         offset: 0,
       }),
@@ -110,8 +112,103 @@ describe('syncDriveVideoIndex', () => {
       pageDelayMs: 0,
     })
 
-    // 遇到 mtime=1500 < lastSyncSec=2000 提前结束，仅发起 1 次请求
+    /** 遇到 mtime=1500 < lastSyncSec=2000 提前结束，仅发起 1 次请求 */
     expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(1)
     expect(snap.items.map(i => i.fid)).toEqual(['new-1', 'old-1'])
+  })
+
+  it('单页条数小于 1150 但未达 count 时继续按实际长度递增 offset 翻页，并在空页时停止', async () => {
+    getFilesWithFallbackMock
+      .mockResolvedValueOnce({
+        state: true,
+        count: 5,
+        data: [
+          makeFile('1', 'SSIS-001.mp4', 5000, 'd1'),
+          makeFile('2', 'SSIS-002.mp4', 4000, 'd1'),
+          makeFile('3', 'SSIS-003.mp4', 3000, 'd1'),
+        ],
+      })
+      .mockResolvedValueOnce({
+        state: true,
+        count: 5,
+        data: [
+          makeFile('4', 'SSIS-004.mp4', 2000, 'd2'),
+          makeFile('5', 'SSIS-005.mp4', 1000, 'd2'),
+        ],
+      })
+
+    const snap = await syncDriveVideoIndex({ mode: 'full', pageDelayMs: 0 })
+    expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(2)
+    expect(getFilesWithFallbackMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ offset: 3 }),
+      undefined,
+    )
+    expect(snap.items.map(item => item.fid)).toEqual(['1', '2', '3', '4', '5'])
+
+    getFilesWithFallbackMock.mockReset()
+    getFilesWithFallbackMock
+      .mockResolvedValueOnce({
+        state: true,
+        count: 10,
+        data: [makeFile('6', 'SSIS-006.mp4', 6000, 'd3')],
+      })
+      .mockResolvedValueOnce({
+        state: true,
+        count: 10,
+        data: [],
+      })
+
+    const stoppedSnap = await syncDriveVideoIndex({ mode: 'full', pageDelayMs: 0 })
+    expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(2)
+    expect(stoppedSnap.items.map(item => item.fid)).toEqual(['6'])
+  })
+})
+
+describe('toIndexedVideo', () => {
+  it('兼容省略 fc 或字符串 fc="1"、cid 回退及多时间戳字段，同时过滤目录项', () => {
+    expect(toIndexedVideo({ fc: 0, fid: 'dir1', pc: 'p0', n: '文件夹' })).toBeNull()
+    expect(toIndexedVideo({ fc: '0', fid: 'dir2', pc: 'p0', n: '字符串目录' })).toBeNull()
+
+    const noFc = toIndexedVideo({
+      fid: 'f1',
+      cid: 'parent99',
+      pc: 'pc1',
+      n: 'ABW-123.mp4',
+      s: '2048',
+      tp: '1700000100',
+      play_long: '3600',
+    })
+    expect(noFc).toEqual({
+      fid: 'f1',
+      cid: 'parent99',
+      pickCode: 'pc1',
+      name: 'ABW-123.mp4',
+      avNumber: 'ABW-123',
+      size: 2048,
+      duration: 3600,
+      mtime: 1700000100,
+    })
+
+    const strFc = toIndexedVideo({
+      fc: '1',
+      fid: 'f2',
+      pid: 'pid88',
+      cid: 'ignored',
+      pc: 'pc2',
+      n: '普通视频.mp4',
+      s: 512,
+      t: 1700000200,
+    })
+    expect(strFc).toEqual({
+      fid: 'f2',
+      cid: 'pid88',
+      pickCode: 'pc2',
+      name: '普通视频.mp4',
+      avNumber: null,
+      size: 512,
+      duration: 0,
+      mtime: 1700000200,
+    })
   })
 })

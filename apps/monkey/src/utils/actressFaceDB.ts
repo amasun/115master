@@ -122,6 +122,26 @@ export class ActressFaceDB {
   }
 
   /**
+   * 搜索以指定前缀开头的演员候选列表（含头像地址）
+   */
+  searchActresses(prefix: string, limit = 8): Array<{ name: string, avatarUrl: string }> {
+    if (!prefix.trim() || this.imageMap.size === 0 || limit <= 0)
+      return []
+    return this.getMatcher()
+      .searchCandidates(prefix)
+      .slice(0, limit)
+      .flatMap((name) => {
+        const file = this.imageMap.get(name)?.[0]
+        if (!file)
+          return []
+        return [{
+          name,
+          avatarUrl: `${GFRIENDS_REP_URL}/Content/${file.folder}/${file.filename}`,
+        }]
+      })
+  }
+
+  /**
    * 获取所有演员数据
    */
   getAllActresses(): ActressImageMap {

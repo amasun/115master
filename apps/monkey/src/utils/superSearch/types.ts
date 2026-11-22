@@ -47,7 +47,7 @@ export interface IndexProgress {
 }
 
 /** 命中原因来源 */
-export type SuperSearchMatchKind = 'avNumber' | 'actor' | 'genre' | 'director' | 'title' | 'year' | 'filename'
+export type SuperSearchMatchKind = 'avNumber' | 'actorReverse' | 'actor' | 'genre' | 'director' | 'title' | 'year' | 'filename'
 
 /** 单条命中说明 */
 export interface SuperSearchMatchReason {
@@ -64,4 +64,51 @@ export interface SuperSearchResult {
   reasons: SuperSearchMatchReason[]
   /** 相关度排序分值（越高越靠前） */
   score: number
+}
+
+/** 演员作品反查数据源 */
+export type ActorWorksSource = 'javbus' | 'javdb'
+
+/** 演员作品表缓存条目 */
+export interface ActorWorksCacheEntry {
+  /** 规范化演员键（主键） */
+  actorKey: string
+  /** 演员展示名 */
+  name: string
+  /** 已知别名列表 */
+  aliases: string[]
+  /** 来源站点 */
+  source: ActorWorksSource
+  /** 演员主页链接 */
+  profileUrl: string
+  /** 标准化后的作品番号列表（已去重） */
+  avNumbers: string[]
+  /** 已拉取的总页数 */
+  fetchedPages: number
+  /** 是否仍有下一页可继续加载 */
+  hasMore: boolean
+  /** 缓存写入时间戳（ms） */
+  cachedAt: number
+}
+
+/** 演员反查进度 */
+export interface ActorFetchProgress {
+  source: ActorWorksSource
+  page: number
+  maxPages: number
+  collected: number
+  stage: 'searching' | 'fetching'
+}
+
+/** 在线演员作品反查匹配上下文 */
+export interface ActorReverseMatch {
+  actorName: string
+  source: ActorWorksSource
+  avNumbers: Set<string>
+}
+
+/** 演员输入候选建议 */
+export interface ActorSuggestion {
+  name: string
+  avatarUrl: string
 }
