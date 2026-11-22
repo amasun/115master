@@ -44,6 +44,11 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('../pages/library/wall.vue'),
       },
       {
+        name: 'library-actors',
+        path: 'actors',
+        component: () => import('../pages/library/actors.vue'),
+      },
+      {
         name: 'library-detail',
         path: 'item/:mediaKey',
         component: () => import('../pages/library/detail.vue'),

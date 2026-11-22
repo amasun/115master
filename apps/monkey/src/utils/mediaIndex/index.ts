@@ -10,6 +10,7 @@ export {
 } from './scraperRegistry'
 export type { PosterThumbResource } from './scraperRegistry'
 export type {
+  ActorFacetStat,
   FacetCount,
   IndexedVideo,
   IndexedVideoLabel,

@@ -81,12 +81,33 @@
       </button>
     </div>
 
-    <!-- 底部文案区 -->
+    <!-- 底部文案区：固定标题高度 + 题材标签行 + 番号年份 -->
     <div class="flex min-h-0 flex-1 flex-col justify-between gap-1.5 p-2.5">
-      <h3 class="text-base-content line-clamp-2 text-xs leading-snug font-medium">
+      <h3
+        :title="displayTitle"
+        class="text-base-content line-clamp-2 min-h-[2.1rem] shrink-0 text-xs leading-[1.4] font-medium"
+      >
         {{ displayTitle }}
       </h3>
-      <div class="text-base-content/55 flex items-center justify-between gap-2 text-[11px]">
+
+      <!-- 题材标签（最多展示 3 枚，支持点击快捷筛选） -->
+      <div class="flex h-5 shrink-0 items-center gap-1 overflow-hidden">
+        <button
+          v-for="genre in visibleGenres"
+          :key="genre"
+          type="button"
+          class="max-w-20 shrink-0 truncate rounded-full px-1.5 py-0.5 text-[10px] leading-tight transition-colors"
+          :class="store.filter.genre === genre
+            ? 'bg-primary/25 text-primary font-medium'
+            : 'bg-base-content/8 text-base-content/75 hover:bg-primary/20 hover:text-primary'"
+          :title="`按题材「${genre}」筛选`"
+          @click.stop="store.selectGenre(genre)"
+        >
+          {{ genre }}
+        </button>
+      </div>
+
+      <div class="text-base-content/55 flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4">
         <span v-if="entry.externalId" class="truncate font-mono">
           {{ entry.externalId }}
         </span>
@@ -123,6 +144,7 @@ let activeResource: PosterThumbResource | null = null
 
 const primaryFile = computed(() => props.entry.files[0])
 const isScraping = computed(() => store.scrapingKeys.has(props.entry.mediaKey))
+const visibleGenres = computed(() => props.entry.meta?.genres.slice(0, 3) ?? [])
 
 const displayTitle = computed(() =>
   props.entry.meta?.title

@@ -13,6 +13,7 @@ export {
 export type { ActorWorksStoreAdapter, FetchActorWorksOptions } from './actorWorksFetcher'
 export {
   ACTOR_WORKS_TTL_MS,
+  getAllCachedActorWorks,
   getCachedActorWorks,
   normalizeActorKey,
   removeCachedActorWorks,

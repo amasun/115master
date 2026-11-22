@@ -121,30 +121,36 @@ export function getCoverCandidates(meta: UnifiedMediaMeta | null | undefined): M
   return [...primary, ...(meta.coverFallbacks ?? [])]
 }
 
+function scoreJavInfo(info: JavInfo, isFusion: boolean): number {
+  return (info.actors?.length ?? 0) * 4
+    + (info.category?.length ?? 0) * 2
+    + (info.title ? 3 : 0)
+    + (info.cover?.url || info.coverSingle?.url ? 2 : 0)
+    + (info.director?.length ?? 0)
+    + (isFusion ? 0.5 : 0)
+}
+
 /** 一次性读取本地 javCache 中已有的全部番号元数据（0 外部网络请求） */
 export async function readAllCachedJavMeta(): Promise<Map<string, UnifiedMediaMeta>> {
   const result = new Map<string, UnifiedMediaMeta>()
-  const fromFusion = new Set<string>()
+  const scoreMap = new Map<string, number>()
 
   try {
     await javCache.storage.iterate<CacheValue<JavInfo>, void>((entry: CacheValue<JavInfo> | null, key: string) => {
       const info = entry?.value
       if (!info?.avNumber)
         return
-      if (!info.title && !info.cover?.url && !info.coverSingle?.url)
+      if (!info.title && !info.cover?.url && !info.coverSingle?.url && !info.actors?.length)
         return
 
       const meta = javInfoToUnifiedMeta(info.avNumber, info, entry?.updatedAt || Date.now())
-      const isFusion = key.startsWith('Fusion:')
+      const score = scoreJavInfo(info, key.startsWith('Fusion:'))
+      const prevScore = scoreMap.get(meta.mediaKey)
 
-      if (isFusion) {
+      if (prevScore === undefined || score > prevScore) {
         result.set(meta.mediaKey, meta)
-        fromFusion.add(meta.mediaKey)
-        return
+        scoreMap.set(meta.mediaKey, score)
       }
-
-      if (!fromFusion.has(meta.mediaKey) && !result.has(meta.mediaKey))
-        result.set(meta.mediaKey, meta)
     })
   }
   catch (error) {

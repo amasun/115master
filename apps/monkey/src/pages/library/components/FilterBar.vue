@@ -7,6 +7,24 @@
       v-if="visible"
       class="ui-glass-surface mb-2 flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
     >
+      <!-- 题材 -->
+      <label class="flex items-center gap-1.5">
+        <span class="text-base-content/55">题材</span>
+        <select
+          v-model="store.filter.genre"
+          class="select select-xs select-bordered bg-base-100/70 max-w-36 rounded-full"
+        >
+          <option :value="undefined">全部题材</option>
+          <option
+            v-for="item in store.libraryIndex.genres"
+            :key="item.name"
+            :value="item.name"
+          >
+            {{ item.name }} ({{ item.count }})
+          </option>
+        </select>
+      </label>
+
       <!-- 年份 -->
       <label class="flex items-center gap-1.5">
         <span class="text-base-content/55">年份</span>

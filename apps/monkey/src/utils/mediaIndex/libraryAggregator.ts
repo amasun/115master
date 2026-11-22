@@ -1,4 +1,5 @@
 import type {
+  ActorFacetStat,
   FacetCount,
   IndexedVideo,
   IndexedVideoLabel,
@@ -8,6 +9,8 @@ import type {
   UnifiedMediaMeta,
 } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
+import type { ActorWorksCacheEntry } from '@/utils/superSearch'
+import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 
 export interface YearFacetCount {
@@ -23,6 +26,7 @@ export interface LibraryIndex {
   byYear: Map<number, Set<string>>
   byDirector: Map<string, Set<string>>
   actors: FacetCount[]
+  actorStats: ActorFacetStat[]
   genres: FacetCount[]
   years: YearFacetCount[]
   directors: FacetCount[]
@@ -36,6 +40,19 @@ function addToIndex<K>(map: Map<K, Set<string>>, key: K, mediaKey: string) {
     return
   }
   map.set(key, new Set([mediaKey]))
+}
+
+function addSetValue<K, V>(map: Map<K, Set<V>>, key: K, value: V) {
+  const existing = map.get(key)
+  if (existing) {
+    existing.add(value)
+    return
+  }
+  map.set(key, new Set([value]))
+}
+
+function normalizeNameKey(name: string): string {
+  return normalizeActressName(name) || name.trim().toLowerCase()
 }
 
 function toFacetCounts(map: Map<string, Set<string>>): FacetCount[] {
@@ -159,14 +176,27 @@ export function aggregateLibraryEntries(
   })
 }
 
-function matchesKeyword(entry: LibraryEntry, keyword: string): boolean {
+function matchesActorText(rawName: string, keyword: string, normalizedKeyword: string): boolean {
+  if (rawName.toLowerCase().includes(keyword))
+    return true
+  return Boolean(normalizedKeyword) && normalizeActressName(rawName).includes(normalizedKeyword)
+}
+
+function matchesKeyword(
+  entry: LibraryEntry,
+  keyword: string,
+  normalizedKeyword: string,
+  extraActorNames?: Set<string>,
+): boolean {
   if (entry.externalId?.toLowerCase().includes(keyword))
     return true
   if (entry.meta?.title.toLowerCase().includes(keyword))
     return true
   if (entry.files.some(file => file.name.toLowerCase().includes(keyword)))
     return true
-  if (entry.meta?.actors.some(actor => actor.name.toLowerCase().includes(keyword)))
+  if (entry.meta?.actors.some(actor => matchesActorText(actor.name, keyword, normalizedKeyword)))
+    return true
+  if (extraActorNames && Array.from(extraActorNames).some(name => matchesActorText(name, keyword, normalizedKeyword)))
     return true
   if (entry.meta?.genres.some(genre => genre.toLowerCase().includes(keyword)))
     return true
@@ -228,27 +258,187 @@ function compareEntries(a: LibraryEntry, b: LibraryEntry, filter: LibraryFilterS
   return a.mediaKey.localeCompare(b.mediaKey)
 }
 
-/** 构建内存倒排索引与毫秒级查询接口 */
-export function buildLibraryIndex(entries: LibraryEntry[]): LibraryIndex {
+function pickActorDisplayName(
+  key: string,
+  preferredNames: Map<string, string>,
+  nameCounts: Map<string, number> | undefined,
+): string {
+  const preferred = preferredNames.get(key)
+  if (preferred)
+    return preferred
+
+  if (!nameCounts || nameCounts.size === 0)
+    return key
+
+  return Array.from(nameCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'))[0]?.[0] ?? key
+}
+
+/** 构建内存倒排索引与毫秒级查询接口（支持演员繁简/别名归一化并复用超级搜索演员反查缓存） */
+export function buildLibraryIndex(
+  entries: LibraryEntry[],
+  actorWorks: ActorWorksCacheEntry[] = [],
+): LibraryIndex {
   const entryMap = new Map<string, LibraryEntry>()
-  const byActor = new Map<string, Set<string>>()
+  const entryByAvKey = new Map<string, string>()
+  const aliasToCanonical = new Map<string, string>()
+  const preferredNames = new Map<string, string>()
+  const knownAliases = new Map<string, Set<string>>()
+
+  actorWorks.forEach((item) => {
+    const canonicalKey = normalizeNameKey(item.actorKey || item.name)
+    if (!canonicalKey)
+      return
+
+    if (item.name && !preferredNames.has(canonicalKey))
+      preferredNames.set(canonicalKey, item.name.trim())
+
+    aliasToCanonical.set(canonicalKey, canonicalKey)
+    const names = [item.name, ...item.aliases].map(name => name.trim()).filter(Boolean)
+    names.forEach((name) => {
+      addSetValue(knownAliases, canonicalKey, name)
+      const norm = normalizeNameKey(name)
+      if (norm && !aliasToCanonical.has(norm))
+        aliasToCanonical.set(norm, canonicalKey)
+    })
+  })
+
+  function resolveActorKey(name: string): string {
+    const norm = normalizeNameKey(name)
+    if (!norm)
+      return ''
+    return aliasToCanonical.get(norm) ?? norm
+  }
+
+  const byActorKey = new Map<string, Set<string>>()
+  const nameCountsByKey = new Map<string, Map<string, number>>()
+  const rawAliasesByKey = new Map<string, Set<string>>()
+  const avatarByKey = new Map<string, string>()
+  const actorKeysByMedia = new Map<string, Set<string>>()
+
   const byGenre = new Map<string, Set<string>>()
   const byYear = new Map<number, Set<string>>()
   const byDirector = new Map<string, Set<string>>()
 
   entries.forEach((entry) => {
     entryMap.set(entry.mediaKey, entry)
+    if (entry.mediaKey.startsWith('jav:'))
+      entryByAvKey.set(entry.mediaKey.slice(4), entry.mediaKey)
+    if (entry.externalId) {
+      const normalizedAv = normalizeAvNumber(entry.externalId)
+      if (normalizedAv)
+        entryByAvKey.set(normalizedAv, entry.mediaKey)
+    }
+
     if (!entry.meta)
       return
 
-    entry.meta.actors.forEach(actor => addToIndex(byActor, actor.name, entry.mediaKey))
+    entry.meta.actors.forEach((actor) => {
+      const rawName = actor.name.trim()
+      if (!rawName)
+        return
+      const key = resolveActorKey(rawName)
+      if (!key)
+        return
+
+      addToIndex(byActorKey, key, entry.mediaKey)
+      addSetValue(actorKeysByMedia, entry.mediaKey, key)
+      addSetValue(rawAliasesByKey, key, rawName)
+
+      const counts = nameCountsByKey.get(key) ?? new Map<string, number>()
+      counts.set(rawName, (counts.get(rawName) ?? 0) + 1)
+      nameCountsByKey.set(key, counts)
+
+      if (actor.avatarUrl && !avatarByKey.has(key))
+        avatarByKey.set(key, actor.avatarUrl)
+    })
+
     entry.meta.genres.forEach(genre => addToIndex(byGenre, genre, entry.mediaKey))
     entry.meta.directors.forEach(director => addToIndex(byDirector, director, entry.mediaKey))
     if (entry.meta.year)
       addToIndex(byYear, entry.meta.year, entry.mediaKey)
   })
 
-  const actors = toFacetCounts(byActor)
+  actorWorks.forEach((item) => {
+    const canonicalKey = resolveActorKey(item.actorKey || item.name)
+    if (!canonicalKey)
+      return
+
+    const actorNames = [item.name, ...item.aliases].map(name => name.trim()).filter(Boolean)
+    item.avNumbers.forEach((av) => {
+      const avKey = normalizeAvNumber(av)
+      const mediaKey = avKey ? entryByAvKey.get(avKey) : undefined
+      if (!mediaKey)
+        return
+
+      addToIndex(byActorKey, canonicalKey, mediaKey)
+      addSetValue(actorKeysByMedia, mediaKey, canonicalKey)
+      actorNames.forEach((name) => {
+        addSetValue(rawAliasesByKey, canonicalKey, name)
+      })
+    })
+  })
+
+  const byActor = new Map<string, Set<string>>()
+  const allNamesByKey = new Map<string, string[]>()
+  const actorStats: ActorFacetStat[] = Array.from(byActorKey.entries()).map(([key, keys]) => {
+    const displayName = pickActorDisplayName(key, preferredNames, nameCountsByKey.get(key))
+    byActor.set(displayName, keys)
+
+    const aliasSet = new Set<string>()
+    rawAliasesByKey.get(key)?.forEach((alias) => {
+      if (alias !== displayName)
+        aliasSet.add(alias)
+    })
+    knownAliases.get(key)?.forEach((alias) => {
+      if (alias !== displayName)
+        aliasSet.add(alias)
+    })
+    const aliases = Array.from(aliasSet)
+    allNamesByKey.set(key, [displayName, ...aliases])
+
+    let scrapedCount = 0
+    let markedCount = 0
+    let totalSize = 0
+    let latestMtime = 0
+    keys.forEach((mediaKey) => {
+      const item = entryMap.get(mediaKey)
+      if (!item)
+        return
+      if (item.meta !== null)
+        scrapedCount += 1
+      if (item.markerCount > 0)
+        markedCount += 1
+      totalSize += item.totalSize
+      if (item.latestMtime > latestMtime)
+        latestMtime = item.latestMtime
+    })
+
+    return {
+      key,
+      name: displayName,
+      count: keys.size,
+      aliases,
+      scrapedCount,
+      markedCount,
+      totalSize,
+      latestMtime,
+      ...(avatarByKey.get(key) ? { avatarUrl: avatarByKey.get(key) } : {}),
+    }
+  }).sort((a, b) => b.count - a.count || b.latestMtime - a.latestMtime || a.name.localeCompare(b.name, 'zh-CN'))
+
+  function getMediaActorSearchNames(mediaKey: string): Set<string> | undefined {
+    const keys = actorKeysByMedia.get(mediaKey)
+    if (!keys || keys.size === 0)
+      return undefined
+    const names = new Set<string>()
+    keys.forEach((key) => {
+      allNamesByKey.get(key)?.forEach(name => names.add(name))
+    })
+    return names
+  }
+
+  const actors: FacetCount[] = actorStats.map(stat => ({ name: stat.name, count: stat.count }))
   const genres = toFacetCounts(byGenre)
   const directors = toFacetCounts(byDirector)
   const years = Array.from(byYear.entries())
@@ -258,7 +448,7 @@ export function buildLibraryIndex(entries: LibraryEntry[]): LibraryIndex {
   function query(filter: LibraryFilterState): LibraryEntry[] {
     const facetSets: Array<Set<string> | undefined> = []
     if (filter.actor)
-      facetSets.push(byActor.get(filter.actor))
+      facetSets.push(byActor.get(filter.actor) ?? byActorKey.get(resolveActorKey(filter.actor)))
     if (filter.genre)
       facetSets.push(byGenre.get(filter.genre))
     if (filter.director)
@@ -272,6 +462,7 @@ export function buildLibraryIndex(entries: LibraryEntry[]): LibraryIndex {
       : entries
 
     const keyword = filter.keyword.trim().toLowerCase()
+    const normalizedKeyword = normalizeActressName(filter.keyword)
     const filtered = candidates.filter((entry) => {
       if ((filter.view === 'marked' || filter.onlyMarked) && entry.markerCount <= 0)
         return false
@@ -279,7 +470,7 @@ export function buildLibraryIndex(entries: LibraryEntry[]): LibraryIndex {
         return false
       if (filter.scrapeStatus === 'unscraped' && entry.meta !== null)
         return false
-      if (keyword && !matchesKeyword(entry, keyword))
+      if (keyword && !matchesKeyword(entry, keyword, normalizedKeyword, getMediaActorSearchNames(entry.mediaKey)))
         return false
       return true
     })
@@ -295,6 +486,7 @@ export function buildLibraryIndex(entries: LibraryEntry[]): LibraryIndex {
     byYear,
     byDirector,
     actors,
+    actorStats,
     genres,
     years,
     directors,

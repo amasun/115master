@@ -124,7 +124,7 @@ const rowHeight = computed(() => {
   const width = Math.max(280, containerWidth.value)
   const cardWidth = (width - gap.value * (columns.value - 1)) / columns.value
   const coverHeight = store.aspectMode === 'portrait' ? cardWidth * 1.5 : cardWidth * (2 / 3)
-  return Math.ceil(coverHeight + 66)
+  return Math.ceil(coverHeight + 114)
 })
 
 const rows = computed<LibraryEntry[][]>(() => {

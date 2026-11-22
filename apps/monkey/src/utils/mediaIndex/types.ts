@@ -106,3 +106,13 @@ export interface FacetCount {
   name: string
   count: number
 }
+
+export interface ActorFacetStat extends FacetCount {
+  key: string
+  aliases: string[]
+  scrapedCount: number
+  markedCount: number
+  totalSize: number
+  latestMtime: number
+  avatarUrl?: string
+}

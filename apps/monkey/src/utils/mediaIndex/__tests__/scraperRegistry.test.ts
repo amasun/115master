@@ -153,6 +153,55 @@ describe('scraperRegistry', () => {
     expect(map.get('jav:SSIS001')?.source).toBe('JavLibrary')
   })
 
+  it('同番号存在多个缓存来源时优先保留完整度更高的记录', async () => {
+    const entries: Array<[string, { value: JavInfo, updatedAt: number }]> = [
+      [
+        'Fusion:ABP-100',
+        {
+          updatedAt: 100,
+          value: {
+            source: JAV_SOURCE.JAVLIBRARY,
+            baseUrl: 'https://javlibrary.example',
+            detailUrl: 'https://javlibrary.example/v/1',
+            searchUrl: '',
+            avNumber: 'ABP-100',
+            title: '仅标题与封面',
+            cover: { url: 'https://javlibrary.example/1.jpg' },
+          },
+        },
+      ],
+      [
+        'JavBus:ABP-100',
+        {
+          updatedAt: 90,
+          value: {
+            source: JAV_SOURCE.JAVBUS,
+            baseUrl: 'https://javbus.example',
+            detailUrl: 'https://javbus.example/ABP-100',
+            searchUrl: '',
+            avNumber: 'ABP-100',
+            title: '完整记录标题',
+            cover: { url: 'https://javbus.example/1.jpg' },
+            actors: [{ name: '演员甲' }, { name: '演员乙' }],
+            category: [{ name: '单人作品' }, { name: '剧情' }],
+            director: [{ name: '导演A' }],
+          },
+        },
+      ],
+    ]
+
+    iterateMock.mockImplementation(async (callback: (value: unknown, key: string) => void) => {
+      entries.forEach(([key, val]) => callback(val, key))
+    })
+
+    const map = await readAllCachedJavMeta()
+    const meta = map.get('jav:ABP100')
+    expect(meta?.source).toBe('JavBus')
+    expect(meta?.title).toBe('完整记录标题')
+    expect(meta?.actors.map(item => item.name)).toEqual(['演员甲', '演员乙'])
+    expect(meta?.genres).toEqual(['单人作品', '剧情'])
+  })
+
   it('仅对非 FC2 的横版双页封套在竖版模式启用右半裁切', () => {
     expect(shouldCropRightHalfForPortrait(800, 538, 'SSIS-001')).toBe(true)
     expect(shouldCropRightHalfForPortrait(200, 300, 'SSIS-001')).toBe(false)

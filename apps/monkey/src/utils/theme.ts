@@ -17,6 +17,9 @@ export const themeMode = ref<ThemeMode>('system')
 /** 当前实际生效主题（解析 system 后） */
 export const resolvedTheme = ref<ResolvedTheme>('dark')
 
+/** 页面级主题覆写（如影视库强制深色主题） */
+export const themeOverride = ref<ResolvedTheme | null>(null)
+
 function systemPrefersDark(): boolean {
   return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
 }
@@ -45,9 +48,15 @@ function applyToDOM(theme: ResolvedTheme) {
 
 /** 同步当前主题到 DOM（不修改主题模式） */
 export function syncResolvedTheme() {
-  const next = resolve(themeMode.value)
+  const next = themeOverride.value ?? resolve(themeMode.value)
   resolvedTheme.value = next
   applyToDOM(next)
+}
+
+/** 设置页面级主题覆写（如影视库强制深色主题）；传 null 恢复用户配置的主题模式 */
+export function setThemeOverride(theme: ResolvedTheme | null) {
+  themeOverride.value = theme
+  syncResolvedTheme()
 }
 
 /** 切换主题模式（仅写 ref + DOM，持久化由调用方负责） */

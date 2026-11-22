@@ -22,7 +22,7 @@
         >
           {{ viewTitle }}
         </button>
-        <template v-if="store.filter.actor">
+        <template v-if="!isActors && store.filter.actor">
           <span class="text-base-content/35">/</span>
           <span class="badge badge-primary badge-soft badge-sm max-w-40 gap-1 truncate">
             <span>演员: {{ store.filter.actor }}</span>
@@ -36,7 +36,7 @@
             </button>
           </span>
         </template>
-        <template v-if="store.filter.genre">
+        <template v-if="!isActors && store.filter.genre">
           <span class="text-base-content/35">/</span>
           <span class="badge badge-secondary badge-soft badge-sm max-w-40 gap-1 truncate">
             <span>题材: {{ store.filter.genre }}</span>
@@ -51,10 +51,10 @@
           </span>
         </template>
         <span class="text-base-content/50 shrink-0 text-xs tabular-nums">
-          ({{ store.filteredEntries.length }})
+          ({{ headerCount }})
         </span>
         <button
-          v-if="hasActiveFilter"
+          v-if="!isActors && hasActiveFilter"
           type="button"
           class="btn btn-ghost btn-xs text-base-content/65 hover:text-base-content shrink-0 rounded-full"
           @click="clearAllFilters"
@@ -72,7 +72,7 @@
           v-model="store.filter.keyword"
           type="text"
           class="text-base-content placeholder:text-base-content/45 min-w-0 grow bg-transparent text-xs outline-none"
-          placeholder="搜番号、片名、演员..."
+          :placeholder="isActors ? '搜索演员...' : '搜番号、片名、演员...'"
           @input="handleKeywordInput"
         >
         <button
@@ -92,7 +92,7 @@
           variant="glass-floating"
           shape="circle"
           size="sm"
-          :class="showFilters || subFilterCount > 0 ? 'ring-primary/50 text-primary ring-1' : ''"
+          :class="!isActors && (showFilters || subFilterCount > 0) ? 'ring-primary/50 text-primary ring-1' : ''"
           @click="$emit('toggleFilters')"
         >
           <Icon :name="I.FILTER" class="text-base" />
@@ -100,7 +100,10 @@
       </Tooltip>
 
       <!-- 排序选择 + 方向 -->
-      <div class="ui-glass-floating hidden h-9 items-center gap-1 rounded-full px-2 md:inline-flex">
+      <div
+        v-if="!isActors"
+        class="ui-glass-floating hidden h-9 items-center gap-1 rounded-full px-2 md:inline-flex"
+      >
         <select
           v-model="store.filter.sortBy"
           aria-label="排序方式"
@@ -133,7 +136,10 @@
       </div>
 
       <!-- 横版 / 竖版比例 -->
-      <Tooltip :content="store.aspectMode === 'landscape' ? '切换竖版海报' : '切换横版封面'">
+      <Tooltip
+        v-if="!isActors"
+        :content="store.aspectMode === 'landscape' ? '切换竖版海报' : '切换横版封面'"
+      >
         <Button
           variant="glass-floating"
           size="sm"
@@ -145,7 +151,10 @@
       </Tooltip>
 
       <!-- 网格密度 -->
-      <Tooltip :content="`网格密度：${densityLabel}`">
+      <Tooltip
+        v-if="!isActors"
+        :content="`网格密度：${densityLabel}`"
+      >
         <Button
           variant="glass-floating"
           shape="circle"
@@ -176,6 +185,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { normalizeActressName } from '@/utils/actressNameMatcher'
 
 defineProps<{
   showFilters: boolean
@@ -189,6 +199,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
 const isDetail = computed(() => route.name === 'library-detail')
+const isActors = computed(() => route.name === 'library-actors')
 
 function backToWall() {
   void router.push({ name: 'library' })
@@ -224,6 +235,8 @@ function handleKeywordInput() {
 }
 
 const viewTitle = computed(() => {
+  if (isActors.value)
+    return '演员'
   if (store.filter.view === 'recent')
     return '最近入库'
   if (store.filter.view === 'marked')
@@ -231,8 +244,28 @@ const viewTitle = computed(() => {
   return '全部作品'
 })
 
+const headerCount = computed(() => {
+  if (!isActors.value)
+    return store.filteredEntries.length
+
+  const keyword = store.filter.keyword.trim().toLowerCase()
+  if (!keyword)
+    return store.libraryIndex.actorStats.length
+
+  const normalizedKeyword = normalizeActressName(store.filter.keyword)
+  return store.libraryIndex.actorStats.filter(actor =>
+    [actor.name, ...actor.aliases].some((name) => {
+      if (name.toLowerCase().includes(keyword))
+        return true
+      return Boolean(normalizedKeyword) && normalizeActressName(name).includes(normalizedKeyword)
+    }),
+  ).length
+})
+
 const subFilterCount = computed(() => {
   let count = 0
+  if (store.filter.genre)
+    count += 1
   if (store.filter.year !== undefined)
     count += 1
   if (store.filter.director)

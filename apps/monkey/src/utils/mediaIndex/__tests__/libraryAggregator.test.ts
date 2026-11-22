@@ -1,5 +1,6 @@
 import type { IndexedVideo, LibraryFilterState, UnifiedMediaMeta } from '../types'
 import type { MarkerDoc } from '@/utils/markers/types'
+import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/utils/logger', () => {
@@ -248,5 +249,111 @@ describe('libraryAggregator', () => {
     // 按发行日期降序：未刮削排在末尾
     expect(index.query(createFilter({ sortBy: 'releaseDate', sortAsc: false })).map(i => i.mediaKey))
       .toEqual(['jav:SSIS001', 'jav:ABP100', 'jav:MIDV200'])
+  })
+
+  it('合并繁简与日文异体演员名，并复用 actor_works_v1 关联未刮削作品', () => {
+    const entries = aggregateLibraryEntries(
+      [
+        {
+          fid: 'f1',
+          cid: 'c1',
+          pickCode: 'pc1',
+          name: 'SSIS-101.mp4',
+          size: 1000,
+          duration: 3600,
+          mtime: 100,
+          avNumber: 'SSIS-101',
+        },
+        {
+          fid: 'f2',
+          cid: 'c1',
+          pickCode: 'pc2',
+          name: 'SSIS-102.mp4',
+          size: 2000,
+          duration: 3600,
+          mtime: 200,
+          avNumber: 'SSIS-102',
+        },
+        {
+          fid: 'f3',
+          cid: 'c1',
+          pickCode: 'pc3',
+          name: 'SSIS-103.mp4',
+          size: 3000,
+          duration: 3600,
+          mtime: 300,
+          avNumber: 'SSIS-103',
+        },
+      ],
+      new Map([
+        [
+          'jav:SSIS101',
+          createMeta({
+            mediaKey: 'jav:SSIS101',
+            externalId: 'SSIS-101',
+            actors: [{ name: '橋本有菜', avatarUrl: 'https://img.example/ar.jpg' }],
+          }),
+        ],
+        [
+          'jav:SSIS102',
+          createMeta({
+            mediaKey: 'jav:SSIS102',
+            externalId: 'SSIS-102',
+            actors: [{ name: '桥本有菜' }],
+          }),
+        ],
+      ]),
+      {
+        pc2: {
+          v: 1,
+          pickCode: 'pc2',
+          updatedAt: 1,
+          markers: [{ id: 'm1', time: 15, label: '点', createdAt: 1, updatedAt: 1 }],
+        },
+      },
+    )
+
+    const actorWorks: ActorWorksCacheEntry[] = [
+      {
+        actorKey: '桥本有菜',
+        name: '桥本有菜',
+        aliases: ['橋本ありな', '新ありな'],
+        source: 'javbus',
+        profileUrl: 'https://javbus.example/star/ar',
+        avNumbers: ['SSIS-102', 'SSIS-103', 'SSIS-999'],
+        fetchedPages: 1,
+        hasMore: false,
+        cachedAt: 1_700_000_000_000,
+      },
+    ]
+
+    const index = buildLibraryIndex(entries, actorWorks)
+
+    expect(index.actors).toEqual([
+      { name: '桥本有菜', count: 3 },
+    ])
+    expect(index.actorStats).toEqual([
+      {
+        key: '桥本有菜',
+        name: '桥本有菜',
+        count: 3,
+        aliases: expect.arrayContaining(['橋本有菜', '橋本ありな', '新ありな']),
+        scrapedCount: 2,
+        markedCount: 1,
+        totalSize: 6000,
+        latestMtime: 300,
+        avatarUrl: 'https://img.example/ar.jpg',
+      },
+    ])
+
+    // 通过任意繁体名或别名筛选均命中全部 3 部（含未刮削的 SSIS-103）
+    expect(index.query(createFilter({ actor: '橋本有菜' })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS103', 'jav:SSIS102', 'jav:SSIS101'])
+    expect(index.query(createFilter({ actor: '橋本ありな' })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS103', 'jav:SSIS102', 'jav:SSIS101'])
+
+    // 通过关键字搜别名也可以命中未刮削作品 SSIS-103
+    expect(index.query(createFilter({ keyword: '新ありな' })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS103', 'jav:SSIS102', 'jav:SSIS101'])
   })
 })

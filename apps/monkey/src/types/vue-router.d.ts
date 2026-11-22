@@ -33,6 +33,13 @@ export interface RouteNamedMap {
     Record<never, never>,
     Record<never, never>
   >
+  /** 影视库演员墙 */
+  'library-actors': RouteRecordInfo<
+    'library-actors',
+    '/library/actors',
+    Record<never, never>,
+    Record<never, never>
+  >
   /** 影视库详情页 */
   'library-detail': RouteRecordInfo<
     'library-detail',

@@ -1,3 +1,4 @@
+import type { CacheValue } from '@115master/shared'
 import type { ActorWorksCacheEntry } from './types'
 import { CacheCore } from '@115master/shared'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
@@ -5,6 +6,7 @@ import { STORE_NAME } from '@/utils/cache/const'
 import { appLogger } from '@/utils/logger'
 
 const ACTOR_WORKS_STORE_NAME = 'actor_works_v1'
+const logger = appLogger.sub('ActorWorksCache')
 
 /** 演员作品缓存有效期（7 天） */
 export const ACTOR_WORKS_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -15,7 +17,7 @@ class ActorWorksCache extends CacheCore<ActorWorksCacheEntry> {
       name: STORE_NAME,
       storeName: ACTOR_WORKS_STORE_NAME,
       enableQuotaManagement: false,
-      logger: appLogger.sub('ActorWorksCache'),
+      logger,
     })
   }
 }
@@ -73,4 +75,34 @@ export async function removeCachedActorWorks(actorName: string): Promise<void> {
   if (!key)
     return
   await cache.remove(key)
+}
+
+/** 读取本地未过期的全部演员作品表缓存（按规范化主键去重） */
+export async function getAllCachedActorWorks(now = Date.now()): Promise<ActorWorksCacheEntry[]> {
+  const deduped = new Map<string, ActorWorksCacheEntry>()
+  try {
+    await cache.storage.iterate<CacheValue<ActorWorksCacheEntry> | null, void>((entry: CacheValue<ActorWorksCacheEntry> | null) => {
+      const value = entry?.value
+      if (!value || !value.name)
+        return
+      if (now - value.cachedAt >= ACTOR_WORKS_TTL_MS)
+        return
+      const key = normalizeActorKey(value.actorKey || value.name)
+      if (!key)
+        return
+
+      const existing = deduped.get(key)
+      if (
+        !existing
+        || value.avNumbers.length > existing.avNumbers.length
+        || (value.avNumbers.length === existing.avNumbers.length && value.cachedAt > existing.cachedAt)
+      ) {
+        deduped.set(key, value)
+      }
+    })
+  }
+  catch (error) {
+    logger.warn('读取全量演员作品表缓存失败', error)
+  }
+  return Array.from(deduped.values())
 }
