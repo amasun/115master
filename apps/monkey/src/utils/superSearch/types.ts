@@ -1,5 +1,12 @@
 import type { JavInfo } from '@/utils/jav/jav'
 
+/** 115 网盘文件文字标签 */
+export interface IndexedVideoLabel {
+  id: string
+  name: string
+  color?: string
+}
+
 /** 网盘扁平视频索引单条记录 */
 export interface IndexedVideo {
   /** 115 文件 ID（主键） */
@@ -18,6 +25,10 @@ export interface IndexedVideo {
   duration: number
   /** 115 修改时间戳（秒），用于增量同步比对 */
   mtime: number
+  /** 是否已星标（收藏） */
+  starred?: boolean
+  /** 115 网盘文件文字标签列表 */
+  labels?: IndexedVideoLabel[]
 }
 
 /** 持久化在 IndexedDB 中的网盘视频索引快照 */
@@ -47,7 +58,7 @@ export interface IndexProgress {
 }
 
 /** 命中原因来源 */
-export type SuperSearchMatchKind = 'avNumber' | 'actorReverse' | 'actor' | 'genre' | 'director' | 'title' | 'year' | 'filename'
+export type SuperSearchMatchKind = 'avNumber' | 'actorReverse' | 'actor' | 'genre' | 'director' | 'title' | 'year' | 'driveLabel' | 'filename'
 
 /** 单条命中说明 */
 export interface SuperSearchMatchReason {
@@ -105,6 +116,7 @@ export interface ActorReverseMatch {
   actorName: string
   source: ActorWorksSource
   avNumbers: Set<string>
+  aliases?: string[]
 }
 
 /** 演员输入候选建议 */

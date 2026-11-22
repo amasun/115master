@@ -1,5 +1,5 @@
 import type { Share } from '@115master/drive115'
-import type { IndexedVideo, IndexProgress, VideoIndexSnapshot } from './types'
+import type { IndexedVideo, IndexedVideoLabel, IndexProgress, VideoIndexSnapshot } from './types'
 import { drive115 } from '@/utils/drive115Instance'
 import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
@@ -59,6 +59,46 @@ interface RawDriveFileItem {
   tp?: number | string
   te?: number | string
   play_long?: number | string
+  m?: number | string
+  is_m?: number | string
+  fl?: unknown
+}
+
+/** 115 文件标签原始结构 */
+interface RawDriveLabelItem {
+  id?: unknown
+  name?: unknown
+  color?: unknown
+}
+
+/** 解析 115 网盘文件文字标签列表，并按 id 去重 */
+function parseDriveLabels(rawFl: unknown): IndexedVideoLabel[] {
+  if (!Array.isArray(rawFl))
+    return []
+
+  const labels: IndexedVideoLabel[] = []
+  const seenIds = new Set<string>()
+
+  for (const item of rawFl) {
+    if (typeof item !== 'object' || item === null)
+      continue
+    const raw = item as RawDriveLabelItem
+    const name = typeof raw.name === 'string' ? raw.name.trim() : ''
+    if (!name)
+      continue
+
+    const id = raw.id !== undefined && raw.id !== null && String(raw.id).trim()
+      ? String(raw.id).trim()
+      : name
+    if (seenIds.has(id))
+      continue
+    seenIds.add(id)
+
+    const color = typeof raw.color === 'string' && raw.color.trim() ? raw.color.trim() : undefined
+    labels.push(color ? { id, name, color } : { id, name })
+  }
+
+  return labels
 }
 
 /** 将 115 文件项转换为轻量的 IndexedVideo 记录 */
@@ -72,6 +112,8 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
   const avNumber = getAvNumber(raw.n) || null
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
   const mtime = Number(raw.tu || raw.tp || raw.te || raw.t) || 0
+  const starred = raw.m === 1 || raw.m === '1' || raw.is_m === 1 || raw.is_m === '1'
+  const labels = parseDriveLabels(raw.fl)
 
   return {
     fid: String(raw.fid),
@@ -82,6 +124,8 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
     size,
     duration: Number(raw.play_long) || 0,
     mtime,
+    ...(starred ? { starred: true } : {}),
+    ...(labels.length > 0 ? { labels } : {}),
   }
 }
 

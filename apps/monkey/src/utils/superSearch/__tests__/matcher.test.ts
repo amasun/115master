@@ -160,4 +160,56 @@ describe('searchIndexedVideos', () => {
     expect(results[0]!.video.fid).toBe('1')
     expect(results[0]!.reasons[0]?.kind).toBe('actor')
   })
+
+  it('通道 B：借助 actorReverse.aliases 可用中文译名命中只含日文假名的 javCache 记录', () => {
+    const kanaJavMap = new Map<string, JavInfo>([
+      [
+        'IPX-534',
+        {
+          ...javMap.get('IPX-534')!,
+          actors: [{ name: '桃乃木かな' }],
+        },
+      ],
+    ])
+
+    const results = searchIndexedVideos('桃乃木香奈', videos, kanaJavMap, {
+      actorReverse: {
+        actorName: '桃乃木かな',
+        source: 'javbus',
+        avNumbers: new Set(),
+        aliases: ['桃乃木香奈', '桃乃木かな'],
+      },
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0]!.video.fid).toBe('2')
+    expect(results[0]!.reasons).toEqual([
+      { kind: 'actor', label: '演员 · 桃乃木かな' },
+    ])
+  })
+
+  it('支持按 115 网盘文件文字标签检索命中', () => {
+    const labeledVideos: IndexedVideo[] = [
+      ...videos,
+      {
+        fid: '5',
+        cid: '500',
+        pickCode: 'pc5',
+        name: 'MIDV-001.mp4',
+        avNumber: 'MIDV-001',
+        size: 1024,
+        duration: 3600,
+        mtime: 5000,
+        starred: true,
+        labels: [{ id: '10', name: '私人珍藏', color: '#f59e0b' }],
+      },
+    ]
+
+    const results = searchIndexedVideos('珍藏', labeledVideos, javMap)
+    expect(results).toHaveLength(1)
+    expect(results[0]!.video.fid).toBe('5')
+    expect(results[0]!.reasons).toEqual([
+      { kind: 'driveLabel', label: '网盘标签 · 私人珍藏' },
+    ])
+  })
 })

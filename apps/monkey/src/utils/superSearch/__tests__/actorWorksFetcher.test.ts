@@ -4,6 +4,7 @@ import type { ActorWorksCacheEntry } from '../types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ActorSourceBlockedError,
+  buildHanPrefixFallback,
   fetchActorWorks,
   HARD_MAX_PAGES,
   isBlockedResponse,
@@ -349,5 +350,117 @@ describe('actorWorksFetcher', () => {
       sleep: instantSleep,
       store,
     })).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('中文译名直搜未命中时自动回退纯汉字前缀匹配日文假名演员并写入别名', async () => {
+    expect(buildHanPrefixFallback('桃乃木香奈')).toBe('桃乃木')
+    expect(buildHanPrefixFallback('明里紬')).toBe('明里')
+    expect(buildHanPrefixFallback('桃乃木かな')).toBeNull()
+
+    const { store } = createMemoryStore()
+    const { request, calls } = createMockRequest((url) => {
+      if (url === 'https://www.javbus.com/searchstar/%E6%A1%83%E4%B9%83%E6%9C%A8%E9%A6%99%E5%A5%88') {
+        return { body: '<div class="empty">无结果</div>' }
+      }
+      if (url === 'https://www.javbus.com/searchstar/%E6%A1%83%E4%B9%83%E6%9C%A8') {
+        return {
+          body: `
+            <div class="avatar-box">
+              <a href="/star/momo"><span>桃乃木かな</span></a>
+            </div>
+          `,
+        }
+      }
+      if (url === 'https://www.javbus.com/star/momo') {
+        return {
+          body: `
+            <div class="avatar-box">
+              <div class="photo-info"><p>別名: 桃乃木香奈、Momonogi Kana</p></div>
+            </div>
+            <div class="movie-box"><date>IPX-534</date></div>
+          `,
+        }
+      }
+      return { status: 404, body: '' }
+    })
+
+    const result = await fetchActorWorks('桃乃木香奈', {
+      request,
+      sleep: instantSleep,
+      now: () => 5000,
+      store,
+    })
+
+    expect(result.entry.source).toBe('javbus')
+    expect(result.entry.name).toBe('桃乃木かな')
+    expect(result.entry.avNumbers).toEqual(['IPX534'])
+    expect(result.entry.aliases).toContain('桃乃木香奈')
+    expect(result.entry.aliases).toContain('桃乃木かな')
+    expect(result.entry.aliases).toContain('Momonogi Kana')
+    expect(calls).toContain('https://www.javbus.com/searchstar/%E6%A1%83%E4%B9%83%E6%9C%A8')
+  })
+
+  it('前缀兜底遇到多个非假名同名候选时不误匹配', async () => {
+    const { store } = createMemoryStore()
+    const { request } = createMockRequest((url) => {
+      if (url.includes('javbus.com/searchstar/%E6%9D%8E%E5%B0%8F%E7%BA%A2')) {
+        return { body: '<div class="empty">无结果</div>' }
+      }
+      if (url.includes('javbus.com/searchstar/%E6%9D%8E%E5%B0%8F')) {
+        return {
+          body: `
+            <div class="avatar-box"><a href="/star/a"><span>李小花</span></a></div>
+            <div class="avatar-box"><a href="/star/b"><span>李小明</span></a></div>
+          `,
+        }
+      }
+      return { body: '<div class="empty">无结果</div>' }
+    })
+
+    await expect(fetchActorWorks('李小红', {
+      request,
+      sleep: instantSleep,
+      store,
+    })).rejects.toThrow('未在 JavBus / JavDB 找到')
+  })
+
+  it('从 JavDB 详情页提取 .section-meta 别名并过滤影片数量统计文案', async () => {
+    const { store } = createMemoryStore()
+    const { request } = createMockRequest((url) => {
+      if (url.includes('javbus.com')) {
+        return { body: '<div class="empty">无结果</div>' }
+      }
+      if (url.includes('javdb.com/search')) {
+        return {
+          body: '<div class="actor-box"><a href="/actors/akari"><strong>明里つむぎ</strong></a></div>',
+        }
+      }
+      if (url === 'https://javdb.com/actors/akari') {
+        return {
+          body: `
+            <h2 class="title"><span class="actor-section-name">明里つむぎ</span></h2>
+            <div class="section-meta">42 部影片</div>
+            <div class="section-meta">別名: 明里紬, Tsumugi Akari</div>
+            <div class="movie-list">
+              <div class="item"><div class="video-title"><strong>IPX-999</strong></div></div>
+            </div>
+          `,
+        }
+      }
+      return { status: 404, body: '' }
+    })
+
+    const result = await fetchActorWorks('明里紬', {
+      request,
+      sleep: instantSleep,
+      now: () => 9000,
+      store,
+    })
+
+    expect(result.entry.source).toBe('javdb')
+    expect(result.entry.aliases).toContain('明里紬')
+    expect(result.entry.aliases).toContain('明里つむぎ')
+    expect(result.entry.aliases).toContain('Tsumugi Akari')
+    expect(result.entry.aliases).not.toContain('42 部影片')
   })
 })

@@ -30,6 +30,9 @@ const JAVDB_BASE_URL = 'https://javdb.com'
 const BLOCKED_STATUSES = new Set([403, 429, 503])
 const ANTI_BOT_HTML_PATTERN = /just a moment|cf-challenge|challenge-platform|attention required!\s*\|\s*cloudflare/i
 const JAVDB_LOGIN_WALL_PATTERN = /\/users\/sign_in|请先登录|請先登入/i
+const KANA_PATTERN = /[\u3040-\u30FF]/
+const ALIAS_PREFIX_PATTERN = /^(?:別名|别名|旧名|舊名)[:：]\s*/
+const NON_ALIAS_META_PATTERN = /^(?:\d+\s*部|共\s*\d+|\d+$)/
 
 /** 外部来源熔断时间戳（source -> 冷却结束时间 ms） */
 const sourceBlockedUntil = new Map<ActorWorksSource, number>()
@@ -215,9 +218,51 @@ function pickBestActorCandidate(candidates: ActorCandidate[], queryName: string)
   return candidates.length === 1 ? candidates[0]! : null
 }
 
-function parseJavBusSearch(html: string, queryName: string): ActorCandidate | null {
+/** 提取中文译名的纯汉字前缀作为日文假名兜底检索词 */
+export function buildHanPrefixFallback(actorName: string): string | null {
+  const trimmed = actorName.trim()
+  if (!trimmed || KANA_PATTERN.test(trimmed))
+    return null
+
+  const match = trimmed.match(/^\p{Script=Han}+/u)
+  if (!match)
+    return null
+
+  const han = match[0]
+  if (han.length >= 4)
+    return han.slice(0, 3)
+  if (han.length === 3)
+    return han.slice(0, 2)
+  return null
+}
+
+function pickPrefixFallbackCandidate(candidates: ActorCandidate[], prefix: string): ActorCandidate | null {
+  const normalizedPrefix = normalizeActressName(prefix)
+  if (!normalizedPrefix || candidates.length === 0)
+    return null
+
+  const startsWithMatches = candidates.filter((candidate) => {
+    const names = [candidate.name, ...candidate.aliases]
+    return names.some(name => normalizeActressName(name).startsWith(normalizedPrefix))
+  })
+  if (startsWithMatches.length === 0)
+    return null
+
+  const kanaMatch = startsWithMatches.find((candidate) => {
+    const names = [candidate.name, ...candidate.aliases]
+    return names.some(name =>
+      normalizeActressName(name).startsWith(normalizedPrefix) && KANA_PATTERN.test(name),
+    )
+  })
+  if (kanaMatch)
+    return kanaMatch
+
+  return startsWithMatches.length === 1 ? startsWithMatches[0]! : null
+}
+
+function parseJavBusCandidates(html: string): ActorCandidate[] {
   const doc = parseDocument(html)
-  const candidates = Array.from(doc.querySelectorAll('.avatar-box')).flatMap((box) => {
+  return Array.from(doc.querySelectorAll('.avatar-box')).flatMap((box) => {
     const link = box.matches('a[href]') ? box : box.querySelector('a[href]')
     const href = link?.getAttribute('href')?.trim()
     if (!href)
@@ -236,8 +281,17 @@ function parseJavBusSearch(html: string, queryName: string): ActorCandidate | nu
       url: new URL(href, JAVBUS_BASE_URL).href,
     }]
   })
+}
 
-  return pickBestActorCandidate(candidates, queryName)
+function parseJavBusProfileAliases(html: string): string[] {
+  const doc = parseDocument(html)
+  return Array.from(doc.querySelectorAll('.avatar-box .photo-info p')).flatMap((p) => {
+    const text = (p.textContent ?? '').replace(/\s+/g, ' ').trim()
+    if (!ALIAS_PREFIX_PATTERN.test(text))
+      return []
+    const cleaned = text.replace(ALIAS_PREFIX_PATTERN, '').trim()
+    return cleaned ? splitAliases(cleaned) : []
+  })
 }
 
 function buildJavBusPageUrl(profileUrl: string, page: number): string {
@@ -272,10 +326,10 @@ function parseJavBusWorksPage(html: string, page: number): SourcePageResult {
   }
 }
 
-function parseJavDBSearch(html: string, queryName: string): ActorCandidate | null {
+function parseJavDBCandidates(html: string): ActorCandidate[] {
   const doc = parseDocument(html)
   const links = doc.querySelectorAll('.actor-box a[href*="/actors/"], a.actor-box[href*="/actors/"]')
-  const candidates = Array.from(links).flatMap((link) => {
+  return Array.from(links).flatMap((link) => {
     const href = link.getAttribute('href')?.trim()
     if (!href)
       return []
@@ -294,8 +348,19 @@ function parseJavDBSearch(html: string, queryName: string): ActorCandidate | nul
       url: new URL(href, JAVDB_BASE_URL).href,
     }]
   })
+}
 
-  return pickBestActorCandidate(candidates, queryName)
+function parseJavDBProfileAliases(html: string): string[] {
+  const doc = parseDocument(html)
+  return Array.from(doc.querySelectorAll('.actor-section-name, .section-meta, .title .actor-name')).flatMap((el) => {
+    const raw = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+    if (!raw)
+      return []
+    const cleaned = raw.replace(ALIAS_PREFIX_PATTERN, '').trim()
+    if (!cleaned || NON_ALIAS_META_PATTERN.test(cleaned))
+      return []
+    return splitAliases(cleaned)
+  })
 }
 
 function buildJavDBPageUrl(profileUrl: string, page: number): string {
@@ -368,8 +433,9 @@ async function paginateActorWorks(params: {
   sleep: (ms: number, signal?: AbortSignal) => Promise<void>
   signal?: AbortSignal
   onProgress?: (progress: ActorFetchProgress) => void
-}): Promise<{ avNumbers: string[], fetchedPages: number, hasMore: boolean }> {
+}): Promise<{ avNumbers: string[], profileAliases: string[], fetchedPages: number, hasMore: boolean }> {
   const avSet = new Set(params.initialAvNumbers)
+  const profileAliases: string[] = []
   let fetchedPages = params.startPage - 1
   let hasMore = false
 
@@ -398,6 +464,13 @@ async function paginateActorWorks(params: {
       break
     }
 
+    if (page === 1) {
+      const extracted = params.source === 'javbus'
+        ? parseJavBusProfileAliases(html)
+        : parseJavDBProfileAliases(html)
+      profileAliases.push(...extracted)
+    }
+
     const parsed = params.source === 'javbus'
       ? parseJavBusWorksPage(html, page)
       : parseJavDBWorksPage(html)
@@ -414,9 +487,20 @@ async function paginateActorWorks(params: {
 
   return {
     avNumbers: Array.from(avSet),
+    profileAliases,
     fetchedPages,
     hasMore,
   }
+}
+
+function buildSearchUrl(source: ActorWorksSource, keyword: string): string {
+  return source === 'javbus'
+    ? `${JAVBUS_BASE_URL}/searchstar/${encodeURIComponent(keyword)}`
+    : `${JAVDB_BASE_URL}/search?q=${encodeURIComponent(keyword)}&f=actor`
+}
+
+function parseSourceSearchCandidates(source: ActorWorksSource, html: string): ActorCandidate[] {
+  return source === 'javbus' ? parseJavBusCandidates(html) : parseJavDBCandidates(html)
 }
 
 async function fetchFromSource(params: {
@@ -430,10 +514,6 @@ async function fetchFromSource(params: {
   signal?: AbortSignal
   onProgress?: (progress: ActorFetchProgress) => void
 }): Promise<ActorWorksCacheEntry | null> {
-  const searchUrl = params.source === 'javbus'
-    ? `${JAVBUS_BASE_URL}/searchstar/${encodeURIComponent(params.actorName)}`
-    : `${JAVDB_BASE_URL}/search?q=${encodeURIComponent(params.actorName)}&f=actor`
-
   params.onProgress?.({
     source: params.source,
     page: 0,
@@ -442,13 +522,34 @@ async function fetchFromSource(params: {
     stage: 'searching',
   })
 
-  const searchHtml = await fetchHtml(params.request, searchUrl, params.source, params.signal)
-  if (!searchHtml)
-    return null
+  const searchHtml = await fetchHtml(
+    params.request,
+    buildSearchUrl(params.source, params.actorName),
+    params.source,
+    params.signal,
+  )
+  let candidate = searchHtml
+    ? pickBestActorCandidate(parseSourceSearchCandidates(params.source, searchHtml), params.actorName)
+    : null
 
-  const candidate = params.source === 'javbus'
-    ? parseJavBusSearch(searchHtml, params.actorName)
-    : parseJavDBSearch(searchHtml, params.actorName)
+  if (!candidate) {
+    const prefix = buildHanPrefixFallback(params.actorName)
+    if (prefix) {
+      await params.sleep(nextPageDelayMs(), params.signal)
+      const fallbackHtml = await fetchHtml(
+        params.request,
+        buildSearchUrl(params.source, prefix),
+        params.source,
+        params.signal,
+      )
+      if (fallbackHtml) {
+        candidate = pickPrefixFallbackCandidate(
+          parseSourceSearchCandidates(params.source, fallbackHtml),
+          prefix,
+        )
+      }
+    }
+  }
 
   if (!candidate)
     return null
@@ -469,7 +570,12 @@ async function fetchFromSource(params: {
   if (paged.avNumbers.length === 0)
     return null
 
-  const aliases = collectUniqueAliases([params.actorName, candidate.name, ...candidate.aliases])
+  const aliases = collectUniqueAliases([
+    params.actorName,
+    candidate.name,
+    ...candidate.aliases,
+    ...paged.profileAliases,
+  ])
   return {
     actorKey: normalizeActorKey(params.actorName) || normalizeActorKey(candidate.name),
     name: candidate.name || params.actorName,

@@ -33,6 +33,11 @@ export function searchIndexedVideos(
 
   const actorQuery = normalizeActressName(rawQuery)
   const actorReverse = options?.actorReverse ?? null
+  const actorAliasKeys = new Set(
+    (actorReverse?.aliases ?? [])
+      .map(alias => normalizeActressName(alias))
+      .filter(Boolean),
+  )
   const tokens = query.split(/\s+/).filter(Boolean)
   const extractedAv = getAvNumber(rawQuery)
   const normalizedQueryAv = normalizeAvNumber(extractedAv ?? rawQuery)
@@ -64,11 +69,25 @@ export function searchIndexedVideos(
       }
     }
 
-    // 通道 2：本地 javCache 元数据反查
+    /** 115 网盘文字标签匹配 */
+    const matchedDriveLabel = video.labels?.find(label =>
+      normalizeQuery(label.name).includes(query),
+    )
+    if (matchedDriveLabel) {
+      score += 75
+      reasons.push({ kind: 'driveLabel', label: `网盘标签 · ${matchedDriveLabel.name}` })
+    }
+
+    /** 通道 2：本地 javCache 元数据反查 */
     if (javInfo) {
-      const matchedActor = javInfo.actors?.find(actor =>
-        actorQuery ? normalizeActressName(actor.name).includes(actorQuery) : false,
-      )
+      const matchedActor = javInfo.actors?.find((actor) => {
+        const normalizedActor = normalizeActressName(actor.name)
+        if (!normalizedActor)
+          return false
+        if (actorQuery && normalizedActor.includes(actorQuery))
+          return true
+        return actorAliasKeys.has(normalizedActor)
+      })
       if (matchedActor) {
         score += 90
         reasons.push({ kind: 'actor', label: `演员 · ${matchedActor.name}` })

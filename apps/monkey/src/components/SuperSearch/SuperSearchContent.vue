@@ -320,6 +320,23 @@
                 {{ item.video.avNumber }}
               </span>
               <span
+                v-if="item.video.starred"
+                class="badge badge-warning badge-soft badge-xs gap-0.5 font-medium"
+                title="已收藏（星标）"
+              >
+                <Icon :name="I.STAR_FILL" class="text-[11px]" />
+                <span>已收藏</span>
+              </span>
+              <span
+                v-for="label in item.video.labels"
+                :key="label.id"
+                class="badge bg-base-content/10 badge-xs border-none text-[11px]"
+                :style="label.color ? { backgroundColor: label.color } : undefined"
+                :title="`网盘标签：${label.name}`"
+              >
+                {{ label.name }}
+              </span>
+              <span
                 v-for="reason in item.reasons"
                 :key="`${reason.kind}-${reason.label}`"
                 class="badge badge-xs text-[11px]"
@@ -459,6 +476,7 @@ const actorReverse = computed<ActorReverseMatch | null>(() => {
     actorName: actorEntry.value.name,
     source: actorEntry.value.source,
     avNumbers: new Set(actorEntry.value.avNumbers),
+    aliases: actorEntry.value.aliases,
   }
 })
 

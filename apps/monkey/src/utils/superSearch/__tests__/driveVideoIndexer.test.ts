@@ -211,4 +211,74 @@ describe('toIndexedVideo', () => {
       mtime: 1700000200,
     })
   })
+
+  it('提取星标收藏状态与 115 文字标签并按 id 去重', () => {
+    const starredAndLabeled = toIndexedVideo({
+      fc: 1,
+      fid: 'f3',
+      pid: 'pid1',
+      pc: 'pc3',
+      n: 'SSIS-999.mp4',
+      s: 1000,
+      t: 1700000300,
+      m: '1',
+      fl: [
+        { id: '10', name: ' 必看 ', color: '#ff4d4f' },
+        { id: '10', name: '重复ID忽略', color: '#000000' },
+        { id: '20', name: '无色标签', color: '   ' },
+        { id: '30', name: '   ' },
+        null,
+      ],
+    })
+    expect(starredAndLabeled).toMatchObject({
+      fid: 'f3',
+      starred: true,
+      labels: [
+        { id: '10', name: '必看', color: '#ff4d4f' },
+        { id: '20', name: '无色标签' },
+      ],
+    })
+    expect(starredAndLabeled?.labels?.[1]).not.toHaveProperty('color')
+
+    const numericStarred = toIndexedVideo({
+      fc: 1,
+      fid: 'f3b',
+      pc: 'pc3b',
+      n: 'ABW-001.mp4',
+      m: 1,
+    })
+    expect(numericStarred?.starred).toBe(true)
+
+    const isMStarred = toIndexedVideo({
+      fc: 1,
+      fid: 'f4',
+      pc: 'pc4',
+      n: 'IPX-100.mp4',
+      is_m: 1,
+      fl: 'invalid',
+    })
+    expect(isMStarred?.starred).toBe(true)
+    expect(isMStarred).not.toHaveProperty('labels')
+
+    const unstarred = toIndexedVideo({
+      fc: 1,
+      fid: 'f5',
+      pc: 'pc5',
+      n: 'plain.mp4',
+      m: '0',
+      fl: [],
+    })
+    expect(unstarred).not.toHaveProperty('starred')
+    expect(unstarred).not.toHaveProperty('labels')
+
+    const numericUnstarred = toIndexedVideo({
+      fc: 1,
+      fid: 'f6',
+      pc: 'pc6',
+      n: 'plain2.mp4',
+      m: 0,
+    })
+    expect(numericUnstarred).not.toHaveProperty('starred')
+    expect(numericUnstarred).not.toHaveProperty('labels')
+  })
 })

@@ -1,5 +1,6 @@
 export {
   ActorSourceBlockedError,
+  buildHanPrefixFallback,
   DEFAULT_MAX_PAGES,
   fetchActorWorks,
   HARD_MAX_PAGES,
@@ -29,6 +30,7 @@ export type {
   ActorWorksCacheEntry,
   ActorWorksSource,
   IndexedVideo,
+  IndexedVideoLabel,
   IndexProgress,
   SuperSearchMatchKind,
   SuperSearchMatchReason,
