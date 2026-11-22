@@ -39,6 +39,14 @@ export const MENU_CONFIG: MenuItem[] = [
       name: 'tags',
     },
   },
+  {
+    icon: I.LIBRARY,
+    name: '影视库',
+    to: '/library',
+    activeMatch: {
+      name: 'library',
+    },
+  },
   // {
   //   icon: 'material-icon-theme:folder-shared',
   //   name: '分享',

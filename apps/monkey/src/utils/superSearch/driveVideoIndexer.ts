@@ -52,6 +52,7 @@ interface RawDriveFileItem {
   cid?: string
   pid?: string
   pc?: string
+  sha?: string
   n?: string
   s?: number | string
   t?: number | string
@@ -112,6 +113,7 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
   const avNumber = getAvNumber(raw.n) || null
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
   const mtime = Number(raw.tu || raw.tp || raw.te || raw.t) || 0
+  const sha1 = typeof raw.sha === 'string' ? raw.sha.trim() : ''
   const starred = raw.m === 1 || raw.m === '1' || raw.is_m === 1 || raw.is_m === '1'
   const labels = parseDriveLabels(raw.fl)
 
@@ -119,6 +121,7 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
     fid: String(raw.fid),
     cid: String(raw.pid || raw.cid || '0'),
     pickCode: String(raw.pc),
+    ...(sha1 ? { sha1 } : {}),
     name: raw.n,
     avNumber,
     size,

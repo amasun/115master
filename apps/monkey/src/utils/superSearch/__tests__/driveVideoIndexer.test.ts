@@ -281,4 +281,24 @@ describe('toIndexedVideo', () => {
     expect(numericUnstarred).not.toHaveProperty('starred')
     expect(numericUnstarred).not.toHaveProperty('labels')
   })
+
+  it('存在 sha 字段时写入 sha1，缺失时不添加该键', () => {
+    const withSha = toIndexedVideo({
+      fc: 1,
+      fid: 'f7',
+      pc: 'pc7',
+      sha: 'ABC123SHA1',
+      n: 'SSIS-007.mp4',
+    })
+    expect(withSha?.sha1).toBe('ABC123SHA1')
+
+    const withoutSha = toIndexedVideo({
+      fc: 1,
+      fid: 'f8',
+      pc: 'pc8',
+      sha: '   ',
+      n: 'SSIS-008.mp4',
+    })
+    expect(withoutSha).not.toHaveProperty('sha1')
+  })
 })

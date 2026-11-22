@@ -7,14 +7,14 @@ import type { RouteRecordInfo } from 'vue-router'
 
 export interface RouteNamedMap {
   /** 登录页 */
-  login: RouteRecordInfo<
+  'login': RouteRecordInfo<
     'login',
     '/login',
     Record<never, never>,
     Record<never, never>
   >
   /** 网盘页 */
-  drive: RouteRecordInfo<
+  'drive': RouteRecordInfo<
     'drive',
     '/drive/:area?/:cid?',
     {
@@ -26,8 +26,26 @@ export interface RouteNamedMap {
       cid: string
     }
   >
+  /** 影视库页 */
+  'library': RouteRecordInfo<
+    'library',
+    '/library',
+    Record<never, never>,
+    Record<never, never>
+  >
+  /** 影视库详情页 */
+  'library-detail': RouteRecordInfo<
+    'library-detail',
+    '/library/item/:mediaKey',
+    {
+      mediaKey: string
+    },
+    {
+      mediaKey: string
+    }
+  >
   /** 播放页 */
-  video: RouteRecordInfo<
+  'video': RouteRecordInfo<
     'video',
     '/video/:pickCode',
     {
@@ -38,7 +56,7 @@ export interface RouteNamedMap {
     }
   >
   /** 404 */
-  notFound: RouteRecordInfo<
+  'notFound': RouteRecordInfo<
     'not-found',
     '/:path(.*)',
     { path: string },

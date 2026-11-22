@@ -15,6 +15,8 @@ export interface IndexedVideo {
   cid: string
   /** 提取码（用于直接拉起 MASTER 播放器） */
   pickCode: string
+  /** 文件 SHA1（用于命中时间分段截图缓存） */
+  sha1?: string
   /** 原始文件名 */
   name: string
   /** 标准化番号（如 SSIS-001），无法识别时为 null */

@@ -7,6 +7,7 @@ const routes = [
   { path: '/drive', name: 'drive', component: { template: '<div />' } },
   { path: '/drive/star', name: 'drive-star', component: { template: '<div />' } },
   { path: '/tags', name: 'tags', component: { template: '<div />' } },
+  { path: '/library', name: 'library', component: { template: '<div />' } },
 ]
 
 /** 创建 router 并安装到当前 app，然后导航到指定路径 */

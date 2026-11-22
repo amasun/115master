@@ -174,6 +174,7 @@ import { format } from '@115master/utils'
 import { breakpointsTailwind, useBreakpoints, useTitle } from '@vueuse/core'
 import { cloneDeep } from 'lodash'
 import { computed, h, nextTick, onMounted, ref, shallowRef, toValue, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import iinaIcon from '@/assets/icons/iina-icon.png'
 import PlayerControlSurface from '@/components/XPlayer/components/Controls/PlayerControlSurface'
 import { ACTION_GROUPS } from '@/components/XPlayer/components/Shortcuts/shortcuts.const'
@@ -255,6 +256,7 @@ const preferences = usePreferences()
 /** 播放页影片详情开关 */
 const showMovieInfo = useUserSetting('enablePlayerMovieInfo')
 /** 参数 */
+const route = useRoute()
 const params = useParamsVideoPage()
 /** 视频源 */
 const DataVideoSources = useDataVideoSources()
@@ -580,6 +582,12 @@ async function loadData(isFirst = true) {
   }
   catch (error) {
     logger.error(error)
+  }
+
+  const startRaw = Array.isArray(route.query.t) ? route.query.t[0] : route.query.t
+  const startSec = Number(startRaw)
+  if (startRaw !== undefined && startRaw !== null && startRaw !== '' && Number.isFinite(startSec) && startSec >= 0) {
+    DataHistory.lastTime.value = startSec
   }
 
   const task = []

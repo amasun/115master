@@ -121,12 +121,17 @@ export const I = {
   GRID: 'ion:grid-outline',
   LIST: 'ion:list-outline',
   NEW_FOLDER: 'ion:folder-open-outline',
+  FOLDER_OPEN: 'ion:folder-open-outline',
   DOCUMENT: 'ion:document-text-outline',
   STAR_RATING: 'ion:star',
   UPLOAD: 'ion:cloud-upload',
   ADD_LINK: 'ion:link',
   FLASK: 'ion:flask',
   FILE_UPLOAD: 'ion:cloud-upload',
+  LIBRARY: 'ion:film-outline',
+  PEOPLE: 'ion:people-outline',
+  FILTER: 'ion:funnel-outline',
+  CALENDAR: 'ion:calendar-outline',
 
   // === 上下文 ===
   QA: 'ion:help-circle',

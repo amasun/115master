@@ -50,6 +50,8 @@ export const router = createRouter({
     /** 文件列表不保留滚动位置，每次进入都从顶部开始。 */
     if (to.name === 'drive')
       return { top: 0 }
+    if (to.name === 'library')
+      return false
     if (savedPosition)
       return savedPosition
     return { top: 0 }
