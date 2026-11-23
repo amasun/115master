@@ -63,6 +63,7 @@ function mapActors(info: JavInfo): MediaActor[] {
       url: actor.url,
       avatarUrl: actor.face,
       avatarReferer: actor.faceReferer ?? info.detailUrl,
+      ...(actor.sex !== undefined ? { sex: actor.sex } : {}),
     }))
 }
 

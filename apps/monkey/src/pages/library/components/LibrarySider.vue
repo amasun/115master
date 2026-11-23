@@ -46,6 +46,22 @@
         <button
           type="button"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          :class="isActorsActive
+            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
+            : 'hover:bg-base-content/5 text-base-content/75'"
+          @click="openActorsWall"
+        >
+          <span class="flex items-center gap-2.5">
+            <Icon :name="I.PEOPLE" class="text-lg" />
+            <span>演员</span>
+          </span>
+          <span class="text-base-content/45 text-xs tabular-nums">{{ store.libraryIndex.actors.length }}</span>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isRecentActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
@@ -87,22 +103,6 @@
             <span>有打点</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.markedCount }}</span>
-        </button>
-      </li>
-      <li>
-        <button
-          type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
-          :class="isActorsActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="openActorsWall"
-        >
-          <span class="flex items-center gap-2.5">
-            <Icon :name="I.PEOPLE" class="text-lg" />
-            <span>演员</span>
-          </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.libraryIndex.actors.length }}</span>
         </button>
       </li>
       <li>

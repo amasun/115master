@@ -317,6 +317,7 @@ export function buildLibraryIndex(
   const nameCountsByKey = new Map<string, Map<string, number>>()
   const rawAliasesByKey = new Map<string, Set<string>>()
   const avatarByKey = new Map<string, string>()
+  const sexVotesByKey = new Map<string, { female: number, male: number }>()
   const actorKeysByMedia = new Map<string, Set<string>>()
 
   const byGenre = new Map<string, Set<string>>()
@@ -370,6 +371,15 @@ export function buildLibraryIndex(
 
       if (actor.avatarUrl && !avatarByKey.has(key))
         avatarByKey.set(key, actor.avatarUrl)
+
+      if (actor.sex === 1 || actor.sex === 0) {
+        const votes = sexVotesByKey.get(key) ?? { female: 0, male: 0 }
+        if (actor.sex === 1)
+          votes.female += 1
+        else
+          votes.male += 1
+        sexVotesByKey.set(key, votes)
+      }
     })
 
     entry.meta.genres.forEach(genre => addToIndex(byGenre, genre, entry.mediaKey))
@@ -433,6 +443,11 @@ export function buildLibraryIndex(
         latestMtime = item.latestMtime
     })
 
+    const votes = sexVotesByKey.get(key)
+    const resolvedSex: 0 | 1 | undefined = votes
+      ? (votes.female >= votes.male ? 1 : 0)
+      : undefined
+
     return {
       key,
       name: displayName,
@@ -443,6 +458,7 @@ export function buildLibraryIndex(
       totalSize,
       latestMtime,
       ...(avatarByKey.get(key) ? { avatarUrl: avatarByKey.get(key) } : {}),
+      ...(resolvedSex !== undefined ? { sex: resolvedSex } : {}),
     }
   }).sort((a, b) => b.count - a.count || b.latestMtime - a.latestMtime || a.name.localeCompare(b.name, 'zh-CN'))
 

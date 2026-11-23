@@ -1,16 +1,50 @@
 <template>
   <div class="relative min-h-[60vh] w-full px-(--main-content-gutter) pb-16">
-    <!-- 顶部统计与排序 -->
+    <!-- 顶部统计、性别筛选与排序 -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="text-base-content/65 flex flex-wrap items-center gap-2 text-xs">
-        <span>
-          共 <strong class="text-base-content tabular-nums">{{ sortedActors.length }}</strong> 位演员
-          <template v-if="hasKeyword && sortedActors.length !== totalActors">
-            （全部 {{ totalActors }} 位）
-          </template>
-        </span>
-        <span class="text-base-content/35">·</span>
-        <span>点击演员查看名下作品</span>
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- 女演员 / 男演员 筛选（默认仅选中女演员） -->
+        <div
+          class="bg-base-200/70 border-base-content/8 inline-flex items-center gap-1 rounded-full border p-1"
+          role="group"
+          aria-label="演员性别筛选"
+        >
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
+            :class="showFemale
+              ? 'bg-primary text-primary-content font-medium shadow-xs'
+              : 'text-base-content/70 hover:text-base-content'"
+            :aria-pressed="showFemale"
+            @click="toggleFemale"
+          >
+            <span>女演员</span>
+            <span class="text-[11px] tabular-nums opacity-75">{{ femaleCount }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
+            :class="showMale
+              ? 'bg-primary text-primary-content font-medium shadow-xs'
+              : 'text-base-content/70 hover:text-base-content'"
+            :aria-pressed="showMale"
+            @click="toggleMale"
+          >
+            <span>男演员</span>
+            <span class="text-[11px] tabular-nums opacity-75">{{ maleCount }}</span>
+          </button>
+        </div>
+
+        <div class="text-base-content/65 flex flex-wrap items-center gap-2 text-xs">
+          <span>
+            共 <strong class="text-base-content tabular-nums">{{ sortedActors.length }}</strong> 位
+            <template v-if="hasKeyword && sortedActors.length !== totalActors">
+              （全部 {{ totalActors }} 位）
+            </template>
+          </span>
+          <span class="text-base-content/35">·</span>
+          <span>点击演员查看名下作品</span>
+        </div>
       </div>
 
       <div class="bg-base-200/70 border-base-content/8 inline-flex items-center gap-1 rounded-full border p-1">
@@ -46,7 +80,7 @@
       class="flex min-h-[50vh] flex-col items-center justify-center gap-3"
     >
       <Empty
-        :description="hasKeyword ? '未找到匹配的演员' : '暂无已关联演员信息'"
+        :description="hasKeyword ? '未找到匹配的演员' : '当前筛选下暂无演员信息'"
         size="lg"
       />
       <Button
@@ -157,9 +191,35 @@ const sortOptions: Array<{ value: ActorSortBy, label: string }> = [
 const router = useRouter()
 const store = useMediaLibraryStore()
 const sortBy = useStorage<ActorSortBy>('115Master_library_actors_sort', 'count')
+const showFemale = useStorage<boolean>('115Master_library_actors_female', true)
+const showMale = useStorage<boolean>('115Master_library_actors_male', false)
 const failedAvatars = ref(new Set<string>())
 
+function isMaleActor(actor: ActorFacetStat): boolean {
+  return actor.sex === 0 && !store.actorAvatars[actor.name]
+}
+
+function toggleFemale() {
+  if (showFemale.value && !showMale.value) {
+    showFemale.value = false
+    showMale.value = true
+    return
+  }
+  showFemale.value = !showFemale.value
+}
+
+function toggleMale() {
+  if (showMale.value && !showFemale.value) {
+    showMale.value = false
+    showFemale.value = true
+    return
+  }
+  showMale.value = !showMale.value
+}
+
 const totalActors = computed(() => store.libraryIndex.actorStats.length)
+const maleCount = computed(() => store.libraryIndex.actorStats.filter(isMaleActor).length)
+const femaleCount = computed(() => totalActors.value - maleCount.value)
 const hasKeyword = computed(() => Boolean(store.filter.keyword.trim()))
 
 function matchesActorSearch(actor: ActorFacetStat, rawKeyword: string, normalizedKeyword: string): boolean {
@@ -174,9 +234,16 @@ function matchesActorSearch(actor: ActorFacetStat, rawKeyword: string, normalize
 const sortedActors = computed(() => {
   const keyword = store.filter.keyword.trim().toLowerCase()
   const normalizedKeyword = normalizeActressName(store.filter.keyword)
-  const list = keyword
-    ? store.libraryIndex.actorStats.filter(actor => matchesActorSearch(actor, keyword, normalizedKeyword))
-    : [...store.libraryIndex.actorStats]
+  const list = store.libraryIndex.actorStats.filter((actor) => {
+    const male = isMaleActor(actor)
+    if (male && !showMale.value)
+      return false
+    if (!male && !showFemale.value)
+      return false
+    if (keyword && !matchesActorSearch(actor, keyword, normalizedKeyword))
+      return false
+    return true
+  })
 
   if (sortBy.value === 'recent')
     return list.sort((a, b) => b.latestMtime - a.latestMtime || b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))

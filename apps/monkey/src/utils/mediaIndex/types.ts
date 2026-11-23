@@ -30,6 +30,8 @@ export interface MediaActor {
   url?: string
   avatarUrl?: string
   avatarReferer?: string
+  /** 性别：1 女演员，0 男演员 */
+  sex?: 0 | 1
 }
 
 export interface MediaPreview {
@@ -124,4 +126,6 @@ export interface ActorFacetStat extends FacetCount {
   totalSize: number
   latestMtime: number
   avatarUrl?: string
+  /** 性别：1 女演员，0 男演员 */
+  sex?: 0 | 1
 }
