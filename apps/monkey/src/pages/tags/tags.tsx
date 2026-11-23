@@ -2,16 +2,18 @@ import type { ActionMenuGroup } from '@115master/ui'
 import type { TagFormState } from './TagFormContent'
 import type { Tag } from '@/store/tagList'
 import { Api, Core } from '@115master/drive115'
-import { ActionMenu, Button, FloatingDock, Header, HeaderEnd, HeaderStart, Pill, Progress, SelectionHeader, StatusFeedback } from '@115master/ui'
+import { ActionMenu, Button, FloatingDock, Header, HeaderEnd, HeaderStart, Progress, SelectionHeader, StatusFeedback } from '@115master/ui'
 import { useTitle } from '@vueuse/core'
 import { useRouteQuery } from '@vueuse/router'
 import { computed, defineComponent, h, onBeforeMount, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
 import {
   ActionBar,
   useToast,
 } from '@/components'
 import { I, Icon } from '@/icons'
+import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
 import { actionIcon } from '@/utils/action'
 import { errorFeedback } from '@/utils/errorFeedback'
@@ -27,6 +29,8 @@ const Tags = defineComponent({
     useTitle('标签管理 · 115Master')
 
     const store = useTagStore()
+    const libraryStore = useMediaLibraryStore()
+    const router = useRouter()
     const dialog = useAppDialog()
     const toast = useToast()
 
@@ -218,14 +222,41 @@ const Tags = defineComponent({
       return (
         <Header>
           <HeaderStart>
-            <Pill
-              variant="glass-floating"
-              class="text-base-content/70 cursor-default text-shadow-2xs"
-            >
-              <Icon name={I.TAG} class="text-base" />
-              <span class="truncate">标签</span>
-              <span class="text-base-content/50 flex-none text-xs font-normal">{store.tags.length}</span>
-            </Pill>
+            <nav aria-label="面包屑导航" class="min-w-0">
+              <ol class="flex min-w-0 items-center gap-1 text-sm">
+                <li class="flex min-w-0 items-center gap-1">
+                  <button
+                    type="button"
+                    class="text-base-content/65 hover:text-base-content hover:bg-base-content/6 max-w-36 truncate rounded-full px-2 py-1 font-medium transition-colors"
+                    onClick={() => {
+                      libraryStore.resetFilters()
+                      libraryStore.scrollTop = 0
+                      void router.push({ name: 'library' })
+                    }}
+                  >
+                    全部作品
+                  </button>
+                </li>
+                <li class="flex min-w-0 items-center gap-1">
+                  <Icon
+                    name={I.RIGHT}
+                    class="text-base-content/35 shrink-0 text-xs"
+                    aria-hidden="true"
+                  />
+                  <span
+                    aria-current="page"
+                    class="text-base-content flex min-w-0 items-center gap-1 px-1.5 font-semibold"
+                  >
+                    <span class="truncate">标签管理</span>
+                    <span class="text-base-content/50 shrink-0 text-xs font-normal tabular-nums">
+                      (
+                      {store.tags.length}
+                      )
+                    </span>
+                  </span>
+                </li>
+              </ol>
+            </nav>
           </HeaderStart>
           <HeaderEnd>
             <SearchInput />

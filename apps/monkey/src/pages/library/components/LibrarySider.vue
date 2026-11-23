@@ -108,15 +108,30 @@
       <li>
         <button
           type="button"
+          aria-label="标签与标签管理"
+          :aria-expanded="store.tagRailOpen"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isTagsActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="openTagsPage"
+          @click="toggleTagRail"
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.TAG" :filled="isTagsActive" class="text-lg" />
-            <span>标签管理</span>
+            <span>标签</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <span
+              v-if="tagCount > 0"
+              class="text-base-content/45 text-xs tabular-nums"
+            >
+              {{ tagCount }}
+            </span>
+            <Icon
+              :name="I.RIGHT"
+              class="text-base-content/45 text-xs transition-transform duration-200"
+              :class="store.tagRailOpen && 'rotate-180'"
+            />
           </span>
         </button>
       </li>
@@ -236,10 +251,12 @@ import { useCloudDownloadAction } from '@/hooks/useDriveAction/useCloudDownloadA
 import { I, Icon } from '@/icons'
 import { useDriveSpaceInfoStore } from '@/store/driveSpaceInfo'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { useTagStore } from '@/store/tagList'
 
 const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
+const tagStore = useTagStore()
 const spaceInfo = useDriveSpaceInfoStore()
 const cloudAction = useCloudDownloadAction()
 
@@ -251,7 +268,12 @@ const spacePercent = computed(() => {
 
 const isWallRoute = computed(() => route.name === 'library')
 const isActorsActive = computed(() => route.name === 'library-actors')
-const isTagsActive = computed(() => route.name === 'library-tags')
+const isTagsActive = computed(() =>
+  store.tagRailOpen || route.name === 'library-tags' || Boolean(store.filter.driveLabel),
+)
+const tagCount = computed(() =>
+  tagStore.tags.length > 0 ? tagStore.tags.length : store.libraryIndex.driveLabels.length,
+)
 const isAllWorksActive = computed(() =>
   isWallRoute.value && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
 )
@@ -284,9 +306,12 @@ function openActorsWall() {
     void router.push({ name: 'library-actors' })
 }
 
-function openTagsPage() {
-  if (route.name !== 'library-tags')
-    void router.push({ name: 'library-tags' })
+function toggleTagRail() {
+  store.toggleTagRail()
+  if (store.tagRailOpen && route.name === 'library-tags') {
+    store.scrollTop = 0
+    void router.push({ name: 'library' })
+  }
 }
 
 async function openCloudDownload() {

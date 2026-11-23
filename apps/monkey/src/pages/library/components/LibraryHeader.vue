@@ -1,60 +1,48 @@
 <template>
   <Header>
     <HeaderStart>
-      <div class="flex min-w-0 items-center gap-2">
-        <Button
-          v-if="isDetail"
-          variant="glass-floating"
-          shape="circle"
-          size="xs"
-          title="返回海报墙"
-          aria-label="返回海报墙"
-          class="shrink-0"
-          @click="backToWall"
-        >
-          <Icon :name="I.BACK_DIR" class="text-sm" />
-        </Button>
-        <button
-          type="button"
-          class="text-base-content truncate text-left text-base font-semibold"
-          :class="isDetail && 'hover:text-primary cursor-pointer transition-colors'"
-          @click="isDetail ? backToWall() : undefined"
-        >
-          {{ viewTitle }}
-        </button>
-        <template v-if="!isActors && store.filter.actor">
-          <span class="text-base-content/35">/</span>
-          <span class="badge badge-primary badge-soft badge-sm max-w-40 gap-1 truncate">
-            <span>演员: {{ store.filter.actor }}</span>
-            <button
-              type="button"
-              class="hover:text-base-content"
-              aria-label="清除演员筛选"
-              @click="clearActor"
+      <div class="flex min-w-0 items-center gap-1.5">
+        <nav aria-label="面包屑导航" class="min-w-0">
+          <ol class="flex min-w-0 items-center gap-1 text-sm">
+            <li
+              v-for="(item, idx) in breadcrumbs"
+              :key="item.key"
+              class="flex min-w-0 items-center gap-1"
             >
-              <Icon :name="I.CLOSE" class="text-xs" />
-            </button>
-          </span>
-        </template>
-        <template v-if="!isActors && store.filter.genre">
-          <span class="text-base-content/35">/</span>
-          <span class="badge badge-secondary badge-soft badge-sm max-w-40 gap-1 truncate">
-            <span>题材: {{ store.filter.genre }}</span>
-            <button
-              type="button"
-              class="hover:text-base-content"
-              aria-label="清除题材筛选"
-              @click="clearGenre"
-            >
-              <Icon :name="I.CLOSE" class="text-xs" />
-            </button>
-          </span>
-        </template>
-        <span class="text-base-content/50 shrink-0 text-xs tabular-nums">
-          ({{ headerCount }})
-        </span>
+              <Icon
+                v-if="idx > 0"
+                :name="I.RIGHT"
+                class="text-base-content/35 shrink-0 text-xs"
+                aria-hidden="true"
+              />
+              <button
+                v-if="!item.current"
+                type="button"
+                class="text-base-content/65 hover:text-base-content hover:bg-base-content/6 max-w-36 truncate rounded-full px-2 py-1 font-medium transition-colors"
+                :title="item.title ?? item.label"
+                @click="handleBreadcrumbClick(item)"
+              >
+                {{ item.label }}
+              </button>
+              <span
+                v-else
+                aria-current="page"
+                class="text-base-content flex min-w-0 items-center gap-1 px-1.5 font-semibold"
+                :title="item.title ?? item.label"
+              >
+                <span class="max-w-52 truncate">{{ item.label }}</span>
+                <span
+                  v-if="item.count !== undefined"
+                  class="text-base-content/50 shrink-0 text-xs font-normal tabular-nums"
+                >
+                  ({{ item.count }})
+                </span>
+              </span>
+            </li>
+          </ol>
+        </nav>
         <button
-          v-if="!isActors && hasActiveFilter"
+          v-if="!isActors && !isDetail && hasActiveFilter"
           type="button"
           class="btn btn-ghost btn-xs text-base-content/65 hover:text-base-content shrink-0 rounded-full"
           @click="clearAllFilters"
@@ -180,12 +168,16 @@
 </template>
 
 <script setup lang="ts">
+import type { LibraryBreadcrumbItem } from './breadcrumb'
 import { Button, Header, HeaderEnd, HeaderStart, Tooltip } from '@115master/ui'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { useTagStore } from '@/store/tagList'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
+import { buildLibraryBreadcrumbs } from './breadcrumb'
+import { resolveDriveLabelName } from './tagRail'
 
 defineProps<{
   showFilters: boolean
@@ -198,11 +190,67 @@ defineEmits<{
 const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
+const tagStore = useTagStore()
 const isDetail = computed(() => route.name === 'library-detail')
 const isActors = computed(() => route.name === 'library-actors')
 
-function backToWall() {
-  void router.push({ name: 'library' })
+const activeDriveLabelName = computed(() => {
+  if (!store.filter.driveLabel)
+    return ''
+  return resolveDriveLabelName(store.filter.driveLabel, tagStore.tags, store.libraryIndex.driveLabels)
+})
+
+const detailLabel = computed(() => {
+  if (!isDetail.value)
+    return undefined
+  const mediaKey = 'mediaKey' in route.params ? String(route.params.mediaKey ?? '') : ''
+  const entry = store.getEntry(mediaKey)
+  return entry?.externalId || entry?.meta?.title || entry?.files[0]?.name || '作品详情'
+})
+
+function handleBreadcrumbClick(item: LibraryBreadcrumbItem) {
+  const target = item.target
+  if (!target)
+    return
+
+  if (target.kind === 'wall') {
+    if (route.name !== 'library')
+      void router.push({ name: 'library' })
+    return
+  }
+
+  if (target.kind === 'root') {
+    store.resetFilters()
+    store.scrollTop = 0
+    if (route.name !== 'library')
+      void router.push({ name: 'library' })
+    return
+  }
+
+  const keep = new Set(target.keep)
+  const scopeChanged = (
+    (!keep.has('view') && store.filter.view !== 'all')
+    || (!keep.has('driveLabel') && Boolean(store.filter.driveLabel))
+    || (!keep.has('actor') && Boolean(store.filter.actor))
+    || (!keep.has('genre') && Boolean(store.filter.genre))
+    || (!keep.has('director') && Boolean(store.filter.director))
+  )
+
+  if (!keep.has('view'))
+    store.setView('all')
+  if (!keep.has('driveLabel'))
+    store.selectDriveLabel(undefined)
+  if (!keep.has('actor'))
+    store.selectActor(undefined)
+  if (!keep.has('genre'))
+    store.selectGenre(undefined)
+  if (!keep.has('director'))
+    store.filter.director = undefined
+
+  if (scopeChanged)
+    store.scrollTop = 0
+  if (route.name !== 'library')
+    void router.push({ name: 'library' })
 }
 
 function showWallFromFilter() {
@@ -210,16 +258,6 @@ function showWallFromFilter() {
     store.scrollTop = 0
     void router.push({ name: 'library' })
   }
-}
-
-function clearActor() {
-  store.selectActor(undefined)
-  showWallFromFilter()
-}
-
-function clearGenre() {
-  store.selectGenre(undefined)
-  showWallFromFilter()
 }
 
 function clearAllFilters() {
@@ -233,18 +271,6 @@ function handleKeywordInput() {
     void router.push({ name: 'library' })
   }
 }
-
-const viewTitle = computed(() => {
-  if (isActors.value)
-    return '演员'
-  if (store.filter.view === 'recent')
-    return '最近入库'
-  if (store.filter.view === 'starred')
-    return '星标收藏'
-  if (store.filter.view === 'marked')
-    return '有打点'
-  return '全部作品'
-})
 
 const headerCount = computed(() => {
   if (!isActors.value)
@@ -263,6 +289,20 @@ const headerCount = computed(() => {
     }),
   ).length
 })
+
+const breadcrumbs = computed(() =>
+  buildLibraryBreadcrumbs({
+    routeName: String(route.name ?? 'library'),
+    view: store.filter.view,
+    actor: store.filter.actor,
+    genre: store.filter.genre,
+    director: store.filter.director,
+    driveLabelId: store.filter.driveLabel,
+    driveLabelName: activeDriveLabelName.value,
+    detailLabel: detailLabel.value,
+    count: headerCount.value,
+  }),
+)
 
 const subFilterCount = computed(() => {
   let count = 0

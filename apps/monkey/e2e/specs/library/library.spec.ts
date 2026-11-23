@@ -30,14 +30,20 @@ test.describe('影视库主界面（替代原 Fusion）', () => {
     await page.goto(`${MASTER_URL}#/drive/star`)
     await expect(page).toHaveURL(/#\/library/)
 
-    // 侧边栏包含核心移植入口：星标收藏、标签管理、离线下载
+    // 侧边栏包含核心移植入口：星标收藏、标签、离线下载
     await expect(page.getByRole('button', { name: /星标收藏/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /标签管理/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: '标签与标签管理' })).toBeVisible()
     await expect(page.getByRole('button', { name: '离线下载' })).toBeVisible()
 
-    // 点击标签管理切换到 /library/tags
-    await page.getByRole('button', { name: /标签管理/ }).click()
-    await expect(page).toHaveURL(/#\/library\/tags/)
+    // 点击标签打开紧邻侧边栏右侧的 rail2 标签面板（保持在 #/library）
+    await page.getByRole('button', { name: '标签与标签管理' }).click()
+    await expect(page).toHaveURL(/#\/library/)
+    const tagRail = page.getByLabel('标签面板')
+    await expect(tagRail).toBeVisible()
+
+    // 切换到面板内的「标签管理」模块可看到「新建标签」入口
+    await tagRail.getByRole('tab', { name: '标签管理' }).click()
+    await expect(tagRail.getByRole('button', { name: '新建标签' }).first()).toBeVisible()
     expect(errors).toEqual([])
   })
 })

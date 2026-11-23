@@ -35,56 +35,44 @@
 
         <div class="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-6 sm:px-8 sm:py-7">
           <!-- 顶部操作栏 -->
-          <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="glass-floating"
               size="sm"
-              class="gap-1.5 rounded-full px-3.5"
-              @click="goBackToLibrary"
+              class="gap-1.5 rounded-full px-3.5 text-xs"
+              :disabled="isScraping"
+              @click="handleRescrape()"
             >
-              <Icon :name="I.BACK_DIR" class="text-base" />
-              <span>返回海报墙</span>
+              <Icon :name="isScraping ? I.LOADING : I.RESTART" class="text-sm" :class="isScraping && 'animate-spin'" />
+              <span>{{ isScraping ? '刮削中...' : '重新刮削' }}</span>
             </Button>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <Button
-                variant="glass-floating"
-                size="sm"
-                class="gap-1.5 rounded-full px-3.5 text-xs"
-                :disabled="isScraping"
-                @click="handleRescrape()"
-              >
-                <Icon :name="isScraping ? I.LOADING : I.RESTART" class="text-sm" :class="isScraping && 'animate-spin'" />
-                <span>{{ isScraping ? '刮削中...' : '重新刮削' }}</span>
-              </Button>
-              <Button
-                variant="glass-floating"
-                size="sm"
-                class="gap-1.5 rounded-full px-3.5 text-xs"
-                @click="toggleManualAv"
-              >
-                <Icon :name="I.RENAME" class="text-sm" />
-                <span>指定番号</span>
-              </Button>
-              <Button
-                variant="glass-floating"
-                size="sm"
-                class="gap-1.5 rounded-full px-3.5 text-xs"
-                @click="store.openCoverPicker(mediaKey)"
-              >
-                <Icon :name="I.UPLOAD" class="text-sm" />
-                <span>更换封面</span>
-              </Button>
-              <a
-                v-if="entry.meta?.detailUrl"
-                :href="entry.meta.detailUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-ghost btn-sm rounded-full text-xs"
-              >
-                原站详情
-              </a>
-            </div>
+            <Button
+              variant="glass-floating"
+              size="sm"
+              class="gap-1.5 rounded-full px-3.5 text-xs"
+              @click="toggleManualAv"
+            >
+              <Icon :name="I.RENAME" class="text-sm" />
+              <span>指定番号</span>
+            </Button>
+            <Button
+              variant="glass-floating"
+              size="sm"
+              class="gap-1.5 rounded-full px-3.5 text-xs"
+              @click="store.openCoverPicker(mediaKey)"
+            >
+              <Icon :name="I.UPLOAD" class="text-sm" />
+              <span>更换封面</span>
+            </Button>
+            <a
+              v-if="entry.meta?.detailUrl"
+              :href="entry.meta.detailUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-ghost btn-sm rounded-full text-xs"
+            >
+              原站详情
+            </a>
           </div>
 
           <!-- 手动指定番号面板 -->
@@ -181,15 +169,17 @@
                     <Icon :name="I.STAR_FILL" class="text-xs" />
                     <span>已收藏</span>
                   </span>
-                  <span
+                  <button
                     v-for="label in entry.driveLabels"
                     :key="label.id"
-                    class="badge bg-base-content/10 border-none text-xs"
+                    type="button"
+                    class="badge bg-base-content/10 cursor-pointer border-none text-xs transition-opacity hover:opacity-90"
                     :style="label.color ? { backgroundColor: label.color } : undefined"
-                    :title="`网盘标签：${label.name}`"
+                    :title="`按网盘标签「${label.name}」筛选`"
+                    @click="openDriveLabelInLibrary(label.id)"
                   >
                     {{ label.name }}
-                  </span>
+                  </button>
                 </div>
                 <h1 class="text-base-content text-xl leading-snug font-bold sm:text-2xl">
                   {{ displayTitle }}
@@ -1001,6 +991,14 @@ function openGenreInLibrary(name: string) {
 function openDirectorInLibrary(name: string) {
   store.resetFilters()
   store.filter.director = name
+  store.scrollTop = 0
+  void router.push({ name: 'library' })
+}
+
+function openDriveLabelInLibrary(labelId: string) {
+  store.resetFilters()
+  store.selectDriveLabel(labelId)
+  store.setTagRailOpen(true)
   store.scrollTop = 0
   void router.push({ name: 'library' })
 }

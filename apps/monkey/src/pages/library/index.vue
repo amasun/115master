@@ -2,11 +2,16 @@
   <div
     class="bg-base-100 text-base-content flex min-h-screen flex-col [--main-content-gutter:calc(var(--spacing)*3)] [--ui-header-gutter:var(--main-content-gutter)] [--ui-header-offset:calc(var(--spacing)*2)] sm:[--main-content-gutter:calc(var(--spacing)*6)]"
   >
-    <Layout class="[--navbar-frosted-glass-height:var(--navbar-height)]">
+    <Layout
+      class="[--navbar-frosted-glass-height:var(--navbar-height)]" :class="[
+        store.tagRailOpen ? '[--rail2-width:0] sm:[--rail2-width:calc(var(--spacing)*60)]' : '[--rail2-width:0]',
+      ]"
+    >
       <Sider>
         <LibrarySider />
       </Sider>
-      <Main class="relative flex min-h-screen flex-col">
+      <LibraryTagRail />
+      <Main class="relative flex min-h-screen flex-col transition-[margin-left] duration-200 ease-[var(--ui-ease-move)] sm:ml-[calc(var(--sider-width)+var(--rail2-width))]">
         <LibraryHeader
           v-if="!isTags"
           :show-filters="showFilters"
@@ -30,6 +35,7 @@ import { setThemeOverride } from '@/utils/theme'
 import FilterBar from './components/FilterBar.vue'
 import LibraryHeader from './components/LibraryHeader.vue'
 import LibrarySider from './components/LibrarySider.vue'
+import LibraryTagRail from './components/LibraryTagRail.vue'
 import MediaImagePickerDialog from './components/MediaImagePickerDialog.vue'
 
 setThemeOverride('dark')

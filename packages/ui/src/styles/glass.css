@@ -92,6 +92,23 @@
     brightness(var(--ui-glass-brightness));
 }
 
+/* Popup menus float over arbitrary imagery (including bright/white photos):
+ * give dark-theme menu glass a smoked dark backing so text stays legible. */
+:is(.ui-context-menu, .ui-responsive-menu__dropdown).ui-glass-floating {
+  --ui-glass-bg: oklch(12% 0.008 265 / 0.8);
+  --ui-glass-border: oklch(100% 0 0 / 0.16);
+  --ui-glass-highlight: 0 1px 0 oklch(100% 0 0 / 0.18);
+  --ui-glass-shadow: 0 2px 6px oklch(0% 0 0 / 0.34), 0 12px 32px oklch(0% 0 0 / 0.38);
+  --ui-glass-backdrop: var(--ui-glass-blur-strong);
+  --ui-glass-saturation: 150%;
+  --ui-glass-opaque-bg: oklch(14% 0.008 265 / 0.96);
+}
+
+.ui-context-menu.ui-glass-overlay {
+  --ui-glass-bg: oklch(12% 0.01 260 / 0.76);
+  --ui-glass-opaque-bg: oklch(12% 0.01 260 / 0.95);
+}
+
 /* Components consume the material through its semantic variables, rather than
  * recreating color, edge, shadow, or filter recipes in their own styles. */
 .ui-button:is(.ui-glass-surface, .ui-glass-inset, .ui-glass-floating, .ui-glass-overlay) {
@@ -193,6 +210,14 @@
   --ui-glass-opaque-bg: color-mix(in oklab, var(--ui-glass-tone) 94%, var(--color-base-100));
   --ui-glass-opaque-hover-bg: color-mix(in oklab, var(--ui-glass-opaque-bg) 94%, var(--ui-glass-fg));
   --ui-glass-opaque-active-bg: color-mix(in oklab, var(--ui-glass-opaque-bg) 90%, var(--ui-glass-fg));
+}
+
+[data-theme='light'] :is(.ui-context-menu, .ui-responsive-menu__dropdown).ui-glass-floating {
+  --ui-glass-bg: oklch(100% 0 0 / 0.86);
+  --ui-glass-border: color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  --ui-glass-highlight: 0 1px 0 oklch(100% 0 0 / 0.75);
+  --ui-glass-shadow: 0 2px 6px oklch(0% 0 0 / 0.1), 0 12px 28px oklch(0% 0 0 / 0.12);
+  --ui-glass-opaque-bg: color-mix(in oklab, var(--color-base-100) 97%, var(--color-base-200));
 }
 
 [data-theme='light'] .ui-glass-panel {

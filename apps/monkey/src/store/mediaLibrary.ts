@@ -14,7 +14,7 @@ import type {
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, reactive, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef } from 'vue'
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
@@ -129,6 +129,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const aspectMode = useStorage<'landscape' | 'portrait'>('115Master_library_aspect', 'landscape')
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
   const scrollTop = shallowRef(0)
+  const tagRailOpen = ref(false)
   const actorAvatars = shallowRef<Record<string, string>>({})
   const customCoverKeys = shallowRef<Set<string>>(new Set())
   const customCoverVersions = shallowRef<Record<string, number>>({})
@@ -714,6 +715,14 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.driveLabel = !labelId || filter.driveLabel === labelId ? undefined : labelId
   }
 
+  function setTagRailOpen(open: boolean) {
+    tagRailOpen.value = open
+  }
+
+  function toggleTagRail() {
+    tagRailOpen.value = !tagRailOpen.value
+  }
+
   function setView(view: LibraryView) {
     filter.view = view
     if (view === 'recent') {
@@ -876,6 +885,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     aspectMode,
     density,
     scrollTop,
+    tagRailOpen,
     actorAvatars,
     customCoverKeys,
     customCoverVersions,
@@ -911,6 +921,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     setActorFilter,
     selectGenre,
     selectDriveLabel,
+    setTagRailOpen,
+    toggleTagRail,
     setView,
     resetFilters,
     getEntry,

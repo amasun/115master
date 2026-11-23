@@ -166,12 +166,15 @@ import type { LibraryScrapeFilter } from '@/utils/mediaIndex'
 import { computed } from 'vue'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { useTagStore } from '@/store/tagList'
+import { resolveDriveLabelName } from './tagRail'
 
 defineProps<{
   visible: boolean
 }>()
 
 const store = useMediaLibraryStore()
+const tagStore = useTagStore()
 
 const scrapeOptions: Array<{ value: LibraryScrapeFilter, label: string }> = [
   { value: 'all', label: '全部' },
@@ -223,7 +226,7 @@ const activeChips = computed(() => {
     })
   }
   if (store.filter.driveLabel) {
-    const labelName = store.libraryIndex.driveLabels.find(item => item.id === store.filter.driveLabel)?.name ?? store.filter.driveLabel
+    const labelName = resolveDriveLabelName(store.filter.driveLabel, tagStore.tags, store.libraryIndex.driveLabels)
     chips.push({
       key: 'driveLabel',
       label: `标签: ${labelName}`,
