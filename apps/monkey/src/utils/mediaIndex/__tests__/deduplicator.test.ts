@@ -232,5 +232,32 @@ describe('deduplicator', () => {
       const avGroup = syncGroups.find(g => g.kind === 'avNumber')
       expect(avGroup?.files.map(f => f.fid)).toEqual(['std1', 'std2'])
     })
+
+    it('excludes false-positive AV collision groups with 4+ distinct durations and titles', async () => {
+      const videos = [
+        makeVideo({ fid: 'm1', pickCode: 'p1', sha1: 's1', avNumber: 'DYTT-89', name: '[电影天堂www.dytt89.com]普罗米亚BD日语中字.mp4', size: 1.26 * 1024 ** 3, duration: 4200 }),
+        makeVideo({ fid: 'm2', pickCode: 'p2', sha1: 's2', avNumber: 'DYTT-89', name: '[电影天堂www.dytt89.com]中国乒乓之绝地反击-2023_4K国语中字.mp4', size: 3.97 * 1024 ** 3, duration: 8257 }),
+        makeVideo({ fid: 'm3', pickCode: 'p3', sha1: 's3', avNumber: 'DYTT-89', name: '[电影天堂www.dytt89.com]狗阵-2024_HD国语中字.mp4', size: 5.76 * 1024 ** 3, duration: 6665 }),
+        makeVideo({ fid: 'm4', pickCode: 'p4', sha1: 's4', avNumber: 'DYTT-89', name: '[电影天堂www.dytt89.com]毗湿奴降临-2024_BD泰卢固语中字.mp4', size: 4.16 * 1024 ** 3, duration: 10558 }),
+        makeVideo({ fid: 'r1', pickCode: 'pr1', sha1: 'sr1', avNumber: 'SSIS-001', name: 'SSIS-001.mp4', size: 2 * 1024 ** 3, duration: 7200 }),
+        makeVideo({ fid: 'r2', pickCode: 'pr2', sha1: 'sr2', avNumber: 'SSIS-001', name: 'SSIS-001-C.mp4', size: 3 * 1024 ** 3, duration: 7210 }),
+      ]
+      const entries = [
+        makeEntry('jav:DYTT089', videos.slice(0, 4), 'DYTT-89'),
+        makeEntry('jav:SSIS001', videos.slice(4, 6), 'SSIS-001'),
+      ]
+
+      const syncGroups = analyzeDuplicateGroups(videos, entries)
+      const asyncGroups = await analyzeDuplicateGroupsAsync(videos, entries, undefined, { chunkSize: 2 })
+      expect(asyncGroups).toEqual(syncGroups)
+
+      expect(syncGroups.some(g => g.key === 'jav:DYTT089')).toBe(false)
+      expect(syncGroups.map(g => g.key)).toEqual(['jav:SSIS001'])
+    })
+
+    it('marks multi-episode files (S01E01/S01E02, 第01集/第02集) as suspectedMultiPart', () => {
+      expect(isSuspectedMultiPartGroup(['Show.S01E01.1080p.mp4', 'Show.S01E02.1080p.mp4'])).toBe(true)
+      expect(isSuspectedMultiPartGroup(['纪录片第01集.mp4', '纪录片第02集.mp4'])).toBe(true)
+    })
   })
 })

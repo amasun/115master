@@ -1,11 +1,13 @@
 import type { IndexedVideo, VideoIndexSnapshot } from './types'
 import { CacheCore } from '@115master/shared'
 import { STORE_NAME } from '@/utils/cache/const'
+import { getAvNumber } from '@/utils/getNumber'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { appLogger } from '@/utils/logger'
 
 const VIDEO_INDEX_STORE_NAME = 'video_index_v1'
 const SNAPSHOT_KEY = 'snapshot'
+export const AV_NUMBER_RULE_VERSION = 2
 
 /**
  * 网盘视频索引持久化存储
@@ -45,7 +47,7 @@ export function buildAvNumberMap(items: IndexedVideo[]): Map<string, IndexedVide
   return map
 }
 
-/** 读取网盘视频索引快照（优先命中内存） */
+/** 读取网盘视频索引快照（优先命中内存，并在规则升级时自动重算番号） */
 export async function loadVideoIndexSnapshot(): Promise<VideoIndexSnapshot | null> {
   if (memorySnapshot)
     return memorySnapshot
@@ -54,16 +56,33 @@ export async function loadVideoIndexSnapshot(): Promise<VideoIndexSnapshot | nul
   if (!entry || entry.value.schemaVersion !== 1)
     return null
 
-  memorySnapshot = entry.value
-  memoryByAv = buildAvNumberMap(entry.value.items)
+  let snapshot = entry.value
+  if (snapshot.avRuleVersion !== AV_NUMBER_RULE_VERSION) {
+    snapshot = {
+      ...snapshot,
+      avRuleVersion: AV_NUMBER_RULE_VERSION,
+      items: snapshot.items.map(item => ({
+        ...item,
+        avNumber: getAvNumber(item.name),
+      })),
+    }
+    void cache.set(SNAPSHOT_KEY, snapshot)
+  }
+
+  memorySnapshot = snapshot
+  memoryByAv = buildAvNumberMap(snapshot.items)
   return memorySnapshot
 }
 
 /** 保存网盘视频索引快照并刷新内存索引 */
 export async function saveVideoIndexSnapshot(snapshot: VideoIndexSnapshot): Promise<void> {
-  await cache.set(SNAPSHOT_KEY, snapshot)
-  memorySnapshot = snapshot
-  memoryByAv = buildAvNumberMap(snapshot.items)
+  const nextSnapshot: VideoIndexSnapshot = {
+    ...snapshot,
+    avRuleVersion: AV_NUMBER_RULE_VERSION,
+  }
+  await cache.set(SNAPSHOT_KEY, nextSnapshot)
+  memorySnapshot = nextSnapshot
+  memoryByAv = buildAvNumberMap(nextSnapshot.items)
 }
 
 /** 清空网盘视频索引快照 */

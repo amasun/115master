@@ -65,6 +65,18 @@ export function resolveEditionWorkKey(
 }
 
 function extractPartMarker(name: string): string | null {
+  const sxeMatch = name.match(/(?<![a-z0-9])(s\d{1,2}e\d{1,3})(?![a-z0-9])/i)
+  if (sxeMatch)
+    return `ep:${sxeMatch[1].toLowerCase()}`
+
+  const epMatch = name.match(/(?<![a-z0-9])(?:ep|e)[\s._-]*(\d{1,3})(?![a-z0-9])/i)
+  if (epMatch)
+    return `ep:${Number(epMatch[1])}`
+
+  const zhEpMatch = name.match(/第\s*(\d{1,3})\s*[集话話期回]/)
+  if (zhEpMatch)
+    return `ep:${Number(zhEpMatch[1])}`
+
   const partMatch = name.match(/(cd|part|disc)[\s._-]*(\d+)/i)
   if (partMatch)
     return `part:${partMatch[1].toLowerCase()}${Number(partMatch[2])}`
@@ -263,6 +275,63 @@ function groupByKey(videos: IndexedVideo[], keyOf: (video: IndexedVideo) => stri
   return map
 }
 
+const GENERIC_SIMILAR_STEMS = new Set([
+  'video',
+  'movie',
+  'film',
+  'clip',
+  'sample',
+  '正片',
+  '视频',
+  '电影',
+  '预告',
+])
+
+function isDurationCompatibleForSimilar(a: IndexedVideo, b: IndexedVideo): boolean {
+  if (a.duration < 60 || b.duration < 60)
+    return true
+  const diff = Math.abs(a.duration - b.duration)
+  const tolerance = Math.max(300, Math.min(a.duration, b.duration) * 0.2)
+  return diff <= tolerance
+}
+
+/** 识别同番号/同键桶是否为站点前缀碰撞导致的误判组（>=4 个不同时长与不同标题的视频） */
+function isLikelyFalsePositiveAvGroup(items: IndexedVideo[]): boolean {
+  if (items.length < 4)
+    return false
+  if (isSuspectedMultiPartGroup(items.map(v => v.name)))
+    return false
+
+  const durations = items
+    .map(v => v.duration)
+    .filter(d => d >= 300)
+    .sort((a, b) => a - b)
+
+  if (durations.length < 4)
+    return false
+
+  let clusterCount = 1
+  let clusterAnchor = durations[0]
+  for (let i = 1; i < durations.length; i += 1) {
+    const dur = durations[i]
+    if (dur - clusterAnchor > Math.max(180, clusterAnchor * 0.12)) {
+      clusterCount += 1
+      clusterAnchor = dur
+    }
+  }
+
+  if (clusterCount < 4)
+    return false
+
+  const distinctStems = new Set(
+    items
+      .map(v => normalizeStem(v.name))
+      .filter(stem => stem.length > 0),
+  )
+
+  return distinctStems.size >= 4
+}
+
 function collectSimilarBuckets(unnumbered: IndexedVideo[]): IndexedVideo[][] {
   if (unnumbered.length < 2)
     return []
@@ -292,12 +361,15 @@ function collectSimilarBuckets(unnumbered: IndexedVideo[]): IndexedVideo[][] {
 
   unnumbered.forEach((video, idx) => {
     const stem = normalizeStem(video.name)
-    if (stem.length >= 2) {
+    if (stem.length >= 4 && !GENERIC_SIMILAR_STEMS.has(stem)) {
       const prev = byStem.get(stem)
-      if (prev !== undefined)
-        union(prev, idx)
-      else
+      if (prev !== undefined) {
+        if (isDurationCompatibleForSimilar(unnumbered[prev], video))
+          union(prev, idx)
+      }
+      else {
         byStem.set(stem, idx)
+      }
     }
 
     if (video.size >= SIMILAR_MIN_SIZE_BYTES && video.duration >= SIMILAR_MIN_DURATION_SEC) {
@@ -374,7 +446,11 @@ export function analyzeDuplicateGroups(
   })
 
   const avGroups = Array.from(avBuckets.entries())
-    .filter(([, list]) => list.length >= 2 && !sha1Signatures.has(signatureOf(list)))
+    .filter(([, list]) => (
+      list.length >= 2
+      && !sha1Signatures.has(signatureOf(list))
+      && !isLikelyFalsePositiveAvGroup(list)
+    ))
     .map(([mediaKey, list]) => {
       const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
       return buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey)
@@ -539,8 +615,13 @@ export async function analyzeDuplicateGroupsAsync(
   }
 
   for (const [mediaKey, list] of avBuckets.entries()) {
-    if (list.length < 2 || sha1Signatures.has(signatureOf(list)))
+    if (
+      list.length < 2
+      || sha1Signatures.has(signatureOf(list))
+      || isLikelyFalsePositiveAvGroup(list)
+    ) {
       continue
+    }
     const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
     groups.push(buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey))
     builtCount += 1

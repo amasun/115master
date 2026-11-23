@@ -105,6 +105,30 @@
           >
             {{ lastAnalyzedLabel }}
           </span>
+          <select
+            v-model="dupSortBy"
+            aria-label="重复影片排序方式"
+            class="select select-xs select-bordered bg-base-100/70 w-auto rounded-full"
+          >
+            <option value="reclaimable_desc">
+              可释放空间 (大→小)
+            </option>
+            <option value="size_desc">
+              总大小 (大→小)
+            </option>
+            <option value="size_asc">
+              总大小 (小→大)
+            </option>
+            <option value="duration_desc">
+              时长 (长→短)
+            </option>
+            <option value="duration_asc">
+              时长 (短→长)
+            </option>
+            <option value="count_desc">
+              文件数 (多→少)
+            </option>
+          </select>
           <Button
             size="xs"
             variant="ghost"
@@ -296,6 +320,26 @@
               </select>
               <span class="text-base-content/55 shrink-0 whitespace-nowrap">组</span>
             </label>
+            <Button
+              size="xs"
+              variant="soft"
+              color="primary"
+              class="rounded-full"
+              :disabled="renderedDuplicateGroups.length === 0"
+              title="仅勾选当前页展示的重复组冗余文件，防止误删其他页文件"
+              @click="smartSelectRedundant"
+            >
+              智能勾选本页冗余
+            </Button>
+            <Button
+              v-if="selectedDupFids.size > 0"
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              @click="clearDupSelection"
+            >
+              清空勾选
+            </Button>
           </div>
 
           <nav
@@ -494,6 +538,33 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <select
+            v-model="junkSortBy"
+            aria-label="垃圾文件排序方式"
+            class="select select-xs select-bordered bg-base-100/70 w-auto rounded-full"
+          >
+            <option value="size_desc">
+              大小 (大→小)
+            </option>
+            <option value="size_asc">
+              大小 (小→大)
+            </option>
+            <option value="duration_desc">
+              时长 (长→短)
+            </option>
+            <option value="duration_asc">
+              时长 (短→长)
+            </option>
+            <option value="mtime_desc">
+              时间 (新→旧)
+            </option>
+            <option value="mtime_asc">
+              时间 (旧→新)
+            </option>
+            <option value="name_asc">
+              名称 (A→Z)
+            </option>
+          </select>
           <input
             v-model="junkSearchKeyword"
             type="text"
@@ -608,6 +679,25 @@
               </select>
               <span class="text-base-content/55 shrink-0 whitespace-nowrap">项</span>
             </label>
+            <Button
+              size="xs"
+              variant="soft"
+              class="rounded-full"
+              :disabled="renderedJunkItems.length === 0"
+              title="仅全选当前页展示的文件，防止数量过多误删非垃圾文件"
+              @click="selectAllVisibleJunk"
+            >
+              全选本页 ({{ renderedJunkItems.length }})
+            </Button>
+            <Button
+              v-if="selectedJunkFids.size > 0"
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              @click="selectedJunkFids = new Set()"
+            >
+              清空勾选
+            </Button>
           </div>
 
           <nav
@@ -756,6 +846,7 @@ const folderPaths = useFolderPathLabels()
 
 const activeTab = ref<'duplicates' | 'junk'>(route.query.tab === 'junk' ? 'junk' : 'duplicates')
 const dupFilterKind = ref<'all' | DuplicateKind>('all')
+const dupSortBy = ref<'reclaimable_desc' | 'size_desc' | 'size_asc' | 'duration_desc' | 'duration_asc' | 'count_desc'>('reclaimable_desc')
 const hideMultiPartGroups = ref(false)
 const dupPageSize = useStorage<number>('115Master_cleanup_dup_page_size', DEFAULT_DUP_PAGE_SIZE)
 const initialDupPageSize = normalizePageSize(dupPageSize.value, DEFAULT_DUP_PAGE_SIZE)
@@ -784,15 +875,47 @@ const dupKindOptions = computed(() => [
   { value: 'similar' as const, label: '疑似重复', count: duplicateGroups.value.filter(g => g.kind === 'similar').length },
 ])
 
-const visibleDuplicateGroups = computed(() =>
-  duplicateGroups.value.filter((group) => {
+function groupMaxDuration(group: (typeof duplicateGroups.value)[number]): number {
+  let max = 0
+  for (const file of group.files) {
+    if (file.duration > max)
+      max = file.duration
+  }
+  return max
+}
+
+const visibleDuplicateGroups = computed(() => {
+  const filtered = duplicateGroups.value.filter((group) => {
     if (dupFilterKind.value !== 'all' && group.kind !== dupFilterKind.value)
       return false
     if (hideMultiPartGroups.value && group.suspectedMultiPart)
       return false
     return true
-  }),
-)
+  })
+
+  return [...filtered].sort((a, b) => {
+    switch (dupSortBy.value) {
+      case 'size_desc':
+        return b.totalSize - a.totalSize || b.reclaimableSize - a.reclaimableSize || a.id.localeCompare(b.id)
+      case 'size_asc':
+        return a.totalSize - b.totalSize || a.reclaimableSize - b.reclaimableSize || a.id.localeCompare(b.id)
+      case 'duration_desc':
+        return groupMaxDuration(b) - groupMaxDuration(a) || b.totalSize - a.totalSize || a.id.localeCompare(b.id)
+      case 'duration_asc': {
+        const da = groupMaxDuration(a)
+        const db = groupMaxDuration(b)
+        const va = da > 0 ? da : Number.POSITIVE_INFINITY
+        const vb = db > 0 ? db : Number.POSITIVE_INFINITY
+        return va - vb || a.totalSize - b.totalSize || a.id.localeCompare(b.id)
+      }
+      case 'count_desc':
+        return b.files.length - a.files.length || b.reclaimableSize - a.reclaimableSize || a.id.localeCompare(b.id)
+      case 'reclaimable_desc':
+      default:
+        return b.reclaimableSize - a.reclaimableSize || b.totalSize - a.totalSize || a.id.localeCompare(b.id)
+    }
+  })
+})
 
 const dupTotalPages = computed(() =>
   Math.max(1, Math.ceil(visibleDuplicateGroups.value.length / dupPageSize.value)),
@@ -810,7 +933,7 @@ const renderedDuplicateGroups = computed(() =>
   visibleDuplicateGroups.value.slice(dupPageStart.value, dupPageStart.value + dupPageSize.value),
 )
 
-watch([dupFilterKind, hideMultiPartGroups, dupPageSize], () => {
+watch([dupFilterKind, hideMultiPartGroups, dupPageSize, dupSortBy], () => {
   dupPage.value = 1
   selectedDupFids.value = new Set()
 })
@@ -905,6 +1028,7 @@ const junkScanProgress = reactive({
   found: 0,
 })
 const junkFilterCategory = ref<'all' | JunkCategory>('all')
+const junkSortBy = ref<'size_desc' | 'size_asc' | 'duration_desc' | 'duration_asc' | 'mtime_desc' | 'mtime_asc' | 'name_asc'>('size_desc')
 const junkSearchKeyword = ref('')
 const junkPageSize = useStorage<number>('115Master_cleanup_junk_page_size', DEFAULT_JUNK_PAGE_SIZE)
 const initialJunkPageSize = normalizePageSize(junkPageSize.value, DEFAULT_JUNK_PAGE_SIZE)
@@ -1005,12 +1129,35 @@ const junkCategoryTabs = computed(() => [
 
 const visibleJunkItems = computed(() => {
   const kw = junkSearchKeyword.value.trim().toLowerCase()
-  return allJunkItems.value.filter((item) => {
+  const filtered = allJunkItems.value.filter((item) => {
     if (junkFilterCategory.value !== 'all' && item.category !== junkFilterCategory.value)
       return false
     if (kw && !item.name.toLowerCase().includes(kw))
       return false
     return true
+  })
+
+  return [...filtered].sort((a, b) => {
+    switch (junkSortBy.value) {
+      case 'size_asc':
+        return a.size - b.size || b.mtime - a.mtime || a.fid.localeCompare(b.fid)
+      case 'duration_desc':
+        return (b.duration ?? 0) - (a.duration ?? 0) || b.size - a.size || a.fid.localeCompare(b.fid)
+      case 'duration_asc': {
+        const da = a.duration && a.duration > 0 ? a.duration : Number.POSITIVE_INFINITY
+        const db = b.duration && b.duration > 0 ? b.duration : Number.POSITIVE_INFINITY
+        return da - db || a.size - b.size || a.fid.localeCompare(b.fid)
+      }
+      case 'mtime_desc':
+        return b.mtime - a.mtime || b.size - a.size || a.fid.localeCompare(b.fid)
+      case 'mtime_asc':
+        return a.mtime - b.mtime || b.size - a.size || a.fid.localeCompare(b.fid)
+      case 'name_asc':
+        return a.name.localeCompare(b.name, 'zh-CN') || b.size - a.size
+      case 'size_desc':
+      default:
+        return b.size - a.size || b.mtime - a.mtime || a.fid.localeCompare(b.fid)
+    }
   })
 })
 
@@ -1030,7 +1177,7 @@ const renderedJunkItems = computed(() =>
   visibleJunkItems.value.slice(junkPageStart.value, junkPageStart.value + junkPageSize.value),
 )
 
-watch([junkFilterCategory, junkSearchKeyword, junkPageSize], () => {
+watch([junkFilterCategory, junkSearchKeyword, junkPageSize, junkSortBy], () => {
   junkPage.value = 1
   selectedJunkFids.value = new Set()
 })

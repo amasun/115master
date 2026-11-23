@@ -199,7 +199,7 @@ export function getAvNumber(filename: string): string | null {
     logger.info('番号格式匹配完成，忽略 MyFans 文件')
     return null
   }
-  /** 1.3 清理文件名中的干扰字符，并用空格保留文字两侧边界。 */
+  /** 1.3 清理文件名中的干扰字符，并用分隔符保留文字两侧边界，防止跨词拼接成假番号。 */
   const cleanName = normalizedName
   // 清除 BBCode URL 标签，避免标签挡住开头的站点域名清理。
     .replace(/\[\/?url(?:=[^\]]+)?\]/gi, '')
@@ -207,15 +207,23 @@ export function getAvNumber(filename: string): string | null {
     .replace(/\.\w+$/, '')
   // 清楚域名(hjd2048.com)
     .replace(/^\[?(\w+\.)+[A-Z]+\]?@?/gi, '')
+  // 清除嵌套在中文站点前缀后的域名（如 [电影天堂www.dytt89.com] -> DYTT-89）
+    .replace(
+      /(?<![a-z0-9])(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|cn|tv|cc|la|me|xyz|top|vip|info|pw|io|gg|app|co|jp|uk|tw|hk|club|site|online|live|pro|biz|fun|icu|work|shop|store|mobi|asia|wang|xin|pub|ink|red|kim|blue|run|ltd|link|space|tech|wiki|dev|ai|so|to|be|de|fr|ru|eu|us|ca|au|kr|in|ch|nl|se|no|fi|dk|es|it|pl|cz|tr|br|mx|sg|my|th|vn|id|ph|ws|bz|vc|ag|fm|am|im|sh|cx|sx|gs|ms|tc|vg|ac|st|nu|tk|ml|ga|cf|gq)(?:\.[a-z]{2})?(?![a-z0-9])@?/gi,
+      ' | ',
+    )
   // 清除恢复工具和转码工具追加的来源尾标，避免 prob43、iris31 被当成番号。
     .replace(/[._-](?:re)?stored\d*(?:[._-].*)?$/i, '')
     .replace(/[\^._-]+wm(?:\d+|[._-].*)?$/i, '')
-  // 清除中文
-    .replace(/[\u4E00-\u9FA5]/g, ' ')
+  // 清除中文（保留硬分隔符，避免跨汉字的英文与年份被拼接为假番号如 AI-2023）
+    .replace(/[\u4E00-\u9FA5]+/g, ' | ')
   // 清除日语
-    .replace(/[\u3040-\u309F\u30A0-\u30FF]/g, ' ')
-  // 电影常用格式名称
-    .replace(/BDRIP|HDR/gi, '')
+    .replace(/[\u3040-\u309F\u30A0-\u30FF]+/g, ' | ')
+  // 电影常用格式/分辨率/编码名称
+    .replace(
+      /(?<![a-z0-9])(?:BDRIP|HDRIP|WEBRIP|WEB[-_.]?DL|BLURAY|BLU-RAY|REMUX|HDR10\+?|HEVC|H\.?26[45]|X26[45]|DVDRIP|HDTV|1080P|2160P|720P|480P|UHD|FHD)(?![a-z0-9])/gi,
+      ' | ',
+    )
   // 清除@SIS001@
     .replace(/@\w+@/, '')
   // 清除 share_db86f06fdfbf31573ca6828ac0716d22

@@ -291,5 +291,25 @@ describe('driveFolderPath', () => {
 
       expect(resolver.getCached('77')).toBeNull()
     })
+
+    it('trips global backoff on non-JSON rate-limit error and stops hitting API for remaining cids', async () => {
+      const getFilesWithFallback = vi.fn().mockRejectedValue(
+        new Error('115 接口返回了非 JSON 页面（可能触发风控、接口重定向或登录态失效，请刷新 115 页面后重试）'),
+      )
+
+      const resolver = createFolderPathResolver({
+        driveApi: { getFilesWithFallback } as unknown as FolderPathDriveApi,
+        storageKey: null,
+        delayMs: 0,
+        maxConcurrent: 1,
+        globalBackoffMs: 30_000,
+      })
+
+      resolver.prefetch(['201', '202', '203'])
+      await flushAsync(4)
+
+      expect(getFilesWithFallback).toHaveBeenCalledTimes(1)
+      resolver.clear()
+    })
   })
 })

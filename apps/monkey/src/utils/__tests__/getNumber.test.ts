@@ -178,5 +178,9 @@ describe('getNumber', () => {
     expect(
       getAvNumber('www.98T.la@share_db86f06fdfbf31573ca6828ac0716d22'),
     ).toBeNull()
+    expect(getAvNumber('[电影天堂www.dytt89.com]普罗米亚BD日语中字.mp4')).toBeNull()
+    expect(getAvNumber('[电影天堂www.dytt89.com]AI创世者-2023_BD中英双字.mp4')).toBeNull()
+    expect(getAvNumber('[电影天堂www.dytt89.com]中国乒乓之绝地反击-2023_4K国语中字.mp4')).toBeNull()
+    expect(getAvNumber('[阳光电影www.ygdy8.com]流浪地球2-2023_HD国语中字.mp4')).toBeNull()
   })
 })

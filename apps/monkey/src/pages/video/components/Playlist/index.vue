@@ -21,8 +21,16 @@
       </Button>
     </div>
 
-    <div v-if="playlist.error" :class="styles.playlist.content">
-      <StatusFeedback status="error" v-bind="errorFeedback(playlist.error)" />
+    <div v-if="playlist.error" class="flex flex-col items-center gap-3" :class="styles.playlist.content">
+      <StatusFeedback status="info" v-bind="errorFeedback(playlist.error)" />
+      <Button
+        size="xs"
+        variant="soft"
+        class="rounded-full"
+        @click="playlist.retry()"
+      >
+        重试加载
+      </Button>
     </div>
     <div v-else-if="playlist.isLoading || (!playlist.isLoading && !playlist.isReady)" :class="styles.playlist.content">
       <div class="skeleton h-24 w-full rounded-lg" />

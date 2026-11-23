@@ -19,6 +19,7 @@ export interface FolderPathResolverOptions {
   maxEntries?: number
   maxConcurrent?: number
   delayMs?: number
+  globalBackoffMs?: number
 }
 
 export interface NativeFolderItemShape {
@@ -39,10 +40,15 @@ export const ROOT_FOLDER_PATH: FolderPathInfo = {
 const DEFAULT_STORAGE_KEY = '115Master_folder_path_cache_v1'
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const DEFAULT_MAX_ENTRIES = 2000
-const DEFAULT_MAX_CONCURRENT = 2
-const DEFAULT_DELAY_MS = 120
+const DEFAULT_MAX_CONCURRENT = 1
+const DEFAULT_DELAY_MS = 400
+const DEFAULT_GLOBAL_BACKOFF_MS = 30_000
 const FAILED_COOLDOWN_MS = 5 * 60 * 1000
 const PERSIST_DEBOUNCE_MS = 500
+
+function isRateLimitOrNonJsonError(error: unknown): boolean {
+  return error instanceof Error && /非\s*JSON|风控|频繁|403|429/i.test(error.message)
+}
 
 function normalizeCid(raw: string | number | null | undefined): string {
   if (raw === undefined || raw === null)
@@ -132,6 +138,7 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
   const maxEntries = Math.max(1, options.maxEntries ?? DEFAULT_MAX_ENTRIES)
   const maxConcurrent = Math.max(1, options.maxConcurrent ?? DEFAULT_MAX_CONCURRENT)
   const delayMs = Math.max(0, options.delayMs ?? DEFAULT_DELAY_MS)
+  const globalBackoffMs = Math.max(0, options.globalBackoffMs ?? DEFAULT_GLOBAL_BACKOFF_MS)
 
   const version = shallowRef(0)
   const cache = new Map<string, FolderPathInfo>()
@@ -141,7 +148,19 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
 
   let activeCount = 0
   let hasFetchedOnce = false
+  let globalBackoffUntil = 0
+  let backoffTimer: ReturnType<typeof setTimeout> | null = null
   let persistTimer: ReturnType<typeof setTimeout> | null = null
+
+  function scheduleBackoffResume() {
+    if (backoffTimer !== null || queue.length === 0)
+      return
+    const waitMs = Math.max(0, globalBackoffUntil - Date.now())
+    backoffTimer = setTimeout(() => {
+      backoffTimer = null
+      drain()
+    }, waitMs)
+  }
 
   function resolveDriveApi(): FolderPathDriveApi {
     return options.driveApi ?? drive115.file
@@ -275,8 +294,13 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
 
       failedAt.set(cid, Date.now())
     }
-    catch {
-      failedAt.set(cid, Date.now())
+    catch (error) {
+      const now = Date.now()
+      failedAt.set(cid, now)
+      if (globalBackoffMs > 0 && isRateLimitOrNonJsonError(error)) {
+        globalBackoffUntil = now + globalBackoffMs
+        scheduleBackoffResume()
+      }
     }
     finally {
       inFlight.delete(cid)
@@ -286,6 +310,11 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
   }
 
   function drain() {
+    if (Date.now() < globalBackoffUntil) {
+      if (queue.length > 0)
+        scheduleBackoffResume()
+      return
+    }
     while (activeCount < maxConcurrent && queue.length > 0) {
       const next = queue.shift()
       if (!next)
@@ -343,6 +372,11 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
     cache.clear()
     failedAt.clear()
     queue.length = 0
+    globalBackoffUntil = 0
+    if (backoffTimer !== null) {
+      clearTimeout(backoffTimer)
+      backoffTimer = null
+    }
     if (persistTimer !== null) {
       clearTimeout(persistTimer)
       persistTimer = null

@@ -2,21 +2,32 @@ import type { Share } from '@115master/drive115'
 import { useAsyncState } from '@vueuse/core'
 import { reactive } from 'vue'
 import { drive115 } from '@/utils/drive115Instance'
+import { appLogger } from '@/utils/logger'
+
+const logger = appLogger.sub('DataPlaylist')
 
 /**
  * 播放列表
  */
 export function useDataPlaylist() {
+  let lastCid = ''
+
   const playlist = useAsyncState(
     async (cid: string) => {
+      lastCid = cid
       const res = await drive115.file.getPlaylist(cid)
       return res
     },
     null,
     {
       immediate: false,
+      onError: (err) => {
+        logger.warn('加载同目录播放列表失败（不影响当前视频播放）', err)
+      },
     },
   )
+
+  const retry = () => (lastCid ? playlist.execute(0, lastCid) : Promise.resolve(null))
 
   /** 更新播放列表项 */
   const updateItem = (pickCode: string, data: Partial<Share.Entity.FileItem>) => {
@@ -43,6 +54,7 @@ export function useDataPlaylist() {
 
   return reactive({
     ...playlist,
+    retry,
     updateItemTime,
     updateItemMark,
   })

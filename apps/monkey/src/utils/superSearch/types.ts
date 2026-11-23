@@ -37,6 +37,8 @@ export interface IndexedVideo {
 export interface VideoIndexSnapshot {
   /** 结构版本号 */
   schemaVersion: 1
+  /** 番号提取规则版本号（变更时自动重算快照中的 avNumber） */
+  avRuleVersion?: number
   /** 扫描的根目录 cid 列表，默认 ['0'] */
   rootCids: string[]
   /** 上次全量同步时间（ms） */
