@@ -1,5 +1,7 @@
 # 播放器打点（Markers）设计方案
 
+> **状态说明（已归档）**：本地打点、进度条刻度、快捷键、导出导入及基于 **115 文件备注（`desc`）的云同步** 均已落地；「后端 A：网盘 `markers.json`」暂缓实施。当前活跃待办请统一查看 [docs/TODO.md](../TODO.md)。
+
 基线 commit：`8be230c`（分支 `v2`）。执行者：Antigravity（agy）。验收：`node docs/agy/verify.mjs`。
 
 ## 目标

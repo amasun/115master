@@ -11,11 +11,13 @@ const POSTER_THUMB_STORE_NAME = 'library_poster_thumb_v1'
 const SCRAPE_MISS_STORE_NAME = 'library_scrape_miss_v1'
 const CUSTOM_MEDIA_STORE_NAME = 'library_custom_media_v1'
 export const DEFAULT_SCRAPE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const SCRAPE_MISS_RULE_VERSION = 2
 
 export interface ScrapeMissEntry {
   avNumber: string
   missedAt: number
   expiresAt: number
+  ruleVersion?: number
 }
 
 export interface CustomCoverRecord {
@@ -158,7 +160,7 @@ export async function isScrapeMissed(mediaKey: string, now = Date.now()): Promis
     const cached = await scrapeMissCache.get(mediaKey)
     if (!cached?.value)
       return false
-    if (cached.value.expiresAt <= now) {
+    if (cached.value.expiresAt <= now || cached.value.ruleVersion !== SCRAPE_MISS_RULE_VERSION) {
       void scrapeMissCache.remove(mediaKey)
       return false
     }
@@ -180,6 +182,7 @@ export async function markScrapeMissed(
       avNumber,
       missedAt: now,
       expiresAt: now + ttlMs,
+      ruleVersion: SCRAPE_MISS_RULE_VERSION,
     })
   }
   catch {
@@ -196,6 +199,15 @@ export async function clearScrapeMissed(mediaKey: string): Promise<void> {
   }
 }
 
+export async function clearAllScrapeMissed(): Promise<void> {
+  try {
+    await scrapeMissCache.clear()
+  }
+  catch {
+    // 忽略负缓存全量清理异常
+  }
+}
+
 export async function readActiveScrapeMissKeys(now = Date.now()): Promise<Set<string>> {
   const active = new Set<string>()
   const expired: string[] = []
@@ -205,7 +217,7 @@ export async function readActiveScrapeMissKeys(now = Date.now()): Promise<Set<st
         const value = entry?.value
         if (!value)
           return
-        if (value.expiresAt > now)
+        if (value.expiresAt > now && value.ruleVersion === SCRAPE_MISS_RULE_VERSION)
           active.add(key)
         else
           expired.push(key)

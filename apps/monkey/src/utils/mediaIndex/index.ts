@@ -86,6 +86,7 @@ export type {
   VideoIndexSnapshot,
 } from './types'
 export {
+  clearAllScrapeMissed,
   clearScrapeMissed,
   clearVideoIndexSnapshot,
   customMediaCache,
@@ -104,6 +105,7 @@ export {
   saveCustomAvatar,
   saveCustomCover,
   saveVideoIndexSnapshot,
+  SCRAPE_MISS_RULE_VERSION,
   scrapeMissCache,
 } from './videoIndexStore'
 export type {

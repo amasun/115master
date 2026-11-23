@@ -161,82 +161,171 @@
     <div class="mt-auto pt-3">
       <div class="bg-base-content/5 mb-2 h-px w-full shrink-0" />
 
-      <!-- 底部同步与刮削统计 -->
-      <div class="mb-2 flex shrink-0 flex-col gap-1">
-        <div
-          class="text-base-content/60 flex items-center justify-between px-1 text-[11px]"
-          :title="`已刮削 ${store.scrapedCount} / ${store.entries.length}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
-        >
-          <span>已刮削 {{ store.scrapedCount }} / {{ store.entries.length }}</span>
-          <span v-if="store.bgScrapeState === 'circuit_open'" class="text-warning">
-            已熔断暂停
-          </span>
-          <span v-else-if="store.scrapingCount > 0" class="text-primary">
-            刮削中 {{ store.scrapingCount }}
-          </span>
-        </div>
-
-        <!-- 后台低速刮削控制 -->
-        <div v-if="store.bgScrapePendingCount > 0 || store.bgScrapeState === 'running' || store.bgScrapeState === 'circuit_open'" class="flex items-center gap-1">
-          <Button
-            v-if="store.bgScrapeState === 'running'"
-            variant="ghost"
-            size="sm"
-            class="hover:bg-base-content/5 text-primary min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
-            title="低速单并发后台刮削中（视口优先插队），点击暂停"
-            @click="store.pauseBackgroundScrape()"
-          >
-            <Icon :name="I.PAUSE" class="shrink-0 text-base" />
-            <span class="truncate tabular-nums">暂停刮削 (余 {{ store.bgScrapePendingCount }})</span>
-          </Button>
-          <Button
-            v-else
-            variant="ghost"
-            size="sm"
-            class="hover:bg-base-content/5 min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
-            :class="store.bgScrapeState === 'circuit_open' ? 'text-warning' : ''"
-            :title="store.bgScrapeReason || '低速单并发后台刮削（1.5-3s 随机间隔，遇限流自动熔断，视口优先）'"
-            @click="store.startBackgroundScrape()"
-          >
-            <Icon :name="I.PLAY" class="shrink-0 text-base" />
-            <span class="truncate tabular-nums">
-              {{ store.bgScrapeState === 'paused' || store.bgScrapeState === 'circuit_open' ? `继续刮削 (${store.bgScrapePendingCount})` : `后台刮削 (${store.bgScrapePendingCount})` }}
-            </span>
-          </Button>
-        </div>
-
-        <p
-          v-if="store.bgScrapeState === 'circuit_open' && store.bgScrapeReason"
-          class="text-warning/85 line-clamp-2 px-1 text-[10px] leading-snug"
-          :title="store.bgScrapeReason"
-        >
-          {{ store.bgScrapeReason }}
-        </p>
-
-        <div class="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            class="hover:bg-base-content/5 min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
-            :disabled="store.indexing"
-            @click="store.syncIndex('incremental')"
-          >
-            <Icon :name="I.RESTART" class="shrink-0 text-base" :class="store.indexing && 'animate-spin'" />
-            <span v-if="store.indexing" class="truncate tabular-nums">
+      <!-- 底部网盘索引与元数据刮削控制 -->
+      <div class="mb-2.5 flex shrink-0 flex-col gap-2.5">
+        <!-- 网盘索引分组（增量同步 + 全量同步） -->
+        <div class="flex flex-col gap-1">
+          <div class="text-base-content/55 flex items-center justify-between px-1 text-[11px]">
+            <span>网盘索引</span>
+            <span v-if="store.indexing" class="text-primary tabular-nums">
               同步 {{ store.indexProgress.fetched }}/{{ store.indexProgress.total || '...' }}
             </span>
-            <span v-else class="truncate">增量同步索引</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            class="hover:bg-base-content/5 text-base-content/65 hover:text-base-content shrink-0 rounded-xl px-2 font-normal"
-            title="全量重建索引（穿透全部目录并补全 SHA1 / 标签）"
-            :disabled="store.indexing"
-            @click="store.syncIndex('full')"
+            <span v-else class="tabular-nums">
+              {{ store.entries.length }} 部
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1">
+            <Tooltip placement="right">
+              <template #content>
+                <span class="block max-w-56 text-left leading-relaxed">
+                  增量同步索引：仅拉取新入库的视频文件，速度快；不会删除已刮削的图文与封面。
+                </span>
+              </template>
+              <Button
+                variant="ghost"
+                size="xs"
+                class="bg-base-content/4 hover:bg-base-content/8 h-8 w-full justify-center gap-1.5 rounded-xl px-2 text-xs font-normal"
+                :disabled="store.indexing"
+                @click="store.syncIndex('incremental')"
+              >
+                <Icon
+                  :name="I.RESTART"
+                  class="shrink-0 text-sm"
+                  :class="store.indexing && store.indexProgress.mode === 'incremental' && 'animate-spin'"
+                />
+                <span>增量同步</span>
+              </Button>
+            </Tooltip>
+
+            <Tooltip placement="right">
+              <template #content>
+                <span class="block max-w-56 text-left leading-relaxed">
+                  全量重建索引：重扫全盘视频清单，清理已删除文件并刷新老文件番号、标签与入库时间；不会删除已刮削的图文与封面。
+                </span>
+              </template>
+              <Button
+                variant="ghost"
+                size="xs"
+                class="bg-base-content/4 hover:bg-base-content/8 h-8 w-full justify-center gap-1.5 rounded-xl px-2 text-xs font-normal"
+                :disabled="store.indexing"
+                @click="store.syncIndex('full')"
+              >
+                <Icon
+                  :name="I.RESET_ALL"
+                  class="shrink-0 text-sm"
+                  :class="store.indexing && store.indexProgress.mode === 'full' && 'animate-spin'"
+                />
+                <span>全量同步</span>
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
+
+        <!-- 元数据刮削分组（后台刮削 + 重试未命中） -->
+        <div class="flex flex-col gap-1">
+          <div
+            class="text-base-content/60 flex items-center justify-between px-1 text-[11px]"
+            :title="`已刮削 ${store.scrapedCount} / ${store.entries.length}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
           >
-            全量
-          </Button>
+            <span class="tabular-nums">已刮削 {{ store.scrapedCount }} / {{ store.entries.length }}</span>
+            <span v-if="store.bgScrapeState === 'circuit_open'" class="text-warning">
+              已熔断暂停
+            </span>
+            <span v-else-if="store.scrapingCount > 0" class="text-primary tabular-nums">
+              刮削中 {{ store.scrapingCount }}
+            </span>
+          </div>
+
+          <div
+            v-if="store.bgScrapePendingCount > 0 || store.bgScrapeState === 'running' || store.bgScrapeState === 'circuit_open' || store.missedScrapeCount > 0"
+            class="flex items-center gap-1"
+          >
+            <template v-if="store.bgScrapePendingCount > 0 || store.bgScrapeState === 'running' || store.bgScrapeState === 'circuit_open'">
+              <Tooltip v-if="store.bgScrapeState === 'running'" placement="right">
+                <template #content>
+                  <span class="block max-w-56 text-left leading-relaxed">
+                    低速单并发后台刮削中（视口优先插队），点击暂停。
+                  </span>
+                </template>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="bg-base-content/4 hover:bg-base-content/8 text-primary h-8 min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
+                  @click="store.pauseBackgroundScrape()"
+                >
+                  <Icon :name="I.PAUSE" class="shrink-0 text-base" />
+                  <span class="truncate tabular-nums">暂停刮削 (余 {{ store.bgScrapePendingCount }})</span>
+                </Button>
+              </Tooltip>
+
+              <Tooltip v-else placement="right">
+                <template #content>
+                  <span class="block max-w-56 text-left leading-relaxed">
+                    {{
+                      store.bgScrapeReason
+                        ? `${store.bgScrapeReason}；点击继续刮削剩余未匹配作品。`
+                        : '后台刮削：低速补齐库中所有尚未匹配图文的视频（含老文件），自动跳过已匹配作品，不会删除已有图文。'
+                    }}
+                  </span>
+                </template>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="bg-base-content/4 hover:bg-base-content/8 h-8 min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
+                  :class="store.bgScrapeState === 'circuit_open' ? 'text-warning' : ''"
+                  @click="store.startBackgroundScrape()"
+                >
+                  <Icon :name="I.PLAY" class="shrink-0 text-base" />
+                  <span class="truncate tabular-nums">
+                    {{ store.bgScrapeState === 'paused' || store.bgScrapeState === 'circuit_open' ? `继续刮削 (${store.bgScrapePendingCount})` : `后台刮削 (${store.bgScrapePendingCount})` }}
+                  </span>
+                </Button>
+              </Tooltip>
+
+              <Tooltip v-if="store.missedScrapeCount > 0" placement="right">
+                <template #content>
+                  <span class="block max-w-56 text-left leading-relaxed">
+                    清除 {{ store.missedScrapeCount }} 条未命中负缓存并重新刮削（仅重跑未匹配作品，不影响已匹配图文）。
+                  </span>
+                </template>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  class="bg-base-content/4 hover:bg-base-content/8 text-base-content/70 hover:text-base-content h-8 shrink-0 rounded-xl px-2 text-xs font-normal tabular-nums"
+                  :disabled="store.bgScrapeState === 'running'"
+                  @click="store.retryMissedScrapes()"
+                >
+                  重试({{ store.missedScrapeCount }})
+                </Button>
+              </Tooltip>
+            </template>
+
+            <Tooltip v-else placement="right">
+              <template #content>
+                <span class="block max-w-56 text-left leading-relaxed">
+                  清除 {{ store.missedScrapeCount }} 条未命中负缓存并重新刮削（仅重跑未匹配作品，不影响已匹配图文）。
+                </span>
+              </template>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="bg-base-content/4 hover:bg-base-content/8 h-8 min-w-0 flex-1 justify-start gap-2 rounded-xl px-2.5 text-xs font-normal"
+                @click="store.retryMissedScrapes()"
+              >
+                <Icon :name="I.RESTART" class="shrink-0 text-base" />
+                <span class="truncate tabular-nums">重试未命中 ({{ store.missedScrapeCount }})</span>
+              </Button>
+            </Tooltip>
+          </div>
+
+          <p
+            v-if="store.bgScrapeState === 'circuit_open' && store.bgScrapeReason"
+            class="text-warning/85 line-clamp-2 px-1 text-[10px] leading-snug"
+            :title="store.bgScrapeReason"
+          >
+            {{ store.bgScrapeReason }}
+          </p>
         </div>
       </div>
 
@@ -263,7 +352,7 @@
 
 <script setup lang="ts">
 import type { LibraryView } from '@/utils/mediaIndex'
-import { Button } from '@115master/ui'
+import { Button, Tooltip } from '@115master/ui'
 import { format } from '@115master/utils'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'

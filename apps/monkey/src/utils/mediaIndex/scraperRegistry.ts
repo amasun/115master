@@ -10,7 +10,7 @@ import { format, image as imageUtil } from '@115master/utils'
 import { cleanActorName } from '@/utils/actressNameMatcher'
 import { javCache } from '@/utils/cache/javCache'
 import { createJavInfoSources, isFd2PpvAvNumber } from '@/utils/jav'
-import { Jav, normalizeAvNumber } from '@/utils/jav/jav'
+import { buildAvNumberQueryVariants, Jav, normalizeAvNumber } from '@/utils/jav/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
 import { GMRequest } from '@/utils/request/gmRequest'
@@ -20,6 +20,7 @@ const logger = appLogger.sub('ScraperRegistry')
 const gm = new GMRequest()
 const THUMB_REQUEST_TIMEOUT_MS = 6000
 const MIN_THUMB_BYTES = 1500
+const MULTI_VARIANT_SOURCE_WAIT_TIMEOUT_MS = 7500
 
 export interface PosterThumbResource {
   url: string
@@ -187,12 +188,14 @@ function classifySourceError(error: unknown): 'not_found' | 'rate_limited' | 'ch
 /** 联网刮削单个番号元数据并返回结构化结果（用于熔断保护与空结果负缓存） */
 export async function scrapeJavMetaDetailed(avNumber: string): Promise<ScrapeResult> {
   const sources = createJavInfoSources(avNumber)
+  const hasQueryVariants = buildAvNumberQueryVariants(avNumber).length > 1
   let rateLimitedReason = ''
   let challengeReason = ''
   let networkErrorReason = ''
   let timedOutCount = 0
 
   const info = await loadJavInfo(avNumber, sources, {
+    ...(hasQueryVariants ? { sourceWaitTimeout: MULTI_VARIANT_SOURCE_WAIT_TIMEOUT_MS } : {}),
     onSourceError: (source, error) => {
       const kind = classifySourceError(error)
       const message = error instanceof Error ? error.message : String(error ?? '')

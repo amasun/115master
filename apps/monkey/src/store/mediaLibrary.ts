@@ -25,6 +25,7 @@ import {
   aggregateLibraryEntries,
   analyzeDuplicateGroupsAsync,
   buildLibraryIndex,
+  clearAllScrapeMissed,
   clearScrapeMissed,
   compressCustomAvatar,
   compressCustomCover,
@@ -991,6 +992,14 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     ).length,
   )
 
+  async function retryMissedScrapes() {
+    missedScrapeKeys.value = new Set()
+    attemptedScrapeKeys.clear()
+    await clearAllScrapeMissed()
+    if (bgScrapePendingCount.value > 0 && bgScrapeState.value !== 'running')
+      startBackgroundScrape()
+  }
+
   return {
     initialized,
     initializing,
@@ -1043,6 +1052,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     pauseBackgroundScrape,
     resumeBackgroundScrape,
     stopBackgroundScrape,
+    retryMissedScrapes,
     applyFileStar,
     applyFileLabels,
     applyFileRename,

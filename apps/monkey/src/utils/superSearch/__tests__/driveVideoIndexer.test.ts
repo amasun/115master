@@ -301,4 +301,47 @@ describe('toIndexedVideo', () => {
     })
     expect(withoutSha).not.toHaveProperty('sha1')
   })
+
+  it('优先使用文件自身入库/创建时间 tp 与 t，不受移动后的 tu/te 覆盖', () => {
+    const withTpAndNewerTu = toIndexedVideo({
+      fc: 1,
+      fid: 'f9',
+      pc: 'pc9',
+      n: 'SSIS-009.mp4',
+      tp: 1700000000,
+      t: 1700000005,
+      te: 1700000500,
+      tu: 1700000900,
+    })
+    expect(withTpAndNewerTu?.mtime).toBe(1700000000)
+
+    const withDateStringT = toIndexedVideo({
+      fc: 1,
+      fid: 'f10',
+      pc: 'pc10',
+      n: 'SSIS-010.mp4',
+      t: '2024-05-01 12:00:00',
+      tu: 1799999999,
+    })
+    expect(withDateStringT?.mtime).toBe(Math.floor(Date.parse('2024-05-01T12:00:00') / 1000))
+
+    const fallbackTeThenTu = toIndexedVideo({
+      fc: 1,
+      fid: 'f11',
+      pc: 'pc11',
+      n: 'SSIS-011.mp4',
+      te: 1700000300,
+      tu: 1700000900,
+    })
+    expect(fallbackTeThenTu?.mtime).toBe(1700000300)
+
+    const fallbackTuOnly = toIndexedVideo({
+      fc: 1,
+      fid: 'f12',
+      pc: 'pc12',
+      n: 'SSIS-012.mp4',
+      tu: 1700000900,
+    })
+    expect(fallbackTuOnly?.mtime).toBe(1700000900)
+  })
 })

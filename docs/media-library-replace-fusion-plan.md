@@ -1,5 +1,7 @@
 # 影视库替代 Fusion 原界面（`/drive`）实施计划与进度追踪
 
+> **状态：✅ 全部完成（已归档）** — Phase 0–5 已全部交付上线，后续新增待办统一记录在 [docs/TODO.md](./TODO.md)。
+
 > **已确认的核心决策**
 > 1. **旧 `/drive` 归档策略**：先从 `v2` 切出独立归档分支 `archive/legacy-drive`（标注「不再维护」），随后在 `v2` 直接清理 `pages/drive` 及仅 `/drive` 独享组件，并将 `/drive` 路由重定向至 `/library`。
 > 2. **入口文案**：原生 115 悬浮入口（`apps/monkey/src/pages/official/index.ts`）按钮文案由 `Fusion` 改为 `影视库`。

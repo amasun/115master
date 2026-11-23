@@ -1,8 +1,9 @@
 import type { JavInfo } from '@/utils/jav/jav'
 import { describe, expect, it, vi } from 'vitest'
 
-const { iterateMock } = vi.hoisted(() => ({
+const { iterateMock, loadJavInfoMock } = vi.hoisted(() => ({
   iterateMock: vi.fn(),
+  loadJavInfoMock: vi.fn(),
 }))
 
 vi.mock('@/utils/logger', () => {
@@ -26,6 +27,16 @@ vi.mock('@/utils/cache/javCache', () => ({
     },
   },
 }))
+vi.mock('@/utils/jav/loadInfo', () => ({
+  loadJavInfo: loadJavInfoMock,
+}))
+vi.mock('@/utils/jav', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/utils/jav')>()
+  return {
+    ...original,
+    createJavInfoSources: vi.fn(() => []),
+  }
+})
 vi.mock('../videoIndexStore', () => ({
   getCustomCover: vi.fn().mockResolvedValue(null),
   posterThumbCache: { get: vi.fn(), set: vi.fn() },
@@ -38,6 +49,7 @@ const {
   getCoverCandidates,
   javInfoToUnifiedMeta,
   readAllCachedJavMeta,
+  scrapeJavMetaDetailed,
   shouldCropRightHalfForPortrait,
 } = await import('../scraperRegistry')
 
@@ -209,5 +221,20 @@ describe('scraperRegistry', () => {
     expect(shouldCropRightHalfForPortrait(400, 400, 'SSIS-001')).toBe(false)
     expect(shouldCropRightHalfForPortrait(800, 538, 'FC2-PPV-1234567')).toBe(false)
     expect(shouldCropRightHalfForPortrait(0, 0, 'SSIS-001')).toBe(false)
+  })
+
+  it('多变体番号自动放宽单源等待超时，单变体番号保持默认超时', async () => {
+    loadJavInfoMock.mockResolvedValue(null)
+
+    await scrapeJavMetaDetailed('011015_780')
+    expect(loadJavInfoMock).toHaveBeenLastCalledWith(
+      '011015_780',
+      [],
+      expect.objectContaining({ sourceWaitTimeout: 7500 }),
+    )
+
+    await scrapeJavMetaDetailed('ABP-100')
+    const lastOptions = loadJavInfoMock.mock.calls[loadJavInfoMock.mock.calls.length - 1]?.[2] as Record<string, unknown>
+    expect(lastOptions.sourceWaitTimeout).toBeUndefined()
   })
 })

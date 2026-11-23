@@ -102,6 +102,24 @@ function parseDriveLabels(rawFl: unknown): IndexedVideoLabel[] {
   return labels
 }
 
+/** 解析 115 文件时间戳（支持秒/毫秒数字或日期字符串，统一转为秒级时间戳） */
+function parseDriveTimestamp(value: number | string | undefined): number {
+  if (value === undefined || value === null || value === '')
+    return 0
+
+  const num = typeof value === 'number' ? value : Number(value)
+  if (Number.isFinite(num) && num > 0)
+    return num > 1e12 ? Math.floor(num / 1000) : Math.floor(num)
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value.trim().replace(' ', 'T'))
+    if (Number.isFinite(parsed) && parsed > 0)
+      return Math.floor(parsed / 1000)
+  }
+
+  return 0
+}
+
 /** 将 115 文件项转换为轻量的 IndexedVideo 记录 */
 export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem): IndexedVideo | null {
   const raw: RawDriveFileItem = item
@@ -112,7 +130,11 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
 
   const avNumber = getAvNumber(raw.n) || null
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
-  const mtime = Number(raw.tu || raw.tp || raw.te || raw.t) || 0
+  /** tp(user_ptime) / t 为文件自身的入库/创建时间，不受移动目录影响，与同步排序字段 o: 'user_ptime' 保持一致；te / tu 仅作缺失兜底 */
+  const mtime = parseDriveTimestamp(raw.tp)
+    || parseDriveTimestamp(raw.t)
+    || parseDriveTimestamp(raw.te)
+    || parseDriveTimestamp(raw.tu)
   const sha1 = typeof raw.sha === 'string' ? raw.sha.trim() : ''
   const starred = raw.m === 1 || raw.m === '1' || raw.is_m === 1 || raw.is_m === '1'
   const labels = parseDriveLabels(raw.fl)
