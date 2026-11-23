@@ -177,11 +177,14 @@ test.describe('影视库主界面（替代原 Fusion）', () => {
     await expect(page.getByRole('heading', { name: '片头预览.mp4' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: '隐藏疑似广告视频', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
-    // 打开多维筛选栏并点击阈值入口跳转至清理页 Tab 2
+    // 打开多维筛选栏：可直接内联配置时长、体积与且/或关系，并点击「去清理」跳转清理页 Tab 2
     await page.getByRole('button', { name: '多维筛选', exact: true }).click()
-    const thresholdBtn = page.getByRole('button', { name: '≤90s / 50MB' })
-    await expect(thresholdBtn).toBeVisible()
-    await thresholdBtn.click()
+    await expect(page.getByLabel('广告时长上限 (秒)')).toHaveValue('90')
+    await expect(page.getByLabel('广告体积上限 (MB)')).toHaveValue('50')
+    await expect(page.getByRole('button', { name: '广告筛选关系：且 (AND)' })).toHaveAttribute('aria-pressed', 'true')
+    const gotoCleanupBtn = page.getByRole('button', { name: '前往垃圾文件清理' })
+    await expect(gotoCleanupBtn).toBeVisible()
+    await gotoCleanupBtn.click()
 
     await expect(page).toHaveURL(/#\/library\/cleanup\?tab=junk/)
     await expect(page.getByText('片头预览.mp4')).toBeVisible()

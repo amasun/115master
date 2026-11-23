@@ -358,7 +358,8 @@ const hasActiveFilter = computed(() =>
 )
 
 const hideAdTooltip = computed(() => {
-  const rule = `≤${store.adFilterOptions.maxDurationSec}秒 且 ≤${store.adFilterOptions.maxSizeMB}MB 或含广告词`
+  const joiner = store.adFilterOptions.matchMode === 'or' ? '或' : '且'
+  const rule = `≤${store.adFilterOptions.maxDurationSec}秒 ${joiner} ≤${store.adFilterOptions.maxSizeMB}MB，或含广告词`
   const countText = store.adEntryCount > 0 ? `，当前命中 ${store.adEntryCount} 条` : ''
   return store.hideAdVideos
     ? `已隐藏疑似广告视频（${rule}${countText}），点击显示全部`

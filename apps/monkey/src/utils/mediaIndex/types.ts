@@ -14,7 +14,7 @@ export type {
 
 export type MediaKind = 'jav' | 'movie' | 'tv' | 'unknown'
 
-export type LibraryView = 'all' | 'recent' | 'starred' | 'marked'
+export type LibraryView = 'all' | 'starred' | 'marked'
 
 export type LibrarySortBy = 'mtime' | 'releaseDate' | 'duration' | 'size' | 'title'
 

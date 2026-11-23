@@ -2,10 +2,12 @@ import type { IndexedVideo, LibraryEntry } from './types'
 import { drive115 } from '@/utils/drive115Instance'
 
 export type JunkCategory = 'web' | 'textMagnet' | 'executable' | 'adVideo'
+export type AdVideoMatchMode = 'and' | 'or'
 
 export interface AdVideoDetectOptions {
   maxDurationSec?: number
   maxSizeMB?: number
+  matchMode?: AdVideoMatchMode
   excludeStarred?: boolean
 }
 
@@ -33,6 +35,7 @@ export const JUNK_EXTENSION_GROUPS = {
 
 export const DEFAULT_LIBRARY_AD_MAX_DURATION_SEC = 90
 export const DEFAULT_LIBRARY_AD_MAX_SIZE_MB = 50
+export const DEFAULT_LIBRARY_AD_MATCH_MODE: AdVideoMatchMode = 'and'
 export const AD_DURATION_MIN_SEC = 10
 export const AD_DURATION_MAX_SEC = 600
 export const AD_SIZE_MIN_MB = 1
@@ -74,6 +77,16 @@ export function clampAdMaxSizeMB(
   return clampThreshold(value, AD_SIZE_MIN_MB, AD_SIZE_MAX_MB, fallback)
 }
 
+/** 规范化广告短视频时长与体积的匹配逻辑（and / or） */
+export function normalizeAdMatchMode(
+  value: unknown,
+  fallback: AdVideoMatchMode = DEFAULT_LIBRARY_AD_MATCH_MODE,
+): AdVideoMatchMode {
+  if (value === 'or' || value === 'and')
+    return value
+  return fallback
+}
+
 /** 判断单个视频是否为疑似广告/推广短视频 */
 export function isAdVideo(
   video: AdVideoCandidate,
@@ -85,18 +98,18 @@ export function isAdVideo(
   const maxSizeMB = typeof options?.maxSizeMB === 'number' && Number.isFinite(options.maxSizeMB) && options.maxSizeMB > 0
     ? options.maxSizeMB
     : DEFAULT_MAX_AD_SIZE_MB
+  const matchMode = normalizeAdMatchMode(options?.matchMode, 'and')
   const maxSizeBytes = maxSizeMB * 1024 * 1024
   const excludeStarred = options?.excludeStarred ?? true
 
   if (excludeStarred && video.starred)
     return false
 
-  const isShortAndSmall = video.duration > 0
-    && video.duration <= maxDurationSec
-    && video.size > 0
-    && video.size <= maxSizeBytes
+  const isShort = video.duration > 0 && video.duration <= maxDurationSec
+  const isSmall = video.size > 0 && video.size <= maxSizeBytes
+  const matchedThreshold = matchMode === 'or' ? (isShort || isSmall) : (isShort && isSmall)
 
-  if (isShortAndSmall)
+  if (matchedThreshold)
     return true
 
   return AD_KEYWORD_RE.test(video.name) && video.size <= maxSizeBytes
@@ -212,6 +225,12 @@ function toJunkFileItem(item: DriveFilesItem, category: JunkCategory, reason: st
   }
 }
 
+function isAbortLikeError(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted)
+    return true
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
 /**
  * 按指定后缀列表（及可选磁力关键词搜索）扫描网盘垃圾文件
  */
@@ -231,7 +250,7 @@ export async function scanDriveJunkFiles(options: {
 }): Promise<JunkFileItem[]> {
   const api = options.driveApi ?? drive115.file
   const rootCid = options.rootCid ?? '0'
-  const pageDelayMs = options.pageDelayMs ?? 120
+  const pageDelayMs = options.pageDelayMs ?? 300
   const suffixes = Array.from(new Set(
     options.suffixes
       .map(s => s.trim().replace(/^\./, '').toLowerCase())
@@ -241,45 +260,87 @@ export async function scanDriveJunkFiles(options: {
   const totalSuffixes = suffixes.length + (options.includeMagnetSearch ? 1 : 0)
   const byFid = new Map<string, JunkFileItem>()
   let scannedSuffixes = 0
+  let succeededTasks = 0
+  let firstError: unknown
 
   for (const suffix of suffixes) {
     throwIfAborted(options.signal)
     let offset = 0
+    let suffixSucceeded = false
 
-    while (true) {
-      throwIfAborted(options.signal)
+    try {
+      while (true) {
+        throwIfAborted(options.signal)
 
-      const res = await api.getFilesWithFallback(
-        {
-          aid: 1,
-          cid: rootCid,
-          offset,
-          limit: PAGE_LIMIT,
-          show_dir: 0,
-          suffix,
-          r_all: 1,
-          format: 'json',
-          cur: 0,
-          natsort: 0,
-        },
-        options.signal,
-      )
+        let list: DriveFilesItem[] = []
+        try {
+          const res = await api.getFilesWithFallback(
+            {
+              aid: 1,
+              cid: rootCid,
+              offset,
+              limit: PAGE_LIMIT,
+              show_dir: 0,
+              suffix,
+              r_all: 1,
+              o: 'user_ptime',
+              asc: 0,
+              custom_order: 1,
+              format: 'json',
+              cur: 0,
+              natsort: 0,
+            },
+            options.signal,
+          )
+          list = Array.isArray(res.data) ? res.data : []
+        }
+        catch (primaryError) {
+          if (isAbortLikeError(primaryError, options.signal))
+            throw primaryError
 
-      const list = Array.isArray(res.data) ? res.data : []
-      const category = classifyExtension(suffix)
+          const fallbackRes = await api.searchFiles(
+            {
+              aid: 1,
+              cid: rootCid,
+              search_value: '',
+              suffix,
+              offset,
+              limit: PAGE_LIMIT,
+              fc: 2,
+              show_dir: 0,
+              format: 'json',
+            },
+            options.signal,
+          )
+          list = Array.isArray(fallbackRes.data) ? fallbackRes.data : []
+        }
 
-      for (const raw of list) {
-        const mapped = toJunkFileItem(raw, category, `匹配后缀 .${suffix}`)
-        if (mapped && !byFid.has(mapped.fid))
-          byFid.set(mapped.fid, mapped)
+        const category = classifyExtension(suffix)
+
+        for (const raw of list) {
+          const mapped = toJunkFileItem(raw, category, `匹配后缀 .${suffix}`)
+          if (mapped && !byFid.has(mapped.fid))
+            byFid.set(mapped.fid, mapped)
+        }
+
+        suffixSucceeded = true
+
+        if (list.length < PAGE_LIMIT)
+          break
+
+        offset += PAGE_LIMIT
+        await delayWithAbort(pageDelayMs, options.signal)
       }
-
-      if (list.length < PAGE_LIMIT)
-        break
-
-      offset += PAGE_LIMIT
-      await delayWithAbort(pageDelayMs, options.signal)
     }
+    catch (error) {
+      if (isAbortLikeError(error, options.signal))
+        throw error
+      if (firstError === undefined)
+        firstError = error
+    }
+
+    if (suffixSucceeded)
+      succeededTasks += 1
 
     scannedSuffixes += 1
     options.onProgress?.({
@@ -296,37 +357,51 @@ export async function scanDriveJunkFiles(options: {
   if (options.includeMagnetSearch) {
     throwIfAborted(options.signal)
     let offset = 0
+    let magnetSucceeded = false
 
-    while (true) {
-      throwIfAborted(options.signal)
+    try {
+      while (true) {
+        throwIfAborted(options.signal)
 
-      const res = await api.searchFiles(
-        {
-          aid: 1,
-          cid: rootCid,
-          search_value: 'magnet',
-          offset,
-          limit: PAGE_LIMIT,
-          fc: 2,
-          show_dir: 0,
-          format: 'json',
-        },
-        options.signal,
-      )
+        const res = await api.searchFiles(
+          {
+            aid: 1,
+            cid: rootCid,
+            search_value: 'magnet',
+            offset,
+            limit: PAGE_LIMIT,
+            fc: 2,
+            show_dir: 0,
+            format: 'json',
+          },
+          options.signal,
+        )
 
-      const list = Array.isArray(res.data) ? res.data : []
-      for (const raw of list) {
-        const mapped = toJunkFileItem(raw, 'textMagnet', '匹配磁力关键词搜索')
-        if (mapped && !byFid.has(mapped.fid))
-          byFid.set(mapped.fid, mapped)
+        const list = Array.isArray(res.data) ? res.data : []
+        for (const raw of list) {
+          const mapped = toJunkFileItem(raw, 'textMagnet', '匹配磁力关键词搜索')
+          if (mapped && !byFid.has(mapped.fid))
+            byFid.set(mapped.fid, mapped)
+        }
+
+        magnetSucceeded = true
+
+        if (list.length < PAGE_LIMIT)
+          break
+
+        offset += PAGE_LIMIT
+        await delayWithAbort(pageDelayMs, options.signal)
       }
-
-      if (list.length < PAGE_LIMIT)
-        break
-
-      offset += PAGE_LIMIT
-      await delayWithAbort(pageDelayMs, options.signal)
     }
+    catch (error) {
+      if (isAbortLikeError(error, options.signal))
+        throw error
+      if (firstError === undefined)
+        firstError = error
+    }
+
+    if (magnetSucceeded)
+      succeededTasks += 1
 
     scannedSuffixes += 1
     options.onProgress?.({
@@ -336,6 +411,9 @@ export async function scanDriveJunkFiles(options: {
       found: byFid.size,
     })
   }
+
+  if (totalSuffixes > 0 && succeededTasks === 0 && firstError !== undefined)
+    throw firstError
 
   return Array.from(byFid.values())
 }

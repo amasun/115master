@@ -120,10 +120,11 @@
             variant="soft"
             color="primary"
             class="rounded-full"
-            :disabled="visibleDuplicateGroups.length === 0"
+            :disabled="renderedDuplicateGroups.length === 0"
+            title="仅勾选当前页展示的重复组冗余文件，防止误删其他页文件"
             @click="smartSelectRedundant"
           >
-            一键智能勾选冗余项
+            智能勾选本页冗余
           </Button>
           <Button
             v-if="selectedDupFids.size > 0"
@@ -277,19 +278,66 @@
           </div>
         </article>
 
-        <div
-          v-if="renderedDuplicateGroups.length < visibleDuplicateGroups.length"
-          ref="dupLoadMoreRef"
-          class="flex justify-center pt-2"
-        >
-          <Button
-            size="xs"
-            variant="soft"
-            class="rounded-full"
-            @click="dupDisplayLimit += DUP_PAGE_SIZE"
+        <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-base-content/60 tabular-nums">
+              共 {{ visibleDuplicateGroups.length }} 组 · 当前第 {{ dupPageStart + 1 }}–{{ Math.min(dupPageStart + dupPageSize, visibleDuplicateGroups.length) }} 组
+            </span>
+            <label class="flex shrink-0 items-center gap-1.5">
+              <span class="text-base-content/55 shrink-0 whitespace-nowrap">每页</span>
+              <select
+                v-model.number="dupPageSize"
+                aria-label="重复影片每页显示数量"
+                class="select select-xs select-bordered bg-base-100/70 w-auto min-w-16 rounded-full tabular-nums"
+              >
+                <option v-for="n in PAGE_SIZE_OPTIONS" :key="n" :value="n">
+                  {{ n }}
+                </option>
+              </select>
+              <span class="text-base-content/55 shrink-0 whitespace-nowrap">组</span>
+            </label>
+          </div>
+
+          <nav
+            v-if="dupTotalPages > 1"
+            role="navigation"
+            aria-label="分页导航"
+            class="flex flex-wrap items-center gap-1"
           >
-            加载更多（剩余 {{ visibleDuplicateGroups.length - renderedDuplicateGroups.length }} 组）
-          </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              :disabled="dupPage <= 1"
+              @click="dupPage = Math.max(1, dupPage - 1)"
+            >
+              上一页
+            </Button>
+            <template v-for="(item, idx) in dupPaginationItems" :key="`dup-p-${idx}-${item}`">
+              <span v-if="item === 'ellipsis'" class="text-base-content/45 px-1">…</span>
+              <button
+                v-else
+                type="button"
+                class="cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-colors"
+                :class="dupPage === item
+                  ? 'bg-primary text-primary-content font-medium'
+                  : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'"
+                :aria-current="dupPage === item ? 'page' : undefined"
+                @click="dupPage = item"
+              >
+                {{ item }}
+              </button>
+            </template>
+            <Button
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              :disabled="dupPage >= dupTotalPages"
+              @click="dupPage = Math.min(dupTotalPages, dupPage + 1)"
+            >
+              下一页
+            </Button>
+          </nav>
         </div>
       </div>
     </section>
@@ -358,6 +406,41 @@
               @blur="commitDurationDraft"
             >
           </label>
+          <div class="flex items-center gap-1.5">
+            <span>匹配方式</span>
+            <div
+              class="bg-base-100/70 border-base-content/10 inline-flex items-center rounded-full border p-0.5"
+              role="group"
+              aria-label="广告匹配方式"
+            >
+              <button
+                type="button"
+                class="cursor-pointer rounded-full px-2.5 py-0.5 text-xs leading-none transition-colors"
+                :class="store.adFilterOptions.matchMode === 'and'
+                  ? 'bg-primary text-primary-content font-medium'
+                  : 'text-base-content/65 hover:text-base-content'"
+                aria-label="匹配方式：且 (AND)"
+                :aria-pressed="store.adFilterOptions.matchMode === 'and'"
+                title="且 (AND)：同时满足时长和体积上限"
+                @click="store.commitAdThresholds({ matchMode: 'and' })"
+              >
+                且 (AND)
+              </button>
+              <button
+                type="button"
+                class="cursor-pointer rounded-full px-2.5 py-0.5 text-xs leading-none transition-colors"
+                :class="store.adFilterOptions.matchMode === 'or'
+                  ? 'bg-primary text-primary-content font-medium'
+                  : 'text-base-content/65 hover:text-base-content'"
+                aria-label="匹配方式：或 (OR)"
+                :aria-pressed="store.adFilterOptions.matchMode === 'or'"
+                title="或 (OR)：满足时长或体积任一上限"
+                @click="store.commitAdThresholds({ matchMode: 'or' })"
+              >
+                或 (OR)
+              </button>
+            </div>
+          </div>
           <label class="flex items-center gap-1.5">
             <span>体积上限 (MB)</span>
             <input
@@ -421,10 +504,11 @@
             size="xs"
             variant="soft"
             class="rounded-full"
-            :disabled="visibleJunkItems.length === 0"
+            :disabled="renderedJunkItems.length === 0"
+            title="仅全选当前页展示的文件，防止数量过多误删非垃圾文件"
             @click="selectAllVisibleJunk"
           >
-            全选当前列表
+            全选本页 ({{ renderedJunkItems.length }})
           </Button>
           <Button
             v-if="selectedJunkFids.size > 0"
@@ -506,19 +590,66 @@
           </div>
         </div>
 
-        <div
-          v-if="renderedJunkItems.length < visibleJunkItems.length"
-          ref="junkLoadMoreRef"
-          class="flex justify-center pt-2"
-        >
-          <Button
-            size="xs"
-            variant="soft"
-            class="rounded-full"
-            @click="junkDisplayLimit += JUNK_PAGE_SIZE"
+        <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-base-content/60 tabular-nums">
+              共 {{ visibleJunkItems.length }} 项 · 当前第 {{ junkPageStart + 1 }}–{{ Math.min(junkPageStart + junkPageSize, visibleJunkItems.length) }} 项
+            </span>
+            <label class="flex shrink-0 items-center gap-1.5">
+              <span class="text-base-content/55 shrink-0 whitespace-nowrap">每页</span>
+              <select
+                v-model.number="junkPageSize"
+                aria-label="垃圾文件每页显示数量"
+                class="select select-xs select-bordered bg-base-100/70 w-auto min-w-16 rounded-full tabular-nums"
+              >
+                <option v-for="n in PAGE_SIZE_OPTIONS" :key="n" :value="n">
+                  {{ n }}
+                </option>
+              </select>
+              <span class="text-base-content/55 shrink-0 whitespace-nowrap">项</span>
+            </label>
+          </div>
+
+          <nav
+            v-if="junkTotalPages > 1"
+            role="navigation"
+            aria-label="分页导航"
+            class="flex flex-wrap items-center gap-1"
           >
-            加载更多（剩余 {{ visibleJunkItems.length - renderedJunkItems.length }} 项）
-          </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              :disabled="junkPage <= 1"
+              @click="junkPage = Math.max(1, junkPage - 1)"
+            >
+              上一页
+            </Button>
+            <template v-for="(item, idx) in junkPaginationItems" :key="`junk-p-${idx}-${item}`">
+              <span v-if="item === 'ellipsis'" class="text-base-content/45 px-1">…</span>
+              <button
+                v-else
+                type="button"
+                class="cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-colors"
+                :class="junkPage === item
+                  ? 'bg-primary text-primary-content font-medium'
+                  : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'"
+                :aria-current="junkPage === item ? 'page' : undefined"
+                @click="junkPage = item"
+              >
+                {{ item }}
+              </button>
+            </template>
+            <Button
+              size="xs"
+              variant="ghost"
+              class="rounded-full"
+              :disabled="junkPage >= junkTotalPages"
+              @click="junkPage = Math.min(junkTotalPages, junkPage + 1)"
+            >
+              下一页
+            </Button>
+          </nav>
         </div>
       </div>
     </section>
@@ -561,7 +692,7 @@
 import type { DuplicateKind, JunkCategory, JunkFileItem } from '@/utils/mediaIndex'
 import { Button, Empty, Progress } from '@115master/ui'
 import { format } from '@115master/utils'
-import { useIntersectionObserver, useTitle } from '@vueuse/core'
+import { useStorage, useTitle } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
@@ -586,8 +717,35 @@ import {
 
 useTitle('去重与清理 · 影视库 · 115Master Fusion')
 
-const DUP_PAGE_SIZE = 30
-const JUNK_PAGE_SIZE = 50
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const
+const DEFAULT_DUP_PAGE_SIZE = 20
+const DEFAULT_JUNK_PAGE_SIZE = 50
+
+function normalizePageSize(value: unknown, fallback: number): number {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (PAGE_SIZE_OPTIONS.includes(num as (typeof PAGE_SIZE_OPTIONS)[number]))
+    return num
+  return fallback
+}
+
+function buildPaginationItems(current: number, total: number): Array<number | 'ellipsis'> {
+  if (total <= 7)
+    return Array.from({ length: total }, (_, index) => index + 1)
+
+  const items: Array<number | 'ellipsis'> = [1]
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+
+  if (start > 2)
+    items.push('ellipsis')
+  for (let page = start; page <= end; page += 1)
+    items.push(page)
+  if (end < total - 1)
+    items.push('ellipsis')
+
+  items.push(total)
+  return items
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -599,8 +757,11 @@ const folderPaths = useFolderPathLabels()
 const activeTab = ref<'duplicates' | 'junk'>(route.query.tab === 'junk' ? 'junk' : 'duplicates')
 const dupFilterKind = ref<'all' | DuplicateKind>('all')
 const hideMultiPartGroups = ref(false)
-const dupDisplayLimit = ref(DUP_PAGE_SIZE)
-const dupLoadMoreRef = ref<HTMLElement>()
+const dupPageSize = useStorage<number>('115Master_cleanup_dup_page_size', DEFAULT_DUP_PAGE_SIZE)
+const initialDupPageSize = normalizePageSize(dupPageSize.value, DEFAULT_DUP_PAGE_SIZE)
+if (dupPageSize.value !== initialDupPageSize)
+  dupPageSize.value = initialDupPageSize
+const dupPage = ref(1)
 const selectedDupFids = ref(new Set<string>())
 const deleteEmptyParent = ref(false)
 const deleting = shallowRef(false)
@@ -633,17 +794,34 @@ const visibleDuplicateGroups = computed(() =>
   }),
 )
 
-const renderedDuplicateGroups = computed(() =>
-  visibleDuplicateGroups.value.slice(0, dupDisplayLimit.value),
+const dupTotalPages = computed(() =>
+  Math.max(1, Math.ceil(visibleDuplicateGroups.value.length / dupPageSize.value)),
 )
 
-watch([dupFilterKind, hideMultiPartGroups], () => {
-  dupDisplayLimit.value = DUP_PAGE_SIZE
+const dupPageStart = computed(() =>
+  (dupPage.value - 1) * dupPageSize.value,
+)
+
+const dupPaginationItems = computed(() =>
+  buildPaginationItems(dupPage.value, dupTotalPages.value),
+)
+
+const renderedDuplicateGroups = computed(() =>
+  visibleDuplicateGroups.value.slice(dupPageStart.value, dupPageStart.value + dupPageSize.value),
+)
+
+watch([dupFilterKind, hideMultiPartGroups, dupPageSize], () => {
+  dupPage.value = 1
+  selectedDupFids.value = new Set()
 })
 
-useIntersectionObserver(dupLoadMoreRef, ([entry]) => {
-  if (entry?.isIntersecting && renderedDuplicateGroups.value.length < visibleDuplicateGroups.value.length)
-    dupDisplayLimit.value += DUP_PAGE_SIZE
+watch(dupTotalPages, (total) => {
+  if (dupPage.value > total)
+    dupPage.value = total
+})
+
+watch(dupPage, () => {
+  selectedDupFids.value = new Set()
 })
 
 const totalRedundantCount = computed(() =>
@@ -684,7 +862,7 @@ function clearDupSelection() {
 function smartSelectRedundant() {
   const next = new Set<string>()
   let skippedMultiPart = 0
-  for (const group of visibleDuplicateGroups.value) {
+  for (const group of renderedDuplicateGroups.value) {
     if (group.suspectedMultiPart) {
       skippedMultiPart += 1
       continue
@@ -696,13 +874,13 @@ function smartSelectRedundant() {
   }
   selectedDupFids.value = next
   if (next.size === 0) {
-    toast.info('当前无可安全自动勾选的冗余文件')
+    toast.info('当前页无可安全自动勾选的冗余文件')
     return
   }
   toast.success(
     skippedMultiPart > 0
-      ? `已智能勾选 ${next.size} 个冗余文件（已跳过 ${skippedMultiPart} 个疑似分段组）`
-      : `已智能勾选 ${next.size} 个冗余文件`,
+      ? `已智能勾选本页 ${next.size} 个冗余文件（已跳过 ${skippedMultiPart} 个疑似分段组）`
+      : `已智能勾选本页 ${next.size} 个冗余文件`,
   )
 }
 
@@ -728,8 +906,11 @@ const junkScanProgress = reactive({
 })
 const junkFilterCategory = ref<'all' | JunkCategory>('all')
 const junkSearchKeyword = ref('')
-const junkDisplayLimit = ref(JUNK_PAGE_SIZE)
-const junkLoadMoreRef = ref<HTMLElement>()
+const junkPageSize = useStorage<number>('115Master_cleanup_junk_page_size', DEFAULT_JUNK_PAGE_SIZE)
+const initialJunkPageSize = normalizePageSize(junkPageSize.value, DEFAULT_JUNK_PAGE_SIZE)
+if (junkPageSize.value !== initialJunkPageSize)
+  junkPageSize.value = initialJunkPageSize
+const junkPage = ref(1)
 const selectedJunkFids = ref(new Set<string>())
 let junkController: AbortController | null = null
 let adScanTimer: ReturnType<typeof setTimeout> | null = null
@@ -833,17 +1014,34 @@ const visibleJunkItems = computed(() => {
   })
 })
 
-const renderedJunkItems = computed(() =>
-  visibleJunkItems.value.slice(0, junkDisplayLimit.value),
+const junkTotalPages = computed(() =>
+  Math.max(1, Math.ceil(visibleJunkItems.value.length / junkPageSize.value)),
 )
 
-watch([junkFilterCategory, junkSearchKeyword], () => {
-  junkDisplayLimit.value = JUNK_PAGE_SIZE
+const junkPageStart = computed(() =>
+  (junkPage.value - 1) * junkPageSize.value,
+)
+
+const junkPaginationItems = computed(() =>
+  buildPaginationItems(junkPage.value, junkTotalPages.value),
+)
+
+const renderedJunkItems = computed(() =>
+  visibleJunkItems.value.slice(junkPageStart.value, junkPageStart.value + junkPageSize.value),
+)
+
+watch([junkFilterCategory, junkSearchKeyword, junkPageSize], () => {
+  junkPage.value = 1
+  selectedJunkFids.value = new Set()
 })
 
-useIntersectionObserver(junkLoadMoreRef, ([entry]) => {
-  if (entry?.isIntersecting && renderedJunkItems.value.length < visibleJunkItems.value.length)
-    junkDisplayLimit.value += JUNK_PAGE_SIZE
+watch(junkTotalPages, (total) => {
+  if (junkPage.value > total)
+    junkPage.value = total
+})
+
+watch(junkPage, () => {
+  selectedJunkFids.value = new Set()
 })
 
 watch(
@@ -878,10 +1076,7 @@ function toggleJunkFid(fid: string) {
 }
 
 function selectAllVisibleJunk() {
-  const next = new Set(selectedJunkFids.value)
-  for (const item of visibleJunkItems.value)
-    next.add(item.fid)
-  selectedJunkFids.value = next
+  selectedJunkFids.value = new Set(renderedJunkItems.value.map(item => item.fid))
 }
 
 async function startJunkScan() {
@@ -966,7 +1161,7 @@ function openMediaDetail(mediaKey: string) {
 const activeSelectedFiles = computed(() => {
   if (activeTab.value === 'duplicates') {
     const map = new Map<string, { fid: string, cid: string, name: string, size: number }>()
-    for (const group of duplicateGroups.value) {
+    for (const group of renderedDuplicateGroups.value) {
       for (const file of group.files) {
         if (selectedDupFids.value.has(file.fid))
           map.set(file.fid, { fid: file.fid, cid: file.cid, name: file.name, size: file.size })
@@ -974,7 +1169,7 @@ const activeSelectedFiles = computed(() => {
     }
     return Array.from(map.values())
   }
-  return allJunkItems.value
+  return renderedJunkItems.value
     .filter(item => selectedJunkFids.value.has(item.fid))
     .map(item => ({ fid: item.fid, cid: item.cid, name: item.name, size: item.size }))
 })

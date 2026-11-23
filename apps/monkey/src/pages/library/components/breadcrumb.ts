@@ -29,7 +29,6 @@ export interface LibraryBreadcrumbContext {
 }
 
 const VIEW_LABELS: Record<Exclude<LibraryView, 'all'>, string> = {
-  recent: '最近入库',
   starred: '星标收藏',
   marked: '有打点',
 }
@@ -37,7 +36,7 @@ const VIEW_LABELS: Record<Exclude<LibraryView, 'all'>, string> = {
 /**
  * 构建影视库顶部面包屑导航链路：
  * - 全部作品（顶层首页）
- * - 模块或筛选层级（如 最近入库 / 标签 / 演员 / 题材 / 导演）
+ * - 模块或筛选层级（如 星标收藏 / 有打点 / 标签 / 演员 / 题材 / 导演）
  * - 作品详情
  */
 export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryBreadcrumbItem[] {

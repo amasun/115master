@@ -62,21 +62,6 @@
         <button
           type="button"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
-          :class="isRecentActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="selectView('recent')"
-        >
-          <span class="flex items-center gap-2.5">
-            <Icon :name="I.HISTORY" :filled="isRecentActive" class="text-lg" />
-            <span>最近入库</span>
-          </span>
-        </button>
-      </li>
-      <li>
-        <button
-          type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isStarredActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
@@ -396,7 +381,6 @@ const tagCount = computed(() =>
 const isAllWorksActive = computed(() =>
   isWallRoute.value && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
 )
-const isRecentActive = computed(() => isWallRoute.value && store.filter.view === 'recent')
 const isStarredActive = computed(() => isWallRoute.value && store.filter.view === 'starred')
 const isMarkedActive = computed(() => isWallRoute.value && store.filter.view === 'marked')
 

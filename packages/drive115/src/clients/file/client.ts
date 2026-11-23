@@ -229,7 +229,7 @@ export class FileApiClient extends BaseApiClient {
       this.fetchRequest.get(
         new URL('/files/search', URL_115.WEB_API).href,
         { params, signal },
-      ).then(r => r.json()),
+      ).then(r => this.parseJsonResponse<Drive115Response<Res.GetFilesSearch>>(r)),
     )
   }
 
@@ -280,6 +280,19 @@ export class FileApiClient extends BaseApiClient {
     )
   }
 
+  private async parseJsonResponse<T>(response: Response): Promise<T> {
+    const text = await response.text()
+    try {
+      return JSON.parse(text) as T
+    }
+    catch {
+      throw new Drive115Error(
+        '115 接口返回了非 JSON 页面（可能触发风控、接口重定向或登录态失效，请刷新 115 页面后重试）',
+        Drive115ErrorCode.Unknown,
+      )
+    }
+  }
+
   private async apsGetNatsortFilesRaw(
     params: Req.GetFiles,
     order?: string,
@@ -297,7 +310,7 @@ export class FileApiClient extends BaseApiClient {
         },
       },
     )
-    return response.json()
+    return this.parseJsonResponse(response)
   }
 
   private async getFilesRaw(params: Req.GetFiles, signal?: AbortSignal) {
@@ -305,6 +318,6 @@ export class FileApiClient extends BaseApiClient {
       new URL('/files', URL_115.WEB_API).href,
       { params, signal },
     )
-    return response.json()
+    return this.parseJsonResponse(response)
   }
 }

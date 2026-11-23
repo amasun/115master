@@ -2,6 +2,7 @@ import type { MarkerDoc } from '@/utils/markers/types'
 import type {
   ActorFacetStat,
   AdVideoDetectOptions,
+  AdVideoMatchMode,
   DuplicateGroup,
   IndexedVideo,
   IndexedVideoLabel,
@@ -32,11 +33,13 @@ import {
   clearScrapeMissed,
   compressCustomAvatar,
   compressCustomCover,
+  DEFAULT_LIBRARY_AD_MATCH_MODE,
   DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
   DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
   isAdLibraryEntry,
   loadVideoIndexSnapshot,
   markScrapeMissed,
+  normalizeAdMatchMode,
   readActiveScrapeMissKeys,
   readAllCachedJavMeta,
   readAllCustomMediaKeys,
@@ -140,12 +143,16 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const hideAdVideos = useStorage<boolean>('115Master_library_hide_ad_videos', true)
   const adMaxDurationSec = useStorage<number>('115Master_library_ad_max_duration_sec', DEFAULT_LIBRARY_AD_MAX_DURATION_SEC)
   const adMaxSizeMB = useStorage<number>('115Master_library_ad_max_size_mb', DEFAULT_LIBRARY_AD_MAX_SIZE_MB)
+  const adMatchMode = useStorage<AdVideoMatchMode>('115Master_library_ad_match_mode', DEFAULT_LIBRARY_AD_MATCH_MODE)
   const initialAdDuration = clampAdMaxDurationSec(adMaxDurationSec.value)
   if (adMaxDurationSec.value !== initialAdDuration)
     adMaxDurationSec.value = initialAdDuration
   const initialAdSize = clampAdMaxSizeMB(adMaxSizeMB.value)
   if (adMaxSizeMB.value !== initialAdSize)
     adMaxSizeMB.value = initialAdSize
+  const initialAdMatchMode = normalizeAdMatchMode(adMatchMode.value)
+  if (adMatchMode.value !== initialAdMatchMode)
+    adMatchMode.value = initialAdMatchMode
 
   const hiddenActorKeys = useStorage<string[]>('115Master_library_hidden_actors', [])
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
@@ -556,6 +563,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const adFilterOptions = computed<Required<AdVideoDetectOptions>>(() => ({
     maxDurationSec: clampAdMaxDurationSec(adMaxDurationSec.value),
     maxSizeMB: clampAdMaxSizeMB(adMaxSizeMB.value),
+    matchMode: normalizeAdMatchMode(adMatchMode.value),
     excludeStarred: true,
   }))
   const adEntryKeySet = computed(() =>
@@ -573,7 +581,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   )
   const visibleEntryCount = computed(() => visibleEntries.value.length)
 
-  function commitAdThresholds(next?: { maxDurationSec?: unknown, maxSizeMB?: unknown }) {
+  function commitAdThresholds(next?: { maxDurationSec?: unknown, maxSizeMB?: unknown, matchMode?: unknown }) {
     const duration = clampAdMaxDurationSec(
       next && 'maxDurationSec' in next ? next.maxDurationSec : adMaxDurationSec.value,
     )
@@ -585,6 +593,12 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     )
     if (adMaxSizeMB.value !== size)
       adMaxSizeMB.value = size
+
+    const mode = normalizeAdMatchMode(
+      next && 'matchMode' in next ? next.matchMode : adMatchMode.value,
+    )
+    if (adMatchMode.value !== mode)
+      adMatchMode.value = mode
   }
 
   function getNextBackgroundCandidate(): LibraryEntry | undefined {
@@ -896,10 +910,6 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   function setView(view: LibraryView) {
     filter.view = view
-    if (view === 'recent') {
-      filter.sortBy = 'mtime'
-      filter.sortAsc = false
-    }
     if (view === 'starred')
       filter.onlyStarred = false
     if (view === 'marked')
@@ -1073,6 +1083,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     hideAdVideos,
     adMaxDurationSec,
     adMaxSizeMB,
+    adMatchMode,
     adFilterOptions,
     adEntryCount,
     visibleEntryCount,

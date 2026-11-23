@@ -18,6 +18,7 @@ const {
   isAdLibraryEntry,
   isAdVideo,
   JUNK_EXTENSION_GROUPS,
+  normalizeAdMatchMode,
   scanDriveJunkFiles,
 } = await import('../junkScanner')
 
@@ -73,6 +74,25 @@ describe('junkScanner', () => {
       expect(isAdLibraryEntry({ files: [adFile, realFile] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
       expect(isAdLibraryEntry({ files: [adFile, starredAd] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
       expect(isAdLibraryEntry({ files: [] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
+    })
+
+    it('supports AND vs OR matchMode and normalizes invalid matchMode values', () => {
+      expect(normalizeAdMatchMode('or')).toBe('or')
+      expect(normalizeAdMatchMode('and')).toBe('and')
+      expect(normalizeAdMatchMode('invalid')).toBe('and')
+      expect(normalizeAdMatchMode(undefined, 'or')).toBe('or')
+
+      const shortButLarge = makeVideo({ fid: 'sbl', duration: 40, size: 120 * 1024 * 1024 })
+      const longButSmall = makeVideo({ fid: 'lbs', duration: 600, size: 10 * 1024 * 1024 })
+      const unknownDurationSmall = makeVideo({ fid: 'uds', duration: 0, size: 10 * 1024 * 1024 })
+
+      expect(isAdVideo(shortButLarge, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'and' })).toBe(false)
+      expect(isAdVideo(longButSmall, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'and' })).toBe(false)
+      expect(isAdVideo(unknownDurationSmall, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'and' })).toBe(false)
+
+      expect(isAdVideo(shortButLarge, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'or' })).toBe(true)
+      expect(isAdVideo(longButSmall, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'or' })).toBe(true)
+      expect(isAdVideo(unknownDurationSmall, { maxDurationSec: 90, maxSizeMB: 50, matchMode: 'or' })).toBe(true)
     })
 
     it('clamps ad duration and size thresholds while rejecting invalid inputs', () => {
@@ -134,6 +154,14 @@ describe('junkScanner', () => {
       })
 
       expect(results.map(r => r.fid)).toEqual(['j1', 'j2', 'j3'])
+      expect(getFilesWithFallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          o: 'user_ptime',
+          asc: 0,
+          custom_order: 1,
+        }),
+        undefined,
+      )
       expect(results[0].category).toBe('web')
       expect(results[1].category).toBe('executable')
       expect(results[2].category).toBe('textMagnet')
@@ -144,6 +172,47 @@ describe('junkScanner', () => {
         currentLabel: 'magnet 搜索',
         found: 3,
       })
+    })
+
+    it('falls back to searchFiles when getFilesWithFallback throws non-JSON HTML error and skips isolated suffix failures', async () => {
+      const getFilesWithFallback = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
+        if (params.suffix === 'html')
+          throw new Error('Unexpected token \'<\', "<!doctypeh"... is not valid JSON')
+        if (params.suffix === 'exe')
+          throw new Error('temporary network error')
+        return { state: true, data: [] }
+      })
+
+      const searchFiles = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
+        if (params.suffix === 'html') {
+          return {
+            state: true,
+            data: [
+              { fc: 1, fid: 'fallback1', pid: 'c1', pc: 'pc1', n: 'fallback.html', s: 512, t: 100, tu: 200, ico: 'html', iv: 0, play_long: 0 },
+            ],
+          }
+        }
+        throw new Error('search failed for exe')
+      })
+
+      const driveApi = { getFilesWithFallback, searchFiles } as unknown as JunkScannerDriveApi
+      const results = await scanDriveJunkFiles({
+        rootCid: '0',
+        suffixes: ['html', 'exe'],
+        includeMagnetSearch: false,
+        pageDelayMs: 0,
+        driveApi,
+      })
+
+      expect(results.map(r => r.fid)).toEqual(['fallback1'])
+      expect(searchFiles).toHaveBeenCalledWith(
+        expect.objectContaining({
+          suffix: 'html',
+          search_value: '',
+          fc: 2,
+        }),
+        undefined,
+      )
     })
 
     it('aborts immediately when signal is already aborted', async () => {

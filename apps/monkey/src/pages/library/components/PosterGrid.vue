@@ -77,20 +77,45 @@
         <div
           v-for="row in virtualRows"
           :key="String(row.key)"
-          class="absolute top-0 left-0 grid w-full"
-          :style="{
-            transform: `translateY(${row.start - scrollMargin}px)`,
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gap: `${gap}px`,
-            height: `${rowHeight}px`,
-          }"
+          class="absolute top-0 left-0 w-full"
+          :class="rows[row.index]?.kind === 'section' ? 'flex items-center gap-3' : 'grid'"
+          :style="rows[row.index]?.kind === 'section'
+            ? {
+              transform: `translateY(${row.start - scrollMargin}px)`,
+              height: `${SECTION_HEADER_HEIGHT}px`,
+            }
+            : {
+              transform: `translateY(${row.start - scrollMargin}px)`,
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+              gap: `${gap}px`,
+              height: `${rowHeight}px`,
+            }"
         >
-          <PosterCard
-            v-for="entry in rows[row.index]"
-            :key="entry.mediaKey"
-            :entry="entry"
-            :aspect-mode="store.aspectMode"
-          />
+          <template v-if="rows[row.index]?.kind === 'section'">
+            <div class="flex shrink-0 items-center gap-2">
+              <span
+                v-if="rows[row.index]?.kind === 'section' && (rows[row.index] as Extract<GridRow, { kind: 'section' }>).badge"
+                class="badge badge-primary badge-soft badge-xs rounded-full font-medium"
+              >
+                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).badge }}
+              </span>
+              <span class="text-base-content text-sm font-semibold">
+                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).title }}
+              </span>
+              <span class="text-base-content/45 text-xs tabular-nums">
+                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).count }} 部
+              </span>
+            </div>
+            <div class="bg-base-content/10 h-px flex-1" />
+          </template>
+          <template v-else-if="rows[row.index]?.kind === 'cards'">
+            <PosterCard
+              v-for="entry in (rows[row.index] as Extract<GridRow, { kind: 'cards' }>).entries"
+              :key="entry.mediaKey"
+              :entry="entry"
+              :aspect-mode="store.aspectMode"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -146,13 +171,61 @@ const rowHeight = computed(() => {
   return Math.ceil(coverHeight + 114)
 })
 
-const rows = computed<LibraryEntry[][]>(() => {
+const RECENT_30_DAYS_SEC = 30 * 24 * 60 * 60
+const SECTION_HEADER_HEIGHT = 40
+
+type GridRow
+  = | { kind: 'section', key: string, title: string, count: number, badge?: string }
+    | { kind: 'cards', key: string, entries: LibraryEntry[] }
+
+function chunkCards(list: LibraryEntry[], cols: number): GridRow[] {
+  const result: GridRow[] = []
+  for (let i = 0; i < list.length; i += cols) {
+    const slice = list.slice(i, i + cols)
+    if (slice.length > 0)
+      result.push({ kind: 'cards', key: slice[0]!.mediaKey, entries: slice })
+  }
+  return result
+}
+
+const rows = computed<GridRow[]>(() => {
   const cols = columns.value
   const list = entries.value
-  const result: LibraryEntry[][] = []
-  for (let i = 0; i < list.length; i += cols)
-    result.push(list.slice(i, i + cols))
-  return result
+  if (list.length === 0)
+    return []
+
+  if (store.filter.view === 'all' && store.filter.sortBy === 'mtime') {
+    const cutoffSec = Math.floor(Date.now() / 1000) - RECENT_30_DAYS_SEC
+    const recentEntries = list.filter(entry => entry.latestMtime >= cutoffSec)
+    const olderEntries = list.filter(entry => entry.latestMtime < cutoffSec)
+
+    if (recentEntries.length > 0) {
+      const recentBlock: GridRow[] = [
+        {
+          kind: 'section',
+          key: 'section:recent30',
+          title: '最近 30 天入库',
+          count: recentEntries.length,
+          badge: '近 30 天',
+        },
+        ...chunkCards(recentEntries, cols),
+      ]
+      const olderBlock: GridRow[] = olderEntries.length > 0
+        ? [
+            {
+              kind: 'section',
+              key: 'section:older',
+              title: '更早入库',
+              count: olderEntries.length,
+            },
+            ...chunkCards(olderEntries, cols),
+          ]
+        : []
+      return store.filter.sortAsc ? [...olderBlock, ...recentBlock] : [...recentBlock, ...olderBlock]
+    }
+  }
+
+  return chunkCards(list, cols)
 })
 
 function updateMetrics() {
@@ -164,13 +237,15 @@ function updateMetrics() {
 
 const virtualizerOptions = computed(() => ({
   count: rows.value.length,
-  estimateSize: () => rowHeight.value,
+  estimateSize: (index: number) => rows.value[index]?.kind === 'section' ? SECTION_HEADER_HEIGHT : rowHeight.value,
   gap: gap.value,
   overscan: 2,
   scrollMargin: scrollMargin.value,
   getItemKey: (index: number) => {
-    const first = rows.value[index]?.[0]
-    return first ? `${columns.value}:${first.mediaKey}` : `${columns.value}:${index}`
+    const item = rows.value[index]
+    if (!item)
+      return `${columns.value}:${index}`
+    return item.kind === 'section' ? item.key : `${columns.value}:${item.key}`
   },
 }))
 
@@ -178,7 +253,7 @@ const virtualizer = useWindowVirtualizer(virtualizerOptions)
 const virtualRows = computed(() => virtualizer.value.getVirtualItems())
 const totalSize = computed(() => virtualizer.value.getTotalSize())
 
-watch([columns, rowHeight], () => {
+watch([columns, rowHeight, () => store.filter.view, () => store.filter.sortBy, () => store.filter.sortAsc], () => {
   void nextTick(() => {
     virtualizer.value.measure()
   })
@@ -191,10 +266,10 @@ watch(
   () => {
     const nextKeys = new Set<string>()
     virtualRows.value.forEach((row) => {
-      const rowEntries = rows.value[row.index]
-      if (!rowEntries)
+      const rowData = rows.value[row.index]
+      if (!rowData || rowData.kind !== 'cards')
         return
-      rowEntries.forEach((entry) => {
+      rowData.entries.forEach((entry) => {
         nextKeys.add(entry.mediaKey)
         if (entry.meta === null && entry.kind === 'jav')
           store.enqueueScrape(entry.mediaKey)

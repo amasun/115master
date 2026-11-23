@@ -177,4 +177,19 @@ describe('fileApiClient.searchFiles', () => {
       expect.objectContaining({ signal: controller.signal }),
     )
   })
+
+  it('throws friendly Drive115Error when response is HTML instead of JSON', async () => {
+    const fetchRequest = createMockRequest(
+      vi.fn().mockImplementation(() => Promise.resolve(new Response('<!doctypehtml><html><body>error</body></html>'))),
+    )
+    const client = new FileApiClient({
+      fetchRequest,
+      proApiRequest: fetchRequest,
+      crypto115: new Crypto115(),
+    })
+
+    await expect(client.getFilesWithFallback({} as never)).rejects.toThrow(Drive115Error)
+    await expect(client.getFilesWithFallback({} as never)).rejects.toThrow('115 接口返回了非 JSON 页面')
+    await expect(client.searchFiles({} as never)).rejects.toThrow('115 接口返回了非 JSON 页面')
+  })
 })
