@@ -4,6 +4,27 @@ export {
   parseJavBusActorProfile,
 } from './actorProfileFetcher'
 export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
+export {
+  analyzeDuplicateGroups,
+  isSuspectedMultiPartGroup,
+  scoreEntryFilesForDedupe,
+  scoreFileForKeep,
+} from './deduplicator'
+export type {
+  DuplicateFileCandidate,
+  DuplicateGroup,
+  DuplicateKind,
+} from './deduplicator'
+export {
+  detectAdVideos,
+  JUNK_EXTENSION_GROUPS,
+  scanDriveJunkFiles,
+} from './junkScanner'
+export type {
+  JunkCategory,
+  JunkFileItem,
+  JunkScannerDriveApi,
+} from './junkScanner'
 export { aggregateLibraryEntries, buildLibraryIndex } from './libraryAggregator'
 export type { LibraryIndex, YearFacetCount } from './libraryAggregator'
 export {
@@ -18,6 +39,20 @@ export {
   validateUploadImageFile,
 } from './mediaPicker'
 export type { ImageCandidateItem } from './mediaPicker'
+export {
+  COMPANION_OR_JUNK_EXTENSIONS,
+  evaluateParentFolderSafety,
+  PROTECTED_FOLDER_NAMES,
+  safeDeleteFiles,
+  VIDEO_EXTENSIONS,
+} from './safeDelete'
+export type {
+  EvaluateParentFolderParams,
+  ParentFolderDecision,
+  SafeDeleteDriveApi,
+  SafeDeleteFileInput,
+  SafeDeleteResult,
+} from './safeDelete'
 export {
   getCoverCandidates,
   javInfoToUnifiedMeta,

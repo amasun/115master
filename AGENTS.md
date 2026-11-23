@@ -7,6 +7,7 @@ pnpm install              # Node >= 20.12, pnpm 9.x
 pnpm dev                  # turbo 并行启动所有 packages 的 dev
 pnpm build                # turbo 并行 build
 pnpm push                 # 事务：构建 userscript 并推送当前分支（支持 --release / --allow-dirty / git push 参数）
+pnpm ship                 # 一键事务：自动暂存提交（支持 -m "msg"）、rebase、构建校验并推送 v2
 pnpm type-check           # vue-tsc / tsc --noEmit (全包)
 pnpm test                 # vitest run (全包)
 pnpm lint                 # eslint

@@ -19,6 +19,7 @@
   "scripts": {
     "build": "turbo run build",
     "push": "node scripts/push-and-build.mjs",
+    "ship": "node scripts/push-and-build.mjs --commit --only-branch v2",
     "dev": "turbo run dev",
     "type-check": "turbo run type-check",
     "test": "turbo run test",

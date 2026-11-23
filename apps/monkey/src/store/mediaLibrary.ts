@@ -128,6 +128,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   const aspectMode = useStorage<'landscape' | 'portrait'>('115Master_library_aspect', 'landscape')
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
+  const hiddenActorKeys = useStorage<string[]>('115Master_library_hidden_actors', [])
+  const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
   const scrollTop = shallowRef(0)
   const tagRailOpen = ref(false)
   const actorAvatars = shallowRef<Record<string, string>>({})
@@ -689,13 +691,36 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     await persistVideosSnapshot()
   }
 
-  async function applyFileDelete(fid: string) {
-    const next = videos.value.filter(video => video.fid !== fid)
+  async function applyFilesDelete(fids: string[]) {
+    if (fids.length === 0)
+      return
+    const fidSet = new Set(fids)
+    const next = videos.value.filter(video => !fidSet.has(video.fid))
     if (next.length === videos.value.length)
       return
     videos.value = next
     rebuildEntries()
     await persistVideosSnapshot()
+  }
+
+  async function applyFileDelete(fid: string) {
+    await applyFilesDelete([fid])
+  }
+
+  function isActorHidden(actorKey: string): boolean {
+    return hiddenActorKeySet.value.has(actorKey)
+  }
+
+  function hideActor(actorKey: string) {
+    if (!actorKey || hiddenActorKeySet.value.has(actorKey))
+      return
+    hiddenActorKeys.value = [...hiddenActorKeys.value, actorKey]
+  }
+
+  function unhideActor(actorKey: string) {
+    if (!hiddenActorKeySet.value.has(actorKey))
+      return
+    hiddenActorKeys.value = hiddenActorKeys.value.filter(key => key !== actorKey)
   }
 
   function selectActor(name?: string) {
@@ -878,12 +903,16 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     indexProgress,
     indexError,
     lastIndexedAt,
+    videos,
+    markerDocs,
     entries,
     metaMap,
     libraryIndex,
     filter,
     aspectMode,
     density,
+    hiddenActorKeys,
+    hiddenActorKeySet,
     scrollTop,
     tagRailOpen,
     actorAvatars,
@@ -917,6 +946,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     applyFileRename,
     applyFileMove,
     applyFileDelete,
+    applyFilesDelete,
+    isActorHidden,
+    hideActor,
+    unhideActor,
     selectActor,
     setActorFilter,
     selectGenre,

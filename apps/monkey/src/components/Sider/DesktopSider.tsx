@@ -20,14 +20,17 @@ const DesktopSider = defineComponent({
     }
 
     return () => (
-      <div
+      <aside
+        aria-label="主导航"
         class="
           ui-glass-panel
           ui-z-header
-          fixed top-2
-          bottom-2 left-2
+          sticky top-2
+          my-2 ml-2
           flex
+          h-[calc(100dvh-1rem)]
           w-[calc(var(--sider-width)-var(--spacing)*2)]
+          shrink-0
           flex-col
           rounded-2xl
           px-4
@@ -58,7 +61,7 @@ const DesktopSider = defineComponent({
           </Button>
           <SiderMenuButton />
         </div>
-      </div>
+      </aside>
     )
   },
 })

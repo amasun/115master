@@ -47,6 +47,13 @@ export interface RouteNamedMap {
     Record<never, never>,
     Record<never, never>
   >
+  /** 影视库去重与清理 */
+  'library-cleanup': RouteRecordInfo<
+    'library-cleanup',
+    '/library/cleanup',
+    Record<never, never>,
+    Record<never, never>
+  >
   /** 影视库详情页 */
   'library-detail': RouteRecordInfo<
     'library-detail',

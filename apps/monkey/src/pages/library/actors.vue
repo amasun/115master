@@ -12,10 +12,10 @@
           <button
             type="button"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
-            :class="showFemale
+            :class="!showHidden && showFemale
               ? 'bg-primary text-primary-content font-medium shadow-xs'
               : 'text-base-content/70 hover:text-base-content'"
-            :aria-pressed="showFemale"
+            :aria-pressed="!showHidden && showFemale"
             @click="toggleFemale"
           >
             <span>女演员</span>
@@ -24,14 +24,26 @@
           <button
             type="button"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
-            :class="showMale
+            :class="!showHidden && showMale
               ? 'bg-primary text-primary-content font-medium shadow-xs'
               : 'text-base-content/70 hover:text-base-content'"
-            :aria-pressed="showMale"
+            :aria-pressed="!showHidden && showMale"
             @click="toggleMale"
           >
             <span>男演员</span>
             <span class="text-[11px] tabular-nums opacity-75">{{ maleCount }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
+            :class="showHidden
+              ? 'bg-primary text-primary-content font-medium shadow-xs'
+              : 'text-base-content/70 hover:text-base-content'"
+            :aria-pressed="showHidden"
+            @click="toggleHidden"
+          >
+            <span>隐藏</span>
+            <span class="text-[11px] tabular-nums opacity-75">{{ hiddenCount }}</span>
           </button>
         </div>
 
@@ -217,6 +229,7 @@ const toast = useToast()
 const sortBy = useStorage<ActorSortBy>('115Master_library_actors_sort', 'count')
 const showFemale = useStorage<boolean>('115Master_library_actors_female', true)
 const showMale = useStorage<boolean>('115Master_library_actors_male', false)
+const showHidden = ref(false)
 const genderOverrides = useStorage<Record<string, 0 | 1>>('115Master_library_actor_gender_overrides', {})
 const failedAvatars = ref(new Set<string>())
 
@@ -292,10 +305,36 @@ const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
           }]
         : []),
     ],
+    [
+      store.isActorHidden(target.key)
+        ? {
+            id: 'unhide-actor',
+            label: '取消隐藏',
+            leading: actionIcon(I.VIEW),
+            onSelect: () => {
+              store.unhideActor(target.key)
+              toast.success(`已取消隐藏「${target.name}」`)
+            },
+          }
+        : {
+            id: 'hide-actor',
+            label: '隐藏演员',
+            leading: actionIcon(I.PREVIEW_OFF),
+            onSelect: () => {
+              store.hideActor(target.key)
+              toast.success(`已隐藏「${target.name}」，可在「隐藏」标签查看`)
+            },
+          },
+    ],
   ]
 })
 
 function toggleFemale() {
+  if (showHidden.value) {
+    showHidden.value = false
+    showFemale.value = true
+    return
+  }
   if (showFemale.value && !showMale.value) {
     showFemale.value = false
     showMale.value = true
@@ -305,6 +344,11 @@ function toggleFemale() {
 }
 
 function toggleMale() {
+  if (showHidden.value) {
+    showHidden.value = false
+    showMale.value = true
+    return
+  }
   if (showMale.value && !showFemale.value) {
     showMale.value = false
     showFemale.value = true
@@ -313,9 +357,21 @@ function toggleMale() {
   showMale.value = !showMale.value
 }
 
-const totalActors = computed(() => store.libraryIndex.actorStats.length)
-const maleCount = computed(() => store.libraryIndex.actorStats.filter(isMaleActor).length)
-const femaleCount = computed(() => totalActors.value - maleCount.value)
+function toggleHidden() {
+  showHidden.value = true
+}
+
+const hiddenCount = computed(() =>
+  store.libraryIndex.actorStats.filter(actor => store.isActorHidden(actor.key)).length,
+)
+const visibleActors = computed(() =>
+  store.libraryIndex.actorStats.filter(actor => !store.isActorHidden(actor.key)),
+)
+const totalActors = computed(() =>
+  showHidden.value ? hiddenCount.value : visibleActors.value.length,
+)
+const maleCount = computed(() => visibleActors.value.filter(isMaleActor).length)
+const femaleCount = computed(() => visibleActors.value.length - maleCount.value)
 const hasKeyword = computed(() => Boolean(store.filter.keyword.trim()))
 
 function matchesActorSearch(actor: ActorFacetStat, rawKeyword: string, normalizedKeyword: string): boolean {
@@ -331,11 +387,20 @@ const sortedActors = computed(() => {
   const keyword = store.filter.keyword.trim().toLowerCase()
   const normalizedKeyword = normalizeActressName(store.filter.keyword)
   const list = store.libraryIndex.actorStats.filter((actor) => {
-    const male = isMaleActor(actor)
-    if (male && !showMale.value)
-      return false
-    if (!male && !showFemale.value)
-      return false
+    const hidden = store.isActorHidden(actor.key)
+    if (showHidden.value) {
+      if (!hidden)
+        return false
+    }
+    else {
+      if (hidden)
+        return false
+      const male = isMaleActor(actor)
+      if (male && !showMale.value)
+        return false
+      if (!male && !showFemale.value)
+        return false
+    }
     if (keyword && !matchesActorSearch(actor, keyword, normalizedKeyword))
       return false
     return true

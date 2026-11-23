@@ -42,7 +42,7 @@
           </ol>
         </nav>
         <button
-          v-if="!isActors && !isDetail && hasActiveFilter"
+          v-if="!isActors && !isDetail && !isCleanup && hasActiveFilter"
           type="button"
           class="btn btn-ghost btn-xs text-base-content/65 hover:text-base-content shrink-0 rounded-full"
           @click="clearAllFilters"
@@ -54,7 +54,10 @@
 
     <HeaderEnd>
       <!-- 库内即时搜索 -->
-      <label class="ui-glass-floating flex h-9 w-40 items-center gap-1.5 rounded-full px-3 sm:w-56">
+      <label
+        v-if="!isCleanup"
+        class="ui-glass-floating flex h-9 w-40 items-center gap-1.5 rounded-full px-3 sm:w-56"
+      >
         <Icon :name="I.SEARCH" class="text-base-content/55 shrink-0 text-base" />
         <input
           v-model="store.filter.keyword"
@@ -75,7 +78,7 @@
       </label>
 
       <!-- 展开多维筛选 -->
-      <Tooltip content="多维筛选">
+      <Tooltip v-if="!isCleanup" content="多维筛选">
         <Button
           variant="glass-floating"
           shape="circle"
@@ -89,7 +92,7 @@
 
       <!-- 排序选择 + 方向 -->
       <div
-        v-if="!isActors"
+        v-if="!isActors && !isCleanup"
         class="ui-glass-floating hidden h-9 items-center gap-1 rounded-full px-2 md:inline-flex"
       >
         <select
@@ -125,7 +128,7 @@
 
       <!-- 横版 / 竖版比例 -->
       <Tooltip
-        v-if="!isActors"
+        v-if="!isActors && !isCleanup"
         :content="store.aspectMode === 'landscape' ? '切换竖版海报' : '切换横版封面'"
       >
         <Button
@@ -140,7 +143,7 @@
 
       <!-- 网格密度 -->
       <Tooltip
-        v-if="!isActors"
+        v-if="!isActors && !isCleanup"
         :content="`网格密度：${densityLabel}`"
       >
         <Button
@@ -193,6 +196,7 @@ const store = useMediaLibraryStore()
 const tagStore = useTagStore()
 const isDetail = computed(() => route.name === 'library-detail')
 const isActors = computed(() => route.name === 'library-actors')
+const isCleanup = computed(() => route.name === 'library-cleanup')
 
 const activeDriveLabelName = computed(() => {
   if (!store.filter.driveLabel)
@@ -273,15 +277,18 @@ function handleKeywordInput() {
 }
 
 const headerCount = computed(() => {
+  if (isCleanup.value)
+    return undefined
   if (!isActors.value)
     return store.filteredEntries.length
 
+  const visibleActors = store.libraryIndex.actorStats.filter(actor => !store.isActorHidden(actor.key))
   const keyword = store.filter.keyword.trim().toLowerCase()
   if (!keyword)
-    return store.libraryIndex.actorStats.length
+    return visibleActors.length
 
   const normalizedKeyword = normalizeActressName(store.filter.keyword)
-  return store.libraryIndex.actorStats.filter(actor =>
+  return visibleActors.filter(actor =>
     [actor.name, ...actor.aliases].some((name) => {
       if (name.toLowerCase().includes(keyword))
         return true

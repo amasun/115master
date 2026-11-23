@@ -1,0 +1,389 @@
+import type { IndexedVideo, LibraryEntry, LibraryFileItem } from './types'
+import type { MarkerDoc } from '@/utils/markers/types'
+import { normalizeAvNumber } from '@/utils/jav/jav'
+
+export type DuplicateKind = 'sha1' | 'avNumber' | 'similar'
+
+export interface DuplicateFileCandidate extends IndexedVideo {
+  mediaKey: string
+  keepScore: number
+  keepReasons: string[]
+  recommendedKeep: boolean
+  markerCount: number
+}
+
+export interface DuplicateGroup {
+  id: string
+  kind: DuplicateKind
+  title: string
+  key: string
+  mediaKey?: string
+  files: DuplicateFileCandidate[]
+  totalSize: number
+  reclaimableSize: number
+  suspectedMultiPart: boolean
+}
+
+const SIMILAR_MIN_SIZE_BYTES = 50 * 1024 * 1024
+const SIMILAR_MIN_DURATION_SEC = 60
+const BYTES_PER_GB = 1024 * 1024 * 1024
+
+function extractPartMarker(name: string): string | null {
+  const partMatch = name.match(/(cd|part|disc)[\s._-]*(\d+)/i)
+  if (partMatch)
+    return `part:${partMatch[1].toLowerCase()}${Number(partMatch[2])}`
+
+  const letterMatch = name.match(/[-_\s]([A-D])(?=\.[^.]+$)/)
+  if (letterMatch)
+    return `letter:${letterMatch[1]}`
+
+  const zhMatch = name.match(/(上集|下集)/)
+  if (zhMatch)
+    return `zh:${zhMatch[1]}`
+
+  const stem = name.replace(/\.[^.]+$/, '')
+  const parenMatch = stem.match(/\((\d+)\)\s*$/)
+  if (parenMatch)
+    return `paren:${Number(parenMatch[1])}`
+
+  return null
+}
+
+/**
+ * 检测一组文件名是否包含 >=2 个不同的分集/分段标记（如 cd1/cd2、上集/下集）
+ */
+export function isSuspectedMultiPartGroup(names: string[]): boolean {
+  const markers = new Set(
+    names
+      .map(extractPartMarker)
+      .filter((marker): marker is string => marker !== null),
+  )
+  return markers.size >= 2
+}
+
+/**
+ * 为单个视频文件计算保留优先级评分与原因
+ */
+export function scoreFileForKeep(
+  file: Pick<IndexedVideo, 'name' | 'size' | 'duration' | 'mtime' | 'starred' | 'labels'>,
+  markerCount = 0,
+): { score: number, reasons: string[] } {
+  const reasons: string[] = []
+  const parts: number[] = []
+
+  if (file.starred) {
+    parts.push(1000)
+    reasons.push('已星标')
+  }
+
+  if (markerCount > 0) {
+    parts.push(500 + Math.min(markerCount, 10) * 20)
+    reasons.push(`有 ${markerCount} 个打点`)
+  }
+
+  if (file.labels && file.labels.length > 0) {
+    parts.push(200)
+    reasons.push('有网盘标签')
+  }
+
+  if (/-C(?=\.[^.]+$|$)|[-_\s[\](](?:中字|中文|CHS|CHT|SUB)/i.test(file.name)) {
+    parts.push(150)
+    reasons.push('含中文字幕标记')
+  }
+
+  if (/[_-]UC(?=\.[^.]+$|$)|无码|破解|流出/i.test(file.name)) {
+    parts.push(100)
+    reasons.push('无码/破解版')
+  }
+
+  if (/4K|2160P|UHD/i.test(file.name)) {
+    parts.push(80)
+    reasons.push('4K 分辨率标记')
+  }
+  else if (/1080P|FHD/i.test(file.name)) {
+    parts.push(50)
+    reasons.push('1080P 分辨率标记')
+  }
+
+  if (file.size > 0) {
+    parts.push(Math.round(Math.min(file.size / BYTES_PER_GB, 20) * 30))
+    if (file.size >= BYTES_PER_GB)
+      reasons.push('文件体积较大')
+  }
+
+  if (file.duration > 0)
+    parts.push(Math.round(Math.min(file.duration / 60, 240) * 0.5))
+
+  if (file.mtime > 0)
+    parts.push(Math.round(Math.min(file.mtime / 1e9, 10)))
+
+  return {
+    score: parts.reduce((sum, n) => sum + n, 0),
+    reasons,
+  }
+}
+
+function countDocMarkers(doc?: MarkerDoc): number {
+  if (!doc?.markers?.length)
+    return 0
+  return doc.markers.filter(marker => !marker.deleted).length
+}
+
+function resolveFallbackMediaKey(video: IndexedVideo): string {
+  if (video.avNumber) {
+    const normalized = normalizeAvNumber(video.avNumber)
+    if (normalized)
+      return `jav:${normalized}`
+  }
+  return `file:${video.fid}`
+}
+
+function compareCandidates(a: DuplicateFileCandidate, b: DuplicateFileCandidate): number {
+  return (
+    b.keepScore - a.keepScore
+    || b.size - a.size
+    || b.mtime - a.mtime
+    || a.fid.localeCompare(b.fid)
+  )
+}
+
+function normalizeStem(name: string): string {
+  return name
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase()
+    .replace(/[[(【（](?:1080p|720p|2160p|4k|x264|x265|h\.?264|h\.?265|hevc|aac|hd|fhd|uhd)[\])】）]/gi, '')
+    .replace(/1080p|720p|2160p|4k|x264|x265|h\.?264|h\.?265|hevc/gi, '')
+    .replace(/[\s._\-()[\]【】（）]+/g, '')
+    .trim()
+}
+
+function buildGroup(
+  id: string,
+  kind: DuplicateKind,
+  title: string,
+  key: string,
+  items: IndexedVideo[],
+  fidToMediaKey: Map<string, string>,
+  markerDocs?: Record<string, MarkerDoc>,
+  mediaKey?: string,
+): DuplicateGroup {
+  const scored = items
+    .map((video): DuplicateFileCandidate => {
+      const markerCount = countDocMarkers(markerDocs?.[video.pickCode])
+      const result = scoreFileForKeep(video, markerCount)
+      return {
+        ...video,
+        mediaKey: fidToMediaKey.get(video.fid) ?? resolveFallbackMediaKey(video),
+        keepScore: result.score,
+        keepReasons: result.reasons,
+        recommendedKeep: false,
+        markerCount,
+      }
+    })
+    .sort(compareCandidates)
+
+  const files = scored.map((item, idx) => ({
+    ...item,
+    recommendedKeep: idx === 0,
+  }))
+
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+  const keptSize = files[0]?.size ?? 0
+
+  return {
+    id,
+    kind,
+    title,
+    key,
+    ...(mediaKey ? { mediaKey } : {}),
+    files,
+    totalSize,
+    reclaimableSize: Math.max(0, totalSize - keptSize),
+    suspectedMultiPart: isSuspectedMultiPartGroup(files.map(f => f.name)),
+  }
+}
+
+function signatureOf(items: IndexedVideo[]): string {
+  return items.map(v => v.fid).sort().join('|')
+}
+
+function groupByKey(videos: IndexedVideo[], keyOf: (video: IndexedVideo) => string | null): Map<string, IndexedVideo[]> {
+  const map = new Map<string, IndexedVideo[]>()
+  for (const video of videos) {
+    const key = keyOf(video)
+    if (!key)
+      continue
+    const list = map.get(key)
+    if (list)
+      list.push(video)
+    else
+      map.set(key, [video])
+  }
+  return map
+}
+
+function collectSimilarBuckets(unnumbered: IndexedVideo[]): IndexedVideo[][] {
+  if (unnumbered.length < 2)
+    return []
+
+  const parent = unnumbered.map((_, idx) => idx)
+  const find = (x: number): number => {
+    let root = x
+    while (parent[root] !== root)
+      root = parent[root]
+    let cur = x
+    while (cur !== root) {
+      const next = parent[cur]
+      parent[cur] = root
+      cur = next
+    }
+    return root
+  }
+  const union = (a: number, b: number) => {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb)
+      parent[rb] = ra
+  }
+
+  const byStem = new Map<string, number>()
+  const bySizeDur = new Map<string, number>()
+
+  unnumbered.forEach((video, idx) => {
+    const stem = normalizeStem(video.name)
+    if (stem.length >= 2) {
+      const prev = byStem.get(stem)
+      if (prev !== undefined)
+        union(prev, idx)
+      else
+        byStem.set(stem, idx)
+    }
+
+    if (video.size >= SIMILAR_MIN_SIZE_BYTES && video.duration >= SIMILAR_MIN_DURATION_SEC) {
+      const sdKey = `${video.size}:${Math.round(video.duration)}`
+      const prev = bySizeDur.get(sdKey)
+      if (prev !== undefined)
+        union(prev, idx)
+      else
+        bySizeDur.set(sdKey, idx)
+    }
+  })
+
+  const buckets = new Map<number, IndexedVideo[]>()
+  unnumbered.forEach((video, idx) => {
+    const root = find(idx)
+    const list = buckets.get(root)
+    if (list)
+      list.push(video)
+    else
+      buckets.set(root, [video])
+  })
+
+  return Array.from(buckets.values()).filter(list => list.length >= 2)
+}
+
+/**
+ * 分析网盘视频索引中的重复组：
+ * 1. sha1 完全相同
+ * 2. 同番号 / 同 mediaKey（与 sha1 组完全重合的跳过）
+ * 3. 无番号视频的相似文件名或同体积同长视频
+ */
+export function analyzeDuplicateGroups(
+  videos: IndexedVideo[],
+  entries: LibraryEntry[],
+  markerDocs?: Record<string, MarkerDoc>,
+): DuplicateGroup[] {
+  const fidToMediaKey = new Map<string, string>()
+  const mediaKeyToTitle = new Map<string, string>()
+
+  for (const entry of entries) {
+    if (entry.meta?.title)
+      mediaKeyToTitle.set(entry.mediaKey, entry.meta.title)
+    else if (entry.externalId)
+      mediaKeyToTitle.set(entry.mediaKey, entry.externalId)
+
+    for (const file of entry.files)
+      fidToMediaKey.set(file.fid, entry.mediaKey)
+  }
+
+  const sha1Buckets = groupByKey(videos, (video) => {
+    const sha1 = video.sha1?.trim().toLowerCase()
+    return sha1 || null
+  })
+
+  const sha1Groups = Array.from(sha1Buckets.entries())
+    .filter(([, list]) => list.length >= 2)
+    .map(([sha1, list]) => {
+      const mediaKey = fidToMediaKey.get(list[0].fid) ?? resolveFallbackMediaKey(list[0])
+      const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
+      return buildGroup(`sha1:${sha1}`, 'sha1', title, sha1, list, fidToMediaKey, markerDocs, mediaKey)
+    })
+
+  const sha1Signatures = new Set(sha1Groups.map(g => signatureOf(g.files)))
+
+  const avBuckets = groupByKey(videos, (video) => {
+    const entryKey = fidToMediaKey.get(video.fid)
+    if (entryKey && !entryKey.startsWith('file:'))
+      return entryKey
+    if (video.avNumber) {
+      const normalized = normalizeAvNumber(video.avNumber)
+      return normalized ? `jav:${normalized}` : `jav:${video.avNumber.trim().toUpperCase()}`
+    }
+    return null
+  })
+
+  const avGroups = Array.from(avBuckets.entries())
+    .filter(([, list]) => list.length >= 2 && !sha1Signatures.has(signatureOf(list)))
+    .map(([mediaKey, list]) => {
+      const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
+      return buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey)
+    })
+
+  const unnumbered = videos.filter((video) => {
+    if (video.avNumber)
+      return false
+    const entryKey = fidToMediaKey.get(video.fid)
+    return !entryKey || entryKey.startsWith('file:')
+  })
+
+  const similarGroups = collectSimilarBuckets(unnumbered)
+    .filter(list => !sha1Signatures.has(signatureOf(list)))
+    .map((list) => {
+      const stem = normalizeStem(list[0].name)
+      const key = stem.length >= 2 ? stem : `${list[0].size}:${Math.round(list[0].duration)}`
+      return buildGroup(`similar:${list[0].fid}`, 'similar', list[0].name, key, list, fidToMediaKey, markerDocs)
+    })
+
+  return [...sha1Groups, ...avGroups, ...similarGroups].sort(
+    (a, b) => b.reclaimableSize - a.reclaimableSize || b.totalSize - a.totalSize || a.id.localeCompare(b.id),
+  )
+}
+
+/**
+ * 为媒体库单条目的文件列表计算去重保留评分与推荐保留标记
+ */
+export function scoreEntryFilesForDedupe(
+  files: LibraryFileItem[],
+  markerCountByPickCode?: Map<string, number>,
+): Array<{ file: LibraryFileItem, keepScore: number, keepReasons: string[], recommendedKeep: boolean }> {
+  const scored = files
+    .map((file) => {
+      const result = scoreFileForKeep(file, markerCountByPickCode?.get(file.pickCode) ?? 0)
+      return {
+        file,
+        keepScore: result.score,
+        keepReasons: result.reasons,
+      }
+    })
+    .sort((a, b) => (
+      b.keepScore - a.keepScore
+      || b.file.size - a.file.size
+      || b.file.mtime - a.file.mtime
+      || a.file.fid.localeCompare(b.file.fid)
+    ))
+
+  return scored.map((item, idx) => ({
+    ...item,
+    recommendedKeep: idx === 0,
+  }))
+}

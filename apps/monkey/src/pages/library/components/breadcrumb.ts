@@ -72,6 +72,18 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
     ]
   }
 
+  if (ctx.routeName === 'library-cleanup') {
+    return [
+      root,
+      {
+        key: 'cleanup',
+        label: '去重与清理',
+        count: ctx.count,
+        current: true,
+      },
+    ]
+  }
+
   const items: LibraryBreadcrumbItem[] = [root]
   const kept: BreadcrumbScopeKey[] = []
 

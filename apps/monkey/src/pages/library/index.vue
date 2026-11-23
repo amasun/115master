@@ -3,15 +3,14 @@
     class="bg-base-100 text-base-content flex min-h-screen flex-col [--main-content-gutter:calc(var(--spacing)*3)] [--ui-header-gutter:var(--main-content-gutter)] [--ui-header-offset:calc(var(--spacing)*2)] sm:[--main-content-gutter:calc(var(--spacing)*6)]"
   >
     <Layout
-      class="[--navbar-frosted-glass-height:var(--navbar-height)]" :class="[
-        store.tagRailOpen ? '[--rail2-width:0] sm:[--rail2-width:calc(var(--spacing)*60)]' : '[--rail2-width:0]',
-      ]"
+      :class="store.tagRailOpen ? '[--rail2-width:0px] sm:[--rail2-width:calc(var(--spacing)*62)]' : '[--rail2-width:0px]'"
+      class="[--navbar-frosted-glass-height:var(--navbar-height)]"
     >
       <Sider>
         <LibrarySider />
       </Sider>
       <LibraryTagRail />
-      <Main class="relative flex min-h-screen flex-col transition-[margin-left] duration-200 ease-[var(--ui-ease-move)] sm:ml-[calc(var(--sider-width)+var(--rail2-width))]">
+      <Main class="relative flex min-h-screen flex-col">
         <LibraryHeader
           v-if="!isTags"
           :show-filters="showFilters"

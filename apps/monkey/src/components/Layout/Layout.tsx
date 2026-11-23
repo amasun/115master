@@ -11,7 +11,8 @@ const Layout = defineComponent({
       <div
         class="
           min-h-screen
-          [--sider-width:0]
+          [--sider-width:0px] sm:flex
+          sm:items-start
           sm:[--sider-width:calc(var(--spacing)*64)]
         "
       >

@@ -13,7 +13,7 @@ const Main = defineComponent({
     return () => (
       <div
         ref={el}
-        class="ml-(--sider-width) flex-1"
+        class="min-w-0 flex-1"
       >
         {slots.default?.()}
       </div>

@@ -58,6 +58,11 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('../pages/tags/tags'),
       },
       {
+        name: 'library-cleanup',
+        path: 'cleanup',
+        component: () => import('../pages/library/cleanup.vue'),
+      },
+      {
         name: 'library-detail',
         path: 'item/:mediaKey',
         component: () => import('../pages/library/detail.vue'),

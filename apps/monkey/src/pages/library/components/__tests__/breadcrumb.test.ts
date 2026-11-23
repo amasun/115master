@@ -57,6 +57,15 @@ describe('buildLibraryBreadcrumbs', () => {
       { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
       { key: 'tags', label: '标签管理', count: 9, current: true },
     ])
+
+    expect(buildLibraryBreadcrumbs({
+      routeName: 'library-cleanup',
+      view: 'all',
+      count: 4,
+    })).toEqual([
+      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'cleanup', label: '去重与清理', count: 4, current: true },
+    ])
   })
 
   it('builds breadcrumbs for actor wall and actor detail', () => {

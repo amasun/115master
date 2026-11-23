@@ -95,8 +95,8 @@
           </div>
         </div>
 
-        <!-- 本库统计 3 格卡片 -->
-        <div class="bg-base-100/45 border-base-content/6 divide-base-content/8 grid grid-cols-3 divide-x rounded-2xl border py-2.5 text-center">
+        <!-- 本库统计 2 格卡片 -->
+        <div class="bg-base-100/45 border-base-content/6 divide-base-content/8 grid grid-cols-2 divide-x rounded-2xl border py-2.5 text-center">
           <div class="flex flex-col gap-0.5 px-1">
             <span class="text-base-content text-sm font-semibold tabular-nums">
               {{ actorStat?.count ?? actorEntries.length }}
@@ -108,12 +108,6 @@
               {{ format.fileSize(actorStat?.totalSize ?? totalSizeFallback) }}
             </span>
             <span class="text-base-content/50 text-[10px]">总容量</span>
-          </div>
-          <div class="flex flex-col gap-0.5 px-1">
-            <span class="text-base-content text-sm font-semibold tabular-nums">
-              {{ actorStat?.markedCount ?? markedCountFallback }}
-            </span>
-            <span class="text-base-content/50 text-[10px]">有打点</span>
           </div>
         </div>
 
@@ -149,6 +143,31 @@
               @click="loadProfile(true)"
             >
               重试
+            </button>
+          </div>
+        </div>
+
+        <!-- 网盘标签（点击直接叠加筛选） -->
+        <div v-if="actorDriveLabels.length > 0" class="flex flex-col gap-2">
+          <span class="text-base-content/50 text-[11px] font-medium">网盘标签</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="tag in actorDriveLabels"
+              :key="tag.id"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] transition-colors"
+              :class="store.filter.driveLabel === tag.id
+                ? 'bg-primary text-primary-content font-medium'
+                : 'bg-base-content/8 text-base-content/75 hover:bg-primary/20 hover:text-primary'"
+              @click="store.selectDriveLabel(tag.id)"
+            >
+              <span
+                class="size-2 shrink-0 rounded-full"
+                :class="!tag.color || tag.color === LabelColor.Blank ? 'border-current/40 border' : ''"
+                :style="tag.color && tag.color !== LabelColor.Blank ? { backgroundColor: tag.color } : undefined"
+              />
+              <span class="max-w-28 truncate">{{ tag.name }}</span>
+              <span class="tabular-nums opacity-65">{{ tag.count }}</span>
             </button>
           </div>
         </div>
@@ -190,19 +209,25 @@
 
 <script setup lang="ts">
 import type { ActorProfile } from '@/utils/mediaIndex'
+import { Api } from '@115master/drive115'
 import { Button } from '@115master/ui'
 import { format } from '@115master/utils'
 import { computed, onUnmounted, shallowRef, watch } from 'vue'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { useTagStore } from '@/store/tagList'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { fetchActorProfile } from '@/utils/mediaIndex'
+import { resolveDriveLabelName } from './tagRail'
 
 const props = defineProps<{
   actorName: string
 }>()
 
+const { LabelColor } = Api.TagApi.Req
+
 const store = useMediaLibraryStore()
+const tagStore = useTagStore()
 const profile = shallowRef<ActorProfile | null>(null)
 const loading = shallowRef(false)
 const avatarFailed = shallowRef(false)
@@ -234,9 +259,32 @@ const totalSizeFallback = computed(() =>
   actorEntries.value.reduce((sum, entry) => sum + entry.totalSize, 0),
 )
 
-const markedCountFallback = computed(() =>
-  actorEntries.value.filter(entry => entry.markerCount > 0).length,
-)
+const actorDriveLabels = computed(() => {
+  const map = new Map<string, { id: string, name: string, color?: string, count: number }>()
+  for (const entry of actorEntries.value) {
+    const seenInEntry = new Set<string>()
+    for (const label of entry.driveLabels) {
+      if (seenInEntry.has(label.id))
+        continue
+      seenInEntry.add(label.id)
+
+      const existing = map.get(label.id)
+      if (existing) {
+        existing.count += 1
+        continue
+      }
+
+      const driveTag = tagStore.tags.find(tag => tag.id === label.id)
+      map.set(label.id, {
+        id: label.id,
+        name: resolveDriveLabelName(label.id, tagStore.tags, store.libraryIndex.driveLabels),
+        color: driveTag?.color || label.color,
+        count: 1,
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))
+})
 
 const activeYearRange = computed(() => {
   const years = actorEntries.value

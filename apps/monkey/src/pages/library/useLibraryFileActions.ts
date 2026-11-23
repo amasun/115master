@@ -1,8 +1,9 @@
 import type { Share } from '@115master/drive115'
 import type { ActionMenuGroup } from '@115master/ui'
 import type { IndexedVideoLabel, LibraryFileItem } from '@/utils/mediaIndex'
+import { h, ref } from 'vue'
+import { useAppDialog } from '@/app/dialog'
 import { useToast } from '@/components'
-import { useDeleteAction } from '@/hooks/useDriveAction/useDeleteAction'
 import { useEd2kAction } from '@/hooks/useDriveAction/useEd2kAction'
 import { useFileAction } from '@/hooks/useDriveAction/useFileAction'
 import { useMoveAction } from '@/hooks/useDriveAction/useMoveAction'
@@ -11,6 +12,7 @@ import { I } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
 import { actionIcon } from '@/utils/action'
+import { safeDeleteFiles } from '@/utils/mediaIndex'
 
 /** 将影视库文件项映射为 useDriveAction 兼容的最小文件结构 */
 function toDriveFileItem(file: LibraryFileItem): Share.Entity.FileItem {
@@ -51,12 +53,12 @@ export interface LibraryFileActionHooks {
 export function useLibraryFileActions() {
   const store = useMediaLibraryStore()
   const tagStore = useTagStore()
+  const dialog = useAppDialog()
   const toast = useToast()
   const fileAction = useFileAction()
   const tagAction = useTagAction()
   const ed2kAction = useEd2kAction()
   const moveAction = useMoveAction()
-  const deleteAction = useDeleteAction()
 
   async function toggleStar(file: LibraryFileItem): Promise<boolean> {
     const ok = await fileAction.starBatch([toDriveFileItem(file)])
@@ -111,11 +113,52 @@ export function useLibraryFileActions() {
   }
 
   async function deleteFile(file: LibraryFileItem, hooks?: LibraryFileActionHooks): Promise<boolean> {
-    const ok = await deleteAction.deleteBatch(file.cid || '0', [toDriveFileItem(file)])
-    if (!ok)
+    const deleteEmptyParent = ref(false)
+    const confirmed = await dialog.create({
+      title: '删除文件',
+      confirmText: '移入回收站',
+      cancelText: '取消',
+      content: () => h('div', { class: 'flex flex-col gap-3 py-1 text-sm' }, [
+        h('p', { class: 'text-base-content/85 leading-relaxed' }, [
+          '确定将 ',
+          h('strong', { class: 'text-base-content font-semibold break-all' }, file.name),
+          ' 移入 115 回收站吗？',
+        ]),
+        h('label', { class: 'flex cursor-pointer items-start gap-2 rounded-xl bg-base-200/70 px-3 py-2 text-xs text-base-content/80' }, [
+          h('input', {
+            type: 'checkbox',
+            class: 'checkbox checkbox-xs checkbox-primary mt-0.5',
+            checked: deleteEmptyParent.value,
+            onChange: (event: Event) => {
+              deleteEmptyParent.value = (event.target as HTMLInputElement).checked
+            },
+          }),
+          h('span', { class: 'leading-relaxed' }, '若父级目录内无其他作品与子目录，同时移入回收站（自动跳过根目录、云下载等受保护目录）'),
+        ]),
+      ]),
+    })
+    if (!confirmed)
       return false
-    await store.applyFileDelete(file.fid)
-    toast.success('已删除文件')
+
+    const result = await safeDeleteFiles([file], {
+      deleteEmptyParent: deleteEmptyParent.value,
+      allIndexedVideos: store.videos,
+    })
+
+    if (result.deletedFileIds.length === 0) {
+      toast.error('删除文件失败，请稍后重试')
+      return false
+    }
+
+    await store.applyFilesDelete(result.deletedFileIds)
+
+    if (result.deletedFolders.length > 0)
+      toast.success('已移入回收站，并安全清理空/独立父目录')
+    else if (deleteEmptyParent.value && result.skippedFolders.length > 0)
+      toast.info(`已删除文件；父目录未删除（${result.skippedFolders[0].reason}）`)
+    else
+      toast.success('已移入回收站')
+
     hooks?.onDeleted?.(file)
     return true
   }

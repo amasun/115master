@@ -326,34 +326,103 @@
 
         <!-- 版本与网盘文件列表 -->
         <section class="flex flex-col gap-3">
-          <h2 class="text-base-content text-base font-semibold">
-            网盘文件版本 ({{ entry.files.length }})
-          </h2>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-base-content text-base font-semibold">
+                网盘文件版本 ({{ entry.files.length }})
+              </h2>
+              <template v-if="entry.files.length > 1">
+                <span
+                  v-if="hasExactSha1Duplicate"
+                  class="badge badge-error badge-soft badge-xs rounded-full"
+                >
+                  SHA1 重复
+                </span>
+                <span
+                  v-else
+                  class="badge badge-warning badge-soft badge-xs rounded-full"
+                >
+                  多源版本
+                </span>
+                <span
+                  v-if="isDetailMultiPart"
+                  class="badge badge-warning badge-outline badge-xs rounded-full"
+                >
+                  疑似分段 (CD1/CD2)
+                </span>
+              </template>
+            </div>
+
+            <Button
+              v-if="entry.files.length > 1"
+              size="xs"
+              :variant="dedupeMode ? 'soft' : 'ghost'"
+              :color="dedupeMode ? 'primary' : 'neutral'"
+              class="rounded-full"
+              @click="toggleDetailDedupeMode"
+            >
+              {{ dedupeMode ? '退出去重' : '去重管理' }}
+            </Button>
+          </div>
+
           <div class="flex flex-col gap-2">
             <div
               v-for="(file, index) in entry.files"
               :key="file.fid"
-              class="border-base-content/8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors"
-              :class="index === activeFileIndex
-                ? 'bg-primary/8 border-primary/35'
-                : 'bg-base-200/40 hover:bg-base-200/70'"
-              @click="activeFileIndex = index"
+              class="border-base-content/8 flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors"
+              :class="dedupeMode
+                ? (keepFileFids.has(file.fid) ? 'bg-success/8 border-success/30' : 'bg-error/10 border-error/30')
+                : (index === activeFileIndex
+                  ? 'bg-primary/8 border-primary/35'
+                  : 'bg-base-200/40 hover:bg-base-200/70')"
+              @click="dedupeMode ? toggleKeepDetailFile(file.fid) : (activeFileIndex = index)"
             >
-              <div class="flex min-w-0 flex-1 cursor-pointer flex-col gap-1">
-                <div class="flex items-center gap-2">
-                  <span
-                    v-if="entry.files.length > 1"
-                    class="badge badge-xs rounded-full"
-                    :class="index === activeFileIndex ? 'badge-primary' : 'badge-ghost'"
+              <div class="flex min-w-0 flex-1 items-center gap-3">
+                <label
+                  v-if="dedupeMode"
+                  class="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs"
+                  @click.stop
+                >
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-xs checkbox-success"
+                    :checked="keepFileFids.has(file.fid)"
+                    @change="toggleKeepDetailFile(file.fid)"
                   >
-                    版本 {{ index + 1 }}
+                  <span :class="keepFileFids.has(file.fid) ? 'text-success font-medium' : 'text-error'">
+                    {{ keepFileFids.has(file.fid) ? '保留' : '删除' }}
                   </span>
-                  <span class="truncate text-sm font-medium">{{ file.name }}</span>
-                </div>
-                <div class="text-base-content/55 flex flex-wrap items-center gap-3 text-xs">
-                  <span>{{ format.fileSize(file.size) }}</span>
-                  <span v-if="file.duration > 0">{{ formatTime(file.duration) }}</span>
-                  <span v-if="file.mtime > 0">{{ format.dateTime(file.mtime) }}</span>
+                </label>
+
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span
+                      v-if="entry.files.length > 1"
+                      class="badge badge-xs rounded-full"
+                      :class="index === activeFileIndex ? 'badge-primary' : 'badge-ghost'"
+                    >
+                      版本 {{ index + 1 }}
+                    </span>
+                    <span
+                      v-if="dedupeMode && dedupeScoreByFid.get(file.fid)?.recommendedKeep"
+                      class="badge badge-success badge-soft badge-xs rounded-full"
+                    >
+                      推荐保留
+                    </span>
+                    <span
+                      v-for="reason in (dedupeMode ? (dedupeScoreByFid.get(file.fid)?.keepReasons.slice(0, 2) ?? []) : [])"
+                      :key="reason"
+                      class="badge badge-ghost badge-xs rounded-full"
+                    >
+                      {{ reason }}
+                    </span>
+                    <span class="truncate text-sm font-medium">{{ file.name }}</span>
+                  </div>
+                  <div class="text-base-content/55 flex flex-wrap items-center gap-3 text-xs">
+                    <span>{{ format.fileSize(file.size) }}</span>
+                    <span v-if="file.duration > 0">{{ formatTime(file.duration) }}</span>
+                    <span v-if="file.mtime > 0">{{ format.dateTime(file.mtime) }}</span>
+                  </div>
                 </div>
               </div>
               <div class="flex shrink-0 items-center gap-1.5">
@@ -378,6 +447,36 @@
                   <Icon :name="I.MORE" class="text-base" />
                 </Button>
               </div>
+            </div>
+          </div>
+
+          <!-- 详情页内嵌去重操作栏 -->
+          <div
+            v-if="dedupeMode && entry.files.length > 1"
+            class="bg-base-200/55 border-base-content/8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs"
+          >
+            <label class="text-base-content/80 flex cursor-pointer items-center gap-2">
+              <input
+                v-model="dedupeDeleteEmptyParent"
+                type="checkbox"
+                class="checkbox checkbox-xs checkbox-primary"
+              >
+              <span>同时安全删除空/独立父目录（仅在目录无其他作品与子目录时生效）</span>
+            </label>
+
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/60 tabular-nums">
+                保留 {{ keepFileFids.size }} 个 · 删除 {{ detailFilesToDelete.length }} 个
+              </span>
+              <Button
+                size="sm"
+                color="error"
+                class="rounded-full"
+                :disabled="detailFilesToDelete.length === 0 || dedupeDeleting"
+                @click="executeDetailDedupe"
+              >
+                {{ dedupeDeleting ? '清理中...' : `删除未保留的 ${detailFilesToDelete.length} 个版本` }}
+              </Button>
             </div>
           </div>
         </section>
@@ -527,6 +626,8 @@ import PhotoSwipe from 'photoswipe'
 import PhotoSwipeLightbox from 'photoswipe/lightbox'
 import { computed, h, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAppDialog } from '@/app/dialog'
+import { useToast } from '@/components'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { FRIENDLY_ERROR_MESSAGE } from '@/constants'
 import { calculateVideoCoverTimes, getVideoCover } from '@/hooks/useVideoCover'
@@ -538,13 +639,22 @@ import { drive115 } from '@/utils/drive115Instance'
 import { errorFeedback } from '@/utils/errorFeedback'
 import { createGMImageFallbackLoader } from '@/utils/imageLoader'
 import { syncMarkersFromFileDesc } from '@/utils/markers'
-import { getCoverCandidates, loadCustomFullCoverUrl, loadPosterThumbUrl } from '@/utils/mediaIndex'
+import {
+  getCoverCandidates,
+  isSuspectedMultiPartGroup,
+  loadCustomFullCoverUrl,
+  loadPosterThumbUrl,
+  safeDeleteFiles,
+  scoreEntryFilesForDedupe,
+} from '@/utils/mediaIndex'
 import { userSettings, useUserSetting } from '@/utils/userSettings'
 import 'photoswipe/style.css'
 
 const route = useRoute('library-detail')
 const router = useRouter()
 const store = useMediaLibraryStore()
+const dialog = useAppDialog()
+const toast = useToast()
 const fileActions = useLibraryFileActions()
 const previewCountSetting = useUserSetting('filelistPreviewCount')
 
@@ -553,6 +663,137 @@ const entry = computed(() => store.getEntry(mediaKey.value))
 
 const activeFileIndex = shallowRef(0)
 const activeFile = computed(() => entry.value?.files[activeFileIndex.value] ?? entry.value?.files[0])
+
+/** 详情页内嵌多源去重状态 */
+const dedupeMode = shallowRef(false)
+const keepFileFids = ref(new Set<string>())
+const dedupeDeleteEmptyParent = shallowRef(false)
+const dedupeDeleting = shallowRef(false)
+
+const dedupeScoredFiles = computed(() => {
+  const files = entry.value?.files ?? []
+  if (files.length <= 1)
+    return []
+  const markerMap = new Map<string, number>()
+  for (const f of files) {
+    const doc = store.markerDocs[f.pickCode]
+    const count = doc?.markers?.filter(m => !m.deleted).length ?? 0
+    if (count > 0)
+      markerMap.set(f.pickCode, count)
+  }
+  return scoreEntryFilesForDedupe(files, markerMap)
+})
+
+const dedupeScoreByFid = computed(() => {
+  const map = new Map<string, (typeof dedupeScoredFiles.value)[number]>()
+  for (const item of dedupeScoredFiles.value)
+    map.set(item.file.fid, item)
+  return map
+})
+
+const hasExactSha1Duplicate = computed(() => {
+  const seen = new Set<string>()
+  for (const file of entry.value?.files ?? []) {
+    const sha1 = file.sha1?.trim().toUpperCase()
+    if (!sha1)
+      continue
+    if (seen.has(sha1))
+      return true
+    seen.add(sha1)
+  }
+  return false
+})
+
+const isDetailMultiPart = computed(() => {
+  const files = entry.value?.files ?? []
+  return files.length > 1 && isSuspectedMultiPartGroup(files.map(f => f.name))
+})
+
+const detailFilesToDelete = computed(() =>
+  (entry.value?.files ?? []).filter(file => !keepFileFids.value.has(file.fid)),
+)
+
+function toggleDetailDedupeMode() {
+  dedupeMode.value = !dedupeMode.value
+  if (!dedupeMode.value)
+    return
+  const files = entry.value?.files ?? []
+  if (isDetailMultiPart.value) {
+    keepFileFids.value = new Set(files.map(f => f.fid))
+    return
+  }
+  const recommended = dedupeScoredFiles.value.find(item => item.recommendedKeep)?.file ?? files[0]
+  keepFileFids.value = recommended ? new Set([recommended.fid]) : new Set()
+}
+
+function toggleKeepDetailFile(fid: string) {
+  const next = new Set(keepFileFids.value)
+  if (next.has(fid))
+    next.delete(fid)
+  else
+    next.add(fid)
+  keepFileFids.value = next
+}
+
+async function executeDetailDedupe() {
+  const targets = detailFilesToDelete.value
+  if (targets.length === 0 || dedupeDeleting.value)
+    return
+
+  if (keepFileFids.value.size === 0) {
+    const warnConfirmed = await dialog.confirm({
+      title: '危险操作确认',
+      content: '您当前未保留任何版本，继续操作将删除该作品的全部网盘文件！确定继续吗？',
+      confirmText: '仍然删除全部',
+      cancelText: '返回调整',
+    })
+    if (!warnConfirmed)
+      return
+  }
+  else {
+    const confirmed = await dialog.confirm({
+      title: '确认清理冗余版本',
+      content: dedupeDeleteEmptyParent.value
+        ? `将移入回收站 ${targets.length} 个未保留版本，并尝试安全清理空/独立父目录，确定继续吗？`
+        : `确定将 ${targets.length} 个未保留版本移入 115 回收站吗？`,
+      confirmText: '移入回收站',
+      cancelText: '取消',
+    })
+    if (!confirmed)
+      return
+  }
+
+  dedupeDeleting.value = true
+  try {
+    const res = await safeDeleteFiles(targets, {
+      deleteEmptyParent: dedupeDeleteEmptyParent.value,
+      allIndexedVideos: store.videos,
+    })
+    if (res.deletedFileIds.length > 0) {
+      await store.applyFilesDelete(res.deletedFileIds)
+      activeFileIndex.value = 0
+      dedupeMode.value = false
+      if (!store.getEntry(mediaKey.value)) {
+        toast.success('已清理全部选中版本，返回影视库')
+        void router.push({ name: 'library' })
+        return
+      }
+    }
+
+    const parts = [`已将 ${res.deletedFileIds.length} 个版本移入回收站`]
+    if (res.deletedFolders.length > 0)
+      parts.push(`安全清理 ${res.deletedFolders.length} 个父目录`)
+    if (res.skippedFolders.length > 0)
+      parts.push(`保留 ${res.skippedFolders.length} 个非空或受保护父目录`)
+    if (res.deletedFileIds.length > 0)
+      toast.success(parts.join('，'))
+    else
+      toast.error('清理失败，未成功删除文件')
+  }
+  finally {
+    dedupeDeleting.value = false
+  }
+}
 const fileMenuTarget = shallowRef<LibraryFileItem | undefined>(undefined)
 const fileMenuOpen = shallowRef(false)
 const fileMenuPosition = shallowRef({ x: 0, y: 0 })

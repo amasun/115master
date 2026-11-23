@@ -55,7 +55,7 @@
             <Icon :name="I.PEOPLE" :filled="isActorsActive" class="text-lg" />
             <span>演员</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.libraryIndex.actors.length }}</span>
+          <span class="text-base-content/45 text-xs tabular-nums">{{ visibleActorCount }}</span>
         </button>
       </li>
       <li>
@@ -132,6 +132,27 @@
               class="text-base-content/45 text-xs transition-transform duration-200"
               :class="store.tagRailOpen && 'rotate-180'"
             />
+          </span>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          :class="isCleanupActive
+            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
+            : 'hover:bg-base-content/5 text-base-content/75'"
+          @click="openCleanupPage"
+        >
+          <span class="flex items-center gap-2.5">
+            <Icon :name="I.DELETE" :filled="isCleanupActive" class="text-lg" />
+            <span>去重与清理</span>
+          </span>
+          <span
+            v-if="duplicateGroupCount > 0"
+            class="text-base-content/45 text-xs tabular-nums"
+          >
+            {{ duplicateGroupCount }}
           </span>
         </button>
       </li>
@@ -252,6 +273,7 @@ import { I, Icon } from '@/icons'
 import { useDriveSpaceInfoStore } from '@/store/driveSpaceInfo'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
+import { analyzeDuplicateGroups } from '@/utils/mediaIndex'
 
 const route = useRoute()
 const router = useRouter()
@@ -268,6 +290,13 @@ const spacePercent = computed(() => {
 
 const isWallRoute = computed(() => route.name === 'library')
 const isActorsActive = computed(() => route.name === 'library-actors')
+const isCleanupActive = computed(() => route.name === 'library-cleanup')
+const visibleActorCount = computed(() =>
+  store.libraryIndex.actorStats.filter(actor => !store.isActorHidden(actor.key)).length,
+)
+const duplicateGroupCount = computed(() =>
+  analyzeDuplicateGroups(store.videos, store.entries, store.markerDocs).length,
+)
 const isTagsActive = computed(() =>
   store.tagRailOpen || route.name === 'library-tags' || Boolean(store.filter.driveLabel),
 )
@@ -304,6 +333,11 @@ function selectView(view: LibraryView) {
 function openActorsWall() {
   if (route.name !== 'library-actors')
     void router.push({ name: 'library-actors' })
+}
+
+function openCleanupPage() {
+  if (route.name !== 'library-cleanup')
+    void router.push({ name: 'library-cleanup' })
 }
 
 function toggleTagRail() {

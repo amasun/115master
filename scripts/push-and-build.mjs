@@ -4,12 +4,62 @@ import { resolve } from 'node:path'
 import process from 'node:process'
 
 const root = process.cwd()
-const args = process.argv.slice(2)
-const allowDirty = args.includes('--allow-dirty')
-const noRebase = args.includes('--no-rebase')
-const release = args.includes('--release')
-const pushArgs = args.filter(arg => arg !== '--allow-dirty' && arg !== '--no-rebase' && arg !== '--release')
-const isForcePush = pushArgs.some(arg => arg === '-f' || arg === '--force' || arg.startsWith('--force-with-lease'))
+const rawArgs = process.argv.slice(2)
+
+function parseArgs(argv) {
+  let allowDirty = false
+  let noRebase = false
+  let release = false
+  let autoCommit = false
+  let commitMessage = ''
+  let onlyBranch = ''
+  const pushArgs = []
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    if (arg === '--allow-dirty') {
+      allowDirty = true
+    }
+    else if (arg === '--no-rebase') {
+      noRebase = true
+    }
+    else if (arg === '--release') {
+      release = true
+    }
+    else if (arg === '--commit' || arg === '-c') {
+      autoCommit = true
+    }
+    else if (arg === '-m' || arg === '--message') {
+      autoCommit = true
+      commitMessage = argv[i + 1] ?? ''
+      i += 1
+    }
+    else if (arg.startsWith('--message=')) {
+      autoCommit = true
+      commitMessage = arg.slice('--message='.length)
+    }
+    else if (arg === '--only-branch') {
+      onlyBranch = argv[i + 1] ?? ''
+      i += 1
+    }
+    else if (arg.startsWith('--only-branch=')) {
+      onlyBranch = arg.slice('--only-branch='.length)
+    }
+    else {
+      pushArgs.push(arg)
+    }
+  }
+
+  const isForcePush = pushArgs.some(arg => arg === '-f' || arg === '--force' || arg.startsWith('--force-with-lease'))
+  return { allowDirty, noRebase, release, autoCommit, commitMessage, onlyBranch, pushArgs, isForcePush }
+}
+
+function defaultCommitMessage() {
+  const now = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+  return `chore: update (${stamp})`
+}
 
 function run(command, argv) {
   return spawnSync(command, argv, {
@@ -33,6 +83,8 @@ function formatSize(bytes) {
 }
 
 function main() {
+  const opts = parseArgs(rawArgs)
+
   const branchResult = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
   if (branchResult.status !== 0)
     fail('无法获取当前 Git 分支', branchResult)
@@ -41,16 +93,34 @@ function main() {
   if (!branch || branch === 'HEAD')
     fail('当前处于 detached HEAD 状态，请先切换到目标分支')
 
-  if (!allowDirty) {
-    const status = run('git', ['status', '--porcelain'])
-    if (status.status !== 0)
-      fail('无法检查 Git 工作区状态', status)
-    if (status.stdout.trim())
-      fail('工作区存在未提交改动，请先提交（或传入 --allow-dirty）', status)
+  if (opts.onlyBranch && branch !== opts.onlyBranch)
+    fail(`当前分支为 ${branch}，仅允许在 ${opts.onlyBranch} 分支执行此操作`)
+
+  const status = run('git', ['status', '--porcelain'])
+  if (status.status !== 0)
+    fail('无法检查 Git 工作区状态', status)
+
+  const hasChanges = Boolean(status.stdout.trim())
+  let committedMessage = ''
+
+  if (hasChanges) {
+    if (opts.autoCommit) {
+      const addResult = run('git', ['add', '-A'])
+      if (addResult.status !== 0)
+        fail('暂存工作区改动（git add -A）失败', addResult)
+
+      committedMessage = opts.commitMessage.trim() || defaultCommitMessage()
+      const commitResult = run('git', ['commit', '-m', committedMessage])
+      if (commitResult.status !== 0)
+        fail('提交改动（git commit）失败', commitResult)
+    }
+    else if (!opts.allowDirty) {
+      fail('工作区存在未提交改动，请先提交（或传入 --commit / --allow-dirty）', status)
+    }
   }
 
   const upstream = run('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
-  if (upstream.status === 0 && !noRebase && !isForcePush) {
+  if (upstream.status === 0 && !opts.noRebase && !opts.isForcePush) {
     const pull = run('git', ['pull', '--rebase', '--autostash'])
     if (pull.status !== 0)
       fail('同步远端提交（git pull --rebase）失败，请解决冲突后重试（或传入 --no-rebase）', pull)
@@ -78,8 +148,8 @@ function main() {
   })
 
   const gitPushArgs = upstream.status === 0
-    ? ['push', ...pushArgs]
-    : ['push', '-u', 'origin', branch, ...pushArgs]
+    ? ['push', ...opts.pushArgs]
+    : ['push', '-u', 'origin', branch, ...opts.pushArgs]
   const push = run('git', gitPushArgs)
   if (push.status !== 0)
     fail(`推送分支 ${branch} 失败`, push)
@@ -88,11 +158,12 @@ function main() {
   const summary = [
     `✅ 推送与 userscript 构建完成`,
     `   branch : ${branch} (${head})`,
+    ...(committedMessage ? [`   commit : ${committedMessage}`] : []),
     `   version: v${pkg.version}`,
     ...artifacts.map(item => `   output : ${item.file} (${formatSize(item.size)})`),
   ]
 
-  if (release) {
+  if (opts.release) {
     const wf = run('gh', ['workflow', 'run', 'release.yml', '--ref', branch])
     if (wf.status !== 0)
       fail('触发 Release 工作流失败', wf)

@@ -321,7 +321,7 @@ const Tags = defineComponent({
       <div class="relative flex min-h-screen flex-1 flex-col">
         <ListHeader />
         <ListArea />
-        <div class="ui-z-elevated pointer-events-none fixed right-0 bottom-16 left-(--sider-width) flex items-center justify-center">
+        <div class="ui-z-elevated pointer-events-none fixed right-0 bottom-16 left-[calc(var(--sider-width)+var(--rail2-width,0px))] flex items-center justify-center">
           <FloatingDock contentKey={multi.selectMode.value && store.selectedCount > 0 ? 'actions' : null}>
             <ActionBar embedded groups={batchActions.value} />
           </FloatingDock>
