@@ -114,6 +114,7 @@
         type="button"
         class="group bg-base-200/45 border-base-content/8 hover:border-primary/45 hover:bg-base-200/75 flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200"
         @click="openActorWorks(actor.name)"
+        @contextmenu.prevent="openActorMenu($event, actor)"
       >
         <div class="bg-base-300/60 relative aspect-[3/4] w-full shrink-0 overflow-hidden">
           <img
@@ -164,18 +165,29 @@
         </div>
       </button>
     </div>
+
+    <ActionMenu
+      aria-label="演员操作"
+      :groups="actorMenuGroups"
+      :open="menuOpen"
+      :position="menuPosition"
+      @update:open="menuOpen = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { ActionMenuGroup } from '@115master/ui'
 import type { ActorFacetStat } from '@/utils/mediaIndex'
-import { Button, Empty } from '@115master/ui'
+import { ActionMenu, Button, Empty } from '@115master/ui'
 import { format } from '@115master/utils'
 import { useStorage, useTitle } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { actionIcon } from '@/utils/action'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 
 useTitle('演员 · 影视库 · 115Master Fusion')
@@ -190,14 +202,81 @@ const sortOptions: Array<{ value: ActorSortBy, label: string }> = [
 
 const router = useRouter()
 const store = useMediaLibraryStore()
+const toast = useToast()
 const sortBy = useStorage<ActorSortBy>('115Master_library_actors_sort', 'count')
 const showFemale = useStorage<boolean>('115Master_library_actors_female', true)
 const showMale = useStorage<boolean>('115Master_library_actors_male', false)
+const genderOverrides = useStorage<Record<string, 0 | 1>>('115Master_library_actor_gender_overrides', {})
 const failedAvatars = ref(new Set<string>())
 
+const menuTarget = shallowRef<ActorFacetStat | undefined>(undefined)
+const menuOpen = shallowRef(false)
+const menuPosition = shallowRef({ x: 0, y: 0 })
+
 function isMaleActor(actor: ActorFacetStat): boolean {
+  const override = genderOverrides.value[actor.key]
+  if (override !== undefined)
+    return override === 0
   return actor.sex === 0 && !store.actorAvatars[actor.name]
 }
+
+function setActorGender(actor: ActorFacetStat, sex: 0 | 1) {
+  genderOverrides.value = {
+    ...genderOverrides.value,
+    [actor.key]: sex,
+  }
+  toast.success(sex === 0 ? `已将「${actor.name}」标记为男演员` : `已将「${actor.name}」标记为女演员`)
+}
+
+function resetActorGender(actor: ActorFacetStat) {
+  if (genderOverrides.value[actor.key] === undefined)
+    return
+  const next = { ...genderOverrides.value }
+  delete next[actor.key]
+  genderOverrides.value = next
+  toast.success(`已恢复「${actor.name}」的自动性别判定`)
+}
+
+function openActorMenu(event: MouseEvent, actor: ActorFacetStat) {
+  menuTarget.value = actor
+  menuPosition.value = { x: event.clientX, y: event.clientY }
+  menuOpen.value = true
+}
+
+const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
+  const target = menuTarget.value
+  if (!target)
+    return []
+  const male = isMaleActor(target)
+  const hasOverride = genderOverrides.value[target.key] !== undefined
+
+  return [
+    [
+      {
+        id: 'open-works',
+        label: '查看名下作品',
+        leading: actionIcon(I.LIBRARY),
+        onSelect: () => openActorWorks(target.name),
+      },
+    ],
+    [
+      {
+        id: 'mark-gender',
+        label: male ? '标记为女演员' : '标记为男演员',
+        leading: actionIcon(I.PEOPLE),
+        onSelect: () => setActorGender(target, male ? 1 : 0),
+      },
+      ...(hasOverride
+        ? [{
+            id: 'reset-gender',
+            label: '恢复自动判定',
+            leading: actionIcon(I.RESTART),
+            onSelect: () => resetActorGender(target),
+          }]
+        : []),
+    ],
+  ]
+})
 
 function toggleFemale() {
   if (showFemale.value && !showMale.value) {
