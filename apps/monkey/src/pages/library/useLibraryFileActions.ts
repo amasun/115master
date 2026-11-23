@@ -13,6 +13,7 @@ import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
 import { actionIcon } from '@/utils/action'
 import { safeDeleteFiles } from '@/utils/mediaIndex'
+import { buildNativeFolderUrl } from '@/utils/userSettings'
 
 /** 将影视库文件项映射为 useDriveAction 兼容的最小文件结构 */
 function toDriveFileItem(file: LibraryFileItem): Share.Entity.FileItem {
@@ -40,7 +41,7 @@ function toDriveFileItem(file: LibraryFileItem): Share.Entity.FileItem {
 
 /** 在新标签页打开原生 115 对应目录 */
 export function openNativeFolder(cid: string) {
-  const url = `https://115.com/?cid=${encodeURIComponent(cid || '0')}&offset=0&mode=wangpan`
+  const url = buildNativeFolderUrl(cid)
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 

@@ -25,7 +25,7 @@
         <ul>
           <li v-for="item in path" :key="item.cid">
             <a
-              :href="`https://115.com/?cid=${item.cid}&offset=0&tab=&mode=wangpan`"
+              :href="buildNativeFolderUrl(item.cid, nativeFolderTarget)"
               target="_blank"
               rel="noreferrer"
             >
@@ -47,6 +47,7 @@ import { format } from '@115master/utils'
 import { computed } from 'vue'
 import { I, Icon } from '@/icons'
 import { clsx } from '@/utils/clsx'
+import { buildNativeFolderUrl, useUserSetting } from '@/utils/userSettings'
 
 const props = defineProps<{
   /** 播放器上下文 */
@@ -60,6 +61,8 @@ const props = defineProps<{
 defineSlots<{
   default?: () => void
 }>()
+
+const nativeFolderTarget = useUserSetting('nativeFolderTarget')
 
 const styles = clsx({
   /** 容器样式 */

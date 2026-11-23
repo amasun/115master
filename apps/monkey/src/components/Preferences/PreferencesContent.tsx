@@ -160,6 +160,7 @@ const PreferencesContent = defineComponent({
     const actressFaces = useUserSetting('enableActressFaces')
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
     const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
+    const nativeFolderTarget = useUserSetting('nativeFolderTarget')
 
     const layoutOption = (compact: boolean, label: string, text: string) => {
       const active = compactAvInfo.value === compact
@@ -297,19 +298,35 @@ const PreferencesContent = defineComponent({
           </Card>
 
           <Card title="文件列表" hint="作用于 Fusion 界面的文件列表" icon={I.LIST}>
-            <label class="flex items-center justify-between gap-2.5" for="drive-list-load-mode">
-              <span class="text-base-content text-sm font-medium">加载方式</span>
-              <select
-                id="drive-list-load-mode"
-                aria-label="文件列表加载方式"
-                class="select select-bordered select-sm bg-base-100/80 w-32 rounded-xl"
-                value={mode.value}
-                onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
-              >
-                <option value="pagination">分页加载</option>
-                <option value="infinite">滚动无限加载</option>
-              </select>
-            </label>
+            <div class="flex flex-col gap-2.5">
+              <label class="flex items-center justify-between gap-2.5" for="drive-list-load-mode">
+                <span class="text-base-content text-sm font-medium">加载方式</span>
+                <select
+                  id="drive-list-load-mode"
+                  aria-label="文件列表加载方式"
+                  class="select select-bordered select-sm bg-base-100/80 w-32 rounded-xl"
+                  value={mode.value}
+                  onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
+                >
+                  <option value="pagination">分页加载</option>
+                  <option value="infinite">滚动无限加载</option>
+                </select>
+              </label>
+
+              <label class="flex items-center justify-between gap-2.5" for="native-folder-target">
+                <span class="text-base-content text-sm font-medium">目录跳转</span>
+                <select
+                  id="native-folder-target"
+                  aria-label="原生 115 目录跳转版本"
+                  class="select select-bordered select-sm bg-base-100/80 w-32 rounded-xl"
+                  value={nativeFolderTarget.value}
+                  onChange={event => nativeFolderTarget.value = (event.target as HTMLSelectElement).value as typeof nativeFolderTarget.value}
+                >
+                  <option value="new">新版 115</option>
+                  <option value="legacy">旧版 115</option>
+                </select>
+              </label>
+            </div>
           </Card>
 
           <Card

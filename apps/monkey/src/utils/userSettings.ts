@@ -4,6 +4,9 @@ import { GM_getValue, GM_setValue } from '$'
 import { effectScope, shallowRef, watch } from 'vue'
 import { appLogger } from './logger'
 
+/** 原生 115 目录跳转目标版本 */
+export type NativeFolderTarget = 'new' | 'legacy'
+
 /** 用户设置接口 */
 export interface Settings {
   /** 启动文件列表预览 */
@@ -20,6 +23,8 @@ export interface Settings {
   enablePlayerMovieInfo: boolean
   /** 将播放打点同步到 115 原生文件备注 */
   syncMarkersToFileDesc: boolean
+  /** 原生 115 目录跳转目标（新版 / 旧版） */
+  nativeFolderTarget: NativeFolderTarget
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
 }
@@ -35,6 +40,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableActressFaces: true,
   enablePlayerMovieInfo: true,
   syncMarkersToFileDesc: true,
+  nativeFolderTarget: 'new',
   theme: 'system',
 }
 
@@ -167,4 +173,15 @@ export function useUserSetting<K extends UserSettingKey>(key: K): ShallowRef<Set
 
   logger.info('共享用户设置状态创建完成', key)
   return state
+}
+
+/** 根据用户设置构造原生 115 目录跳转链接 */
+export function buildNativeFolderUrl(
+  cid: string,
+  target: NativeFolderTarget = userSettings.value.nativeFolderTarget,
+): string {
+  const encodedCid = encodeURIComponent(cid || '0')
+  return target === 'legacy'
+    ? `https://115.com/?cid=${encodedCid}&offset=0&mode=wangpan`
+    : `https://115.com/storage/allfiles?cid=${encodedCid}`
 }
