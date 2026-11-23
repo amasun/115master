@@ -97,7 +97,7 @@ export function encodeMarkersIntoDesc(
   return { desc: combined, truncated: false }
 }
 
-/** 读取 115 原生文件备注中的打点，并与本地 markerStore 合并 */
+/** 读取 115 原生文件备注中的打点并与本地 markerStore 双向合并；若云端缺少本地历史打点则自动补写 */
 export async function syncMarkersFromFileDesc(
   fileId: string,
   meta: CreateDocMeta,
@@ -111,30 +111,47 @@ export async function syncMarkersFromFileDesc(
       return null
     const rawDesc = String(res.desc ?? res.file_desc ?? '')
     const remoteDoc = decodeMarkersFromDesc(rawDesc, { ...meta, fileId })
-    if (!remoteDoc || remoteDoc.markers.length === 0)
-      return null
-
     const localDoc = await markerStore.getDoc(meta.pickCode)
+
+    const pushIfDiff = async (doc: MarkerDoc) => {
+      const encoded = encodeMarkersIntoDesc(rawDesc, doc)
+      if (encoded.truncated || encoded.desc === rawDesc)
+        return
+      await drive115.file.setFileDesc({
+        file_id: fileId,
+        file_desc: encoded.desc,
+      })
+    }
+
+    /** 云端无打点块：若本地已有历史打点，自动补写到 115 文件备注 */
+    if (!remoteDoc || remoteDoc.markers.length === 0) {
+      if (localDoc && visibleMarkers(localDoc).length > 0)
+        await pushIfDiff(localDoc)
+      return localDoc
+    }
+
+    /** 本地无打点：直接从云端恢复到本地 */
     if (!localDoc) {
       await markerStore.saveDoc(remoteDoc)
       return remoteDoc
     }
 
-    /** 按时间去重合并：保留本地已有时间点，仅补充云端新增的时间点 */
+    /** 按时间去重合并：保留本地已有时间点，补充云端新增的时间点，并顺手补写云端缺失点 */
     const localTimes = new Set(
       visibleMarkers(localDoc).map(marker => Math.round(marker.time * 10)),
     )
     const missingRemote = remoteDoc.markers.filter(
       marker => !localTimes.has(Math.round(marker.time * 10)),
     )
-    if (missingRemote.length === 0)
-      return localDoc
+    const finalDoc = missingRemote.length > 0
+      ? (mergeDocs(localDoc, { ...remoteDoc, markers: missingRemote }) ?? localDoc)
+      : localDoc
 
-    const merged = mergeDocs(localDoc, { ...remoteDoc, markers: missingRemote })
-    if (!merged)
-      return localDoc
-    await markerStore.saveDoc(merged)
-    return merged
+    if (finalDoc !== localDoc)
+      await markerStore.saveDoc(finalDoc)
+
+    await pushIfDiff(finalDoc)
+    return finalDoc
   }
   catch (error) {
     logger.warn('读取 115 文件备注打点失败，使用本地数据', fileId, error)

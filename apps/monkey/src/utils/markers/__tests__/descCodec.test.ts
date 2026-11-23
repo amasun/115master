@@ -1,5 +1,5 @@
 import type { MarkerDoc } from '../types'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   decodeMarkersFromDesc,
   encodeMarkersIntoDesc,
@@ -65,5 +65,37 @@ describe('markers descCodec', () => {
     const encoded = encodeMarkersIntoDesc(original, doc, 110)
     expect(encoded.truncated).toBe(true)
     expect(encoded.desc).toBe(original)
+  })
+})
+
+describe('syncMarkersFromFileDesc 自动补写', () => {
+  it('云端备注为空且本地已有历史打点时，打开自动补写到 115 备注', async () => {
+    const getFileDesc = vi.fn().mockResolvedValue({ state: true, desc: '原有手写备注' })
+    const setFileDesc = vi.fn().mockResolvedValue({ state: true })
+    const localDoc = makeDoc([
+      { id: '1', time: 42, label: '旧打点', createdAt: 1, updatedAt: 1 },
+    ])
+
+    vi.doMock('@/utils/drive115Instance', () => ({
+      drive115: { file: { getFileDesc, setFileDesc } },
+    }))
+    vi.doMock('@/utils/cache/markerStore', () => ({
+      markerStore: {
+        getDoc: vi.fn().mockResolvedValue(localDoc),
+        saveDoc: vi.fn(),
+      },
+    }))
+
+    vi.resetModules()
+    const { syncMarkersFromFileDesc } = await import('../descCodec')
+    const result = await syncMarkersFromFileDesc('f001', { pickCode: 'pc001', fileId: 'f001' })
+
+    expect(result).toEqual(localDoc)
+    expect(setFileDesc).toHaveBeenCalledTimes(1)
+    expect(setFileDesc.mock.calls[0]?.[0]).toMatchObject({
+      file_id: 'f001',
+    })
+    expect(setFileDesc.mock.calls[0]?.[0]?.file_desc).toContain('原有手写备注')
+    expect(setFileDesc.mock.calls[0]?.[0]?.file_desc).toContain('42|旧打点')
   })
 })
