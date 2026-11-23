@@ -95,4 +95,18 @@ describe('parseJavBusActorProfile', () => {
       </div>
     `, 'a', 'A')).toBeNull()
   })
+
+  it('剥离 JavBus .pb10 内嵌套的「有碼」按钮与角标文本', () => {
+    const html = `
+      <div class="avatar-box">
+        <div class="photo-frame"><img src="/pics/actress/abc_a.jpg"></div>
+        <div class="photo-info">
+          <span class="pb10">三上悠亜 <button class="btn btn-xs btn-primary">有碼</button></span>
+          <p>身高: 159cm</p>
+        </div>
+      </div>
+    `
+    const profile = parseJavBusActorProfile(html, '三上悠亚', '三上悠亚有码', undefined, 1700000000002)
+    expect(profile?.name).toBe('三上悠亜')
+  })
 })

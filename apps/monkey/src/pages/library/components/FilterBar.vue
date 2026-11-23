@@ -1,11 +1,10 @@
 <template>
   <div
-    v-if="visible || activeChips.length > 0"
+    v-if="visible"
     class="px-(--main-content-gutter) pb-3"
   >
     <div
-      v-if="visible"
-      class="ui-glass-surface mb-2 flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
+      class="ui-glass-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
     >
       <!-- 题材 -->
       <label class="flex items-center gap-1.5">
@@ -132,49 +131,19 @@
         </select>
       </label>
     </div>
-
-    <!-- 已选筛选条件胶囊条 -->
-    <div v-if="activeChips.length > 0" class="flex flex-wrap items-center gap-1.5">
-      <span
-        v-for="chip in activeChips"
-        :key="chip.key"
-        class="badge badge-neutral badge-soft badge-sm gap-1 rounded-full pr-1.5 pl-2.5"
-      >
-        <span>{{ chip.label }}</span>
-        <button
-          type="button"
-          class="hover:text-base-content text-base-content/55"
-          :aria-label="`移除${chip.label}`"
-          @click="chip.clear()"
-        >
-          <Icon :name="I.CLOSE" class="text-xs" />
-        </button>
-      </span>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content rounded-full"
-        @click="store.resetFilters()"
-      >
-        全部清空
-      </button>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { LibraryScrapeFilter } from '@/utils/mediaIndex'
-import { computed } from 'vue'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
-import { useTagStore } from '@/store/tagList'
-import { resolveDriveLabelName } from './tagRail'
 
 defineProps<{
   visible: boolean
 }>()
 
 const store = useMediaLibraryStore()
-const tagStore = useTagStore()
 
 const scrapeOptions: Array<{ value: LibraryScrapeFilter, label: string }> = [
   { value: 'all', label: '全部' },
@@ -186,75 +155,4 @@ function onYearChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   store.filter.year = value ? Number(value) : undefined
 }
-
-const activeChips = computed(() => {
-  const chips: Array<{ key: string, label: string, clear: () => void }> = []
-
-  if (store.filter.keyword.trim()) {
-    chips.push({
-      key: 'keyword',
-      label: `关键词: ${store.filter.keyword.trim()}`,
-      clear: () => { store.filter.keyword = '' },
-    })
-  }
-  if (store.filter.actor) {
-    chips.push({
-      key: 'actor',
-      label: `演员: ${store.filter.actor}`,
-      clear: () => store.selectActor(undefined),
-    })
-  }
-  if (store.filter.genre) {
-    chips.push({
-      key: 'genre',
-      label: `题材: ${store.filter.genre}`,
-      clear: () => store.selectGenre(undefined),
-    })
-  }
-  if (store.filter.year !== undefined) {
-    chips.push({
-      key: 'year',
-      label: `年份: ${store.filter.year}`,
-      clear: () => { store.filter.year = undefined },
-    })
-  }
-  if (store.filter.director) {
-    chips.push({
-      key: 'director',
-      label: `导演: ${store.filter.director}`,
-      clear: () => { store.filter.director = undefined },
-    })
-  }
-  if (store.filter.driveLabel) {
-    const labelName = resolveDriveLabelName(store.filter.driveLabel, tagStore.tags, store.libraryIndex.driveLabels)
-    chips.push({
-      key: 'driveLabel',
-      label: `标签: ${labelName}`,
-      clear: () => store.selectDriveLabel(undefined),
-    })
-  }
-  if (store.filter.scrapeStatus !== 'all') {
-    chips.push({
-      key: 'scrapeStatus',
-      label: store.filter.scrapeStatus === 'scraped' ? '仅已刮削' : '仅待刮削',
-      clear: () => { store.filter.scrapeStatus = 'all' },
-    })
-  }
-  if (store.filter.onlyStarred) {
-    chips.push({
-      key: 'onlyStarred',
-      label: '仅看星标',
-      clear: () => { store.filter.onlyStarred = false },
-    })
-  }
-  if (store.filter.onlyMarked) {
-    chips.push({
-      key: 'onlyMarked',
-      label: '仅看有打点',
-      clear: () => { store.filter.onlyMarked = false },
-    })
-  }
-
-  return chips
-})
 </script>

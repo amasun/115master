@@ -1,5 +1,6 @@
 import type { JavInfo } from './jav'
 import dayjs from 'dayjs'
+import { cleanActorName } from '@/utils/actressNameMatcher'
 import { appLogger } from '@/utils/logger'
 import { isSameAvNumber, Jav, JAV_SOURCE } from './jav'
 
@@ -167,25 +168,27 @@ export class JavDB extends Jav {
     const actors
       = this.labels['演員']?.parentElement?.querySelectorAll('.value a')
     return actors?.length
-      ? Array.from(actors).map((i) => {
-          const href = i.getAttribute('href') ?? undefined
-          const url = href ? new URL(href, this.baseUrl).href : undefined
-          const file = href?.split('/').pop()
-          /** 前两位是分组 */
-          const fileGroup = file?.slice(0, 2).toLowerCase()
-          const face = `https://c0.jdbstatic.com/avatars/${fileGroup}/${file}.jpg`
-          return {
-            name: i.textContent!,
-            url,
-            face,
-            faceReferer: url || this.detailUrl,
-            sex: i.nextElementSibling?.classList.contains('female')
-              ? (1 as const)
-              : i.nextElementSibling?.classList.contains('male')
-                ? (0 as const)
-                : undefined,
-          }
-        })
+      ? Array.from(actors)
+          .map((i) => {
+            const href = i.getAttribute('href') ?? undefined
+            const url = href ? new URL(href, this.baseUrl).href : undefined
+            const file = href?.split('/').pop()
+            /** 前两位是分组 */
+            const fileGroup = file?.slice(0, 2).toLowerCase()
+            const face = `https://c0.jdbstatic.com/avatars/${fileGroup}/${file}.jpg`
+            return {
+              name: cleanActorName(i.textContent ?? ''),
+              url,
+              face,
+              faceReferer: url || this.detailUrl,
+              sex: i.nextElementSibling?.classList.contains('female')
+                ? (1 as const)
+                : i.nextElementSibling?.classList.contains('male')
+                  ? (0 as const)
+                  : undefined,
+            }
+          })
+          .filter(actor => Boolean(actor.name))
       : undefined
   }
 

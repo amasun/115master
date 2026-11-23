@@ -31,7 +31,9 @@
           @click="activeTab = 'junk'"
         >
           <span>垃圾文件清理</span>
-          <span class="text-[11px] tabular-nums opacity-80">{{ allJunkItems.length }}</span>
+          <span v-if="junkInitialized || scannedDriveJunk.length > 0" class="text-[11px] tabular-nums opacity-80">
+            {{ allJunkItems.length }}
+          </span>
         </button>
       </div>
 
@@ -96,6 +98,23 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="lastAnalyzedLabel"
+            class="text-base-content/45 text-[11px] tabular-nums"
+            title="本地索引变动时会在浏览器空闲时后台自动重算"
+          >
+            {{ lastAnalyzedLabel }}
+          </span>
+          <Button
+            size="xs"
+            variant="ghost"
+            class="gap-1 rounded-full"
+            :disabled="store.duplicateAnalyzing"
+            @click="store.runDuplicateAnalysis(true)"
+          >
+            <Icon :name="I.RESTART" class="text-xs" :class="store.duplicateAnalyzing && 'animate-spin'" />
+            <span>{{ store.duplicateAnalyzing ? '检测中...' : '重新检测' }}</span>
+          </Button>
           <Button
             size="xs"
             variant="soft"
@@ -118,9 +137,18 @@
         </div>
       </div>
 
+      <!-- 首次后台分析中状态 -->
+      <div
+        v-if="store.duplicateAnalyzing && duplicateGroups.length === 0"
+        class="text-base-content/60 flex min-h-[35vh] flex-col items-center justify-center gap-2.5 text-xs"
+      >
+        <Icon :name="I.LOADING" class="text-primary animate-spin text-2xl" />
+        <span>正在分片分析本地索引，页面保持响应...</span>
+      </div>
+
       <!-- 空状态 -->
       <div
-        v-if="visibleDuplicateGroups.length === 0"
+        v-else-if="visibleDuplicateGroups.length === 0"
         class="flex min-h-[40vh] flex-col items-center justify-center gap-3"
       >
         <Empty
@@ -129,10 +157,10 @@
         />
       </div>
 
-      <!-- 重复组列表 -->
+      <!-- 重复组列表（渐进分批渲染，防止一次挂载过多 DOM 卡顿） -->
       <div v-else class="flex flex-col gap-3">
         <article
-          v-for="group in visibleDuplicateGroups"
+          v-for="group in renderedDuplicateGroups"
           :key="group.id"
           class="bg-base-200/45 border-base-content/8 flex flex-col gap-2.5 rounded-2xl border p-4"
         >
@@ -246,6 +274,21 @@
             </div>
           </div>
         </article>
+
+        <div
+          v-if="renderedDuplicateGroups.length < visibleDuplicateGroups.length"
+          ref="dupLoadMoreRef"
+          class="flex justify-center pt-2"
+        >
+          <Button
+            size="xs"
+            variant="soft"
+            class="rounded-full"
+            @click="dupDisplayLimit += DUP_PAGE_SIZE"
+          >
+            加载更多（剩余 {{ visibleDuplicateGroups.length - renderedDuplicateGroups.length }} 组）
+          </Button>
+        </div>
       </div>
     </section>
 
@@ -268,7 +311,7 @@
             </label>
             <label class="flex cursor-pointer items-center gap-1.5 text-xs">
               <input v-model="scanCategories.adVideo" type="checkbox" class="checkbox checkbox-xs checkbox-primary">
-              <span>疑似广告短视频（本地秒扫）</span>
+              <span>疑似广告短视频（本地索引）</span>
             </label>
           </div>
 
@@ -322,7 +365,7 @@
             >
           </label>
           <span class="text-base-content/50">
-            本地索引实时检出 {{ adVideoItems.length }} 个疑似广告短视频（已自动排除星标文件）
+            {{ adScanning ? '正在分析广告短视频...' : `本地索引检出 ${adVideoItems.length} 个疑似广告短视频（已排除星标）` }}
           </span>
         </div>
 
@@ -391,7 +434,7 @@
 
       <div v-else class="flex flex-col gap-1.5">
         <div
-          v-for="item in visibleJunkItems"
+          v-for="item in renderedJunkItems"
           :key="item.fid"
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs transition-colors"
           :class="selectedJunkFids.has(item.fid)
@@ -447,6 +490,21 @@
             </Button>
           </div>
         </div>
+
+        <div
+          v-if="renderedJunkItems.length < visibleJunkItems.length"
+          ref="junkLoadMoreRef"
+          class="flex justify-center pt-2"
+        >
+          <Button
+            size="xs"
+            variant="soft"
+            class="rounded-full"
+            @click="junkDisplayLimit += JUNK_PAGE_SIZE"
+          >
+            加载更多（剩余 {{ visibleJunkItems.length - renderedJunkItems.length }} 项）
+          </Button>
+        </div>
       </div>
     </section>
 
@@ -488,8 +546,8 @@
 import type { DuplicateKind, JunkCategory, JunkFileItem } from '@/utils/mediaIndex'
 import { Button, Empty, Progress } from '@115master/ui'
 import { format } from '@115master/utils'
-import { useTitle } from '@vueuse/core'
-import { computed, onUnmounted, reactive, ref, shallowRef } from 'vue'
+import { useIntersectionObserver, useTitle } from '@vueuse/core'
+import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
 import { useToast } from '@/components'
@@ -498,7 +556,6 @@ import { I, Icon } from '@/icons'
 import { openNativeFolder } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import {
-  analyzeDuplicateGroups,
   detectAdVideos,
   JUNK_EXTENSION_GROUPS,
   safeDeleteFiles,
@@ -506,6 +563,9 @@ import {
 } from '@/utils/mediaIndex'
 
 useTitle('去重与清理 · 影视库 · 115Master Fusion')
+
+const DUP_PAGE_SIZE = 30
+const JUNK_PAGE_SIZE = 50
 
 const router = useRouter()
 const store = useMediaLibraryStore()
@@ -515,13 +575,21 @@ const toast = useToast()
 const activeTab = ref<'duplicates' | 'junk'>('duplicates')
 const dupFilterKind = ref<'all' | DuplicateKind>('all')
 const hideMultiPartGroups = ref(false)
+const dupDisplayLimit = ref(DUP_PAGE_SIZE)
+const dupLoadMoreRef = ref<HTMLElement>()
 const selectedDupFids = ref(new Set<string>())
 const deleteEmptyParent = ref(false)
 const deleting = shallowRef(false)
 
-const duplicateGroups = computed(() =>
-  analyzeDuplicateGroups(store.videos, store.entries, store.markerDocs),
-)
+const duplicateGroups = computed(() => store.duplicateGroups)
+
+const lastAnalyzedLabel = computed(() => {
+  if (!store.duplicateAnalyzedAt)
+    return ''
+  const d = new Date(store.duplicateAnalyzedAt)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `上次检测 ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+})
 
 const dupKindOptions = computed(() => [
   { value: 'all' as const, label: '全部', count: duplicateGroups.value.length },
@@ -539,6 +607,19 @@ const visibleDuplicateGroups = computed(() =>
     return true
   }),
 )
+
+const renderedDuplicateGroups = computed(() =>
+  visibleDuplicateGroups.value.slice(0, dupDisplayLimit.value),
+)
+
+watch([dupFilterKind, hideMultiPartGroups], () => {
+  dupDisplayLimit.value = DUP_PAGE_SIZE
+})
+
+useIntersectionObserver(dupLoadMoreRef, ([entry]) => {
+  if (entry?.isIntersecting && renderedDuplicateGroups.value.length < visibleDuplicateGroups.value.length)
+    dupDisplayLimit.value += DUP_PAGE_SIZE
+})
 
 const totalRedundantCount = computed(() =>
   duplicateGroups.value
@@ -598,7 +679,7 @@ function smartSelectRedundant() {
   )
 }
 
-/** === Tab 2: 垃圾文件清理 === */
+// === Tab 2: 垃圾文件清理（惰性异步计算，进入 Tab 2 时才扫描广告视频） ===
 const scanCategories = reactive({
   web: true,
   textMagnet: true,
@@ -607,6 +688,9 @@ const scanCategories = reactive({
 })
 const adMaxDurationSec = ref(90)
 const adMaxSizeMB = ref(50)
+const adVideoItems = shallowRef<JunkFileItem[]>([])
+const adScanning = shallowRef(false)
+const junkInitialized = shallowRef(false)
 const scannedDriveJunk = shallowRef<JunkFileItem[]>([])
 const scanningJunk = shallowRef(false)
 const junkScanProgress = reactive({
@@ -617,18 +701,45 @@ const junkScanProgress = reactive({
 })
 const junkFilterCategory = ref<'all' | JunkCategory>('all')
 const junkSearchKeyword = ref('')
+const junkDisplayLimit = ref(JUNK_PAGE_SIZE)
+const junkLoadMoreRef = ref<HTMLElement>()
 const selectedJunkFids = ref(new Set<string>())
 let junkController: AbortController | null = null
+let adScanTimer: ReturnType<typeof setTimeout> | null = null
 
-const adVideoItems = computed<JunkFileItem[]>(() => {
-  if (!scanCategories.adVideo)
-    return []
-  return detectAdVideos(store.videos, {
-    maxDurationSec: adMaxDurationSec.value,
-    maxSizeMB: adMaxSizeMB.value,
-    excludeStarred: true,
-  })
+function refreshAdVideosAsync() {
+  if (adScanTimer)
+    clearTimeout(adScanTimer)
+  if (!scanCategories.adVideo) {
+    adVideoItems.value = []
+    adScanning.value = false
+    return
+  }
+  adScanning.value = true
+  adScanTimer = setTimeout(() => {
+    adScanTimer = null
+    adVideoItems.value = detectAdVideos(store.videos, {
+      maxDurationSec: adMaxDurationSec.value,
+      maxSizeMB: adMaxSizeMB.value,
+      excludeStarred: true,
+    })
+    adScanning.value = false
+    junkInitialized.value = true
+  }, 0)
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'junk' && !junkInitialized.value)
+    refreshAdVideosAsync()
 })
+
+watch(
+  [() => scanCategories.adVideo, adMaxDurationSec, adMaxSizeMB, () => store.videos],
+  () => {
+    if (activeTab.value === 'junk' || junkInitialized.value)
+      refreshAdVideosAsync()
+  },
+)
 
 const allJunkItems = computed<JunkFileItem[]>(() => {
   const map = new Map<string, JunkFileItem>()
@@ -660,6 +771,19 @@ const visibleJunkItems = computed(() => {
   })
 })
 
+const renderedJunkItems = computed(() =>
+  visibleJunkItems.value.slice(0, junkDisplayLimit.value),
+)
+
+watch([junkFilterCategory, junkSearchKeyword], () => {
+  junkDisplayLimit.value = JUNK_PAGE_SIZE
+})
+
+useIntersectionObserver(junkLoadMoreRef, ([entry]) => {
+  if (entry?.isIntersecting && renderedJunkItems.value.length < visibleJunkItems.value.length)
+    junkDisplayLimit.value += JUNK_PAGE_SIZE
+})
+
 function junkCategoryLabel(cat: JunkCategory): string {
   if (cat === 'adVideo')
     return '广告短视频'
@@ -687,6 +811,8 @@ function selectAllVisibleJunk() {
 }
 
 async function startJunkScan() {
+  refreshAdVideosAsync()
+
   const suffixes: string[] = []
   if (scanCategories.web)
     suffixes.push(...JUNK_EXTENSION_GROUPS.web)
@@ -696,7 +822,7 @@ async function startJunkScan() {
     suffixes.push(...JUNK_EXTENSION_GROUPS.executable)
 
   if (suffixes.length === 0) {
-    toast.info('已更新本地疑似广告短视频列表（如需扫描非视频文件请勾选对应类型）')
+    toast.info('已刷新本地疑似广告短视频列表（如需扫描非视频文件请勾选对应类型）')
     return
   }
 
@@ -722,6 +848,7 @@ async function startJunkScan() {
       },
     })
     scannedDriveJunk.value = items
+    junkInitialized.value = true
     toast.success(`网盘扫描完成，共发现 ${items.length} 个非视频推广/垃圾文件`)
   }
   catch (e) {
@@ -742,11 +869,18 @@ function abortJunkScan() {
   toast.info('已停止扫描')
 }
 
+onMounted(() => {
+  if (store.duplicateStale || store.duplicateAnalyzedAt === 0)
+    void store.runDuplicateAnalysis()
+})
+
 onUnmounted(() => {
+  if (adScanTimer)
+    clearTimeout(adScanTimer)
   junkController?.abort()
 })
 
-/** === 通用跳转与批量清理 === */
+// === 通用跳转与批量清理 ===
 function playVideo(pickCode: string) {
   void router.push({ name: 'video', params: { pickCode } })
 }

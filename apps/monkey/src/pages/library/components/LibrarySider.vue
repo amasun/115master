@@ -273,7 +273,6 @@ import { I, Icon } from '@/icons'
 import { useDriveSpaceInfoStore } from '@/store/driveSpaceInfo'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
-import { analyzeDuplicateGroups } from '@/utils/mediaIndex'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,9 +293,7 @@ const isCleanupActive = computed(() => route.name === 'library-cleanup')
 const visibleActorCount = computed(() =>
   store.libraryIndex.actorStats.filter(actor => !store.isActorHidden(actor.key)).length,
 )
-const duplicateGroupCount = computed(() =>
-  analyzeDuplicateGroups(store.videos, store.entries, store.markerDocs).length,
-)
+const duplicateGroupCount = computed(() => store.duplicateGroups.length)
 const isTagsActive = computed(() =>
   store.tagRailOpen || route.name === 'library-tags' || Boolean(store.filter.driveLabel),
 )

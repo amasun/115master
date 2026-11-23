@@ -20,6 +20,7 @@ vi.mock('@/utils/cache/javCache', () => ({
 
 const {
   analyzeDuplicateGroups,
+  analyzeDuplicateGroupsAsync,
   isSuspectedMultiPartGroup,
   scoreEntryFilesForDedupe,
   scoreFileForKeep,
@@ -179,6 +180,29 @@ describe('deduplicator', () => {
       expect(result[0].file.fid).toBe('1')
       expect(result[0].recommendedKeep).toBe(true)
       expect(result[1].recommendedKeep).toBe(false)
+    })
+  })
+
+  describe('analyzeDuplicateGroupsAsync', () => {
+    it('matches synchronous results across chunked slices and respects AbortSignal', async () => {
+      const videos = [
+        makeVideo({ fid: 'f1', pickCode: 'pc1', sha1: 'DUP1', avNumber: 'SSIS-001', name: 'SSIS-001.mp4', size: 2 * 1024 ** 3 }),
+        makeVideo({ fid: 'f2', pickCode: 'pc2', sha1: 'dup1', avNumber: 'SSIS-001', name: 'SSIS-001-copy.mp4', size: 2 * 1024 ** 3 }),
+        makeVideo({ fid: 'f3', pickCode: 'pc3', sha1: 's3', avNumber: 'ABP-100', name: 'ABP-100.mp4', size: 1024 ** 3 }),
+        makeVideo({ fid: 'f4', pickCode: 'pc4', sha1: 's4', avNumber: 'ABP-100', name: 'ABP-100-C.mp4', size: 1.2 * 1024 ** 3 }),
+      ]
+      const entries = [
+        makeEntry('jav:SSIS001', [videos[0], videos[1]], '作品1'),
+        makeEntry('jav:ABP100', [videos[2], videos[3]], '作品2'),
+      ]
+
+      const sync = analyzeDuplicateGroups(videos, entries)
+      const asyncRes = await analyzeDuplicateGroupsAsync(videos, entries, undefined, { chunkSize: 1 })
+      expect(asyncRes).toEqual(sync)
+
+      const controller = new AbortController()
+      controller.abort()
+      await expect(analyzeDuplicateGroupsAsync(videos, entries, undefined, { signal: controller.signal })).rejects.toThrow()
     })
   })
 })

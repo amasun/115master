@@ -1,5 +1,6 @@
 import type { JavInfo } from './jav'
 import dayjs from 'dayjs'
+import { cleanActorName } from '@/utils/actressNameMatcher'
 import { appLogger } from '@/utils/logger'
 import { Jav, JAV_SOURCE } from './jav'
 
@@ -111,20 +112,22 @@ export class JavBus extends Jav {
         'li',
       )
     const result = actors?.length
-      ? Array.from(actors).map((i) => {
-          const a = i.querySelector('a')
-          const img = i.querySelector('img')
-          const actorHref = a?.getAttribute('href')
-          const faceHref = img?.getAttribute('src')
-            || img?.getAttribute('data-src')
-          return {
-            name: img?.getAttribute('title') ?? '',
-            url: actorHref ? new URL(actorHref, this.baseUrl).href : undefined,
-            sex: undefined,
-            face: faceHref ? new URL(faceHref, this.baseUrl).href : undefined,
-            faceReferer: faceHref ? this.detailUrl : undefined,
-          }
-        })
+      ? Array.from(actors)
+          .map((i) => {
+            const a = i.querySelector('a')
+            const img = i.querySelector('img')
+            const actorHref = a?.getAttribute('href')
+            const faceHref = img?.getAttribute('src')
+              || img?.getAttribute('data-src')
+            return {
+              name: cleanActorName(img?.getAttribute('title') ?? ''),
+              url: actorHref ? new URL(actorHref, this.baseUrl).href : undefined,
+              sex: undefined,
+              face: faceHref ? new URL(faceHref, this.baseUrl).href : undefined,
+              faceReferer: faceHref ? this.detailUrl : undefined,
+            }
+          })
+          .filter(actor => Boolean(actor.name))
       : undefined
 
     logger.info('JavBus 演员头像解析完成', result?.length ?? 0)

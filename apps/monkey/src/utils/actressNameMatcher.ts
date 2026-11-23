@@ -17,6 +17,42 @@ const VARIANT_SUFFIX = /-\d+$/
 const HAN = /\p{Script=Han}/u
 const WORD_CHAR = /[\p{L}\p{N}]/u
 
+const BRACKETED_BADGE_SUFFIX = /(?:^|\s)[[(（【]\s*(?:有[码碼]|无[码碼]|無[码碼]|欧美|歐美|中文字幕|中文|字幕|流出|破解|单体|單體|女[优優]|男[优優]|步兵|骑兵|騎兵|FC2|VR|HD|4K|UNCENSORED|CENSORED)\s*[\])）】]$/iu
+const TRAILING_BADGE_SUFFIX = /(?<=.{2})[\s/·\-|]*(?:有[码碼]女[优優]|无[码碼]女[优優]|無[码碼]女[优優]|有[码碼]作品|无[码碼]作品|無[码碼]作品|欧美女[优優]|歐美女[优優]|有[码碼]|无[码碼]|無[码碼]|步兵|骑兵|騎兵|♀|♂)+$/u
+const TRAILING_COUNT_SUFFIX = /(?<=.{2})\s*(?:\(\d+\)|\d+\s*部)$/u
+
+/**
+ * 清洗演员名称：去除站点拼接的角标/分类后缀（如「有码」「無碼」「[有码]」「♀」「(12)」等）
+ */
+export function cleanActorName(raw: string): string {
+  let current = raw.replace(/\s+/g, ' ').trim()
+  if (!current)
+    return ''
+
+  let prev = ''
+  while (current !== prev) {
+    prev = current
+    current = current
+      .replace(BRACKETED_BADGE_SUFFIX, '')
+      .replace(TRAILING_BADGE_SUFFIX, '')
+      .replace(TRAILING_COUNT_SUFFIX, '')
+      .trim()
+  }
+
+  return current
+}
+
+/**
+ * 从 DOM 元素提取纯文本，自动排除嵌套的 button / badge / label / tag 角标节点
+ */
+export function extractCleanElementText(el: Element | null | undefined): string {
+  if (!el)
+    return ''
+  const clone = el.cloneNode(true) as Element
+  clone.querySelectorAll('button, .badge, .label, .tag').forEach(node => node.remove())
+  return cleanActorName(clone.textContent ?? '')
+}
+
 /**
  * 归一化名字
  * @description 全半角统一、繁体与日文汉字转简体、忽略大小写

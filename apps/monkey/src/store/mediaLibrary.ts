@@ -1,6 +1,7 @@
 import type { MarkerDoc } from '@/utils/markers/types'
 import type {
   ActorFacetStat,
+  DuplicateGroup,
   IndexedVideo,
   IndexedVideoLabel,
   IndexProgress,
@@ -22,6 +23,7 @@ import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
 import {
   aggregateLibraryEntries,
+  analyzeDuplicateGroupsAsync,
   buildLibraryIndex,
   clearScrapeMissed,
   compressCustomAvatar,
@@ -145,6 +147,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const bgScrapeReason = shallowRef('')
   const bgScrapeProcessed = shallowRef(0)
 
+  const duplicateGroups = shallowRef<DuplicateGroup[]>([])
+  const duplicateAnalyzing = shallowRef(false)
+  const duplicateAnalyzedAt = shallowRef(0)
+  const duplicateStale = shallowRef(true)
+
   const attemptedScrapeKeys = new Set<string>()
   const checkedAvatarActors = new Set<string>()
   const scrapeScheduler = new Scheduler<ScrapeResult>({
@@ -155,6 +162,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   let initPromise: Promise<void> | null = null
   let syncController: AbortController | null = null
   let bgScrapeController: AbortController | null = null
+  let dupController: AbortController | null = null
+  let dupIdleTimer: ReturnType<typeof setTimeout> | null = null
   let avatarTaskRunning = false
 
   function updateScrapingKeys(mediaKey: string, active: boolean) {
@@ -202,12 +211,81 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     }
   }
 
+  async function runDuplicateAnalysis(force = false): Promise<DuplicateGroup[]> {
+    if (!force && !duplicateStale.value && duplicateAnalyzedAt.value > 0)
+      return duplicateGroups.value
+
+    if (dupIdleTimer) {
+      clearTimeout(dupIdleTimer)
+      dupIdleTimer = null
+    }
+
+    dupController?.abort()
+    const controller = new AbortController()
+    dupController = controller
+    duplicateAnalyzing.value = true
+
+    try {
+      const result = await analyzeDuplicateGroupsAsync(
+        videos.value,
+        entries.value,
+        markerDocs.value,
+        { chunkSize: 400, signal: controller.signal },
+      )
+      if (controller.signal.aborted)
+        return duplicateGroups.value
+      duplicateGroups.value = result
+      duplicateAnalyzedAt.value = Date.now()
+      duplicateStale.value = false
+      return result
+    }
+    catch (error) {
+      if (!controller.signal.aborted)
+        logger.warn('后台重复影片分析失败', error)
+      return duplicateGroups.value
+    }
+    finally {
+      if (dupController === controller) {
+        duplicateAnalyzing.value = false
+        dupController = null
+      }
+    }
+  }
+
+  function scheduleBackgroundDuplicateAnalysis(delayMs = 1200) {
+    if (dupIdleTimer)
+      clearTimeout(dupIdleTimer)
+    if (videos.value.length === 0) {
+      duplicateGroups.value = []
+      duplicateStale.value = false
+      return
+    }
+
+    dupIdleTimer = setTimeout(() => {
+      dupIdleTimer = null
+      if (indexing.value) {
+        scheduleBackgroundDuplicateAnalysis(1500)
+        return
+      }
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => {
+          void runDuplicateAnalysis()
+        }, { timeout: 2500 })
+      }
+      else {
+        void runDuplicateAnalysis()
+      }
+    }, delayMs)
+  }
+
   function rebuildEntries() {
     const nextEntries = aggregateLibraryEntries(videos.value, metaMap.value, markerDocs.value)
     const nextIndex = buildLibraryIndex(nextEntries, actorWorks.value)
     entries.value = nextEntries
     libraryIndex.value = nextIndex
+    duplicateStale.value = true
     void matchActorAvatars(nextIndex.actorStats)
+    scheduleBackgroundDuplicateAnalysis()
   }
 
   async function syncIndex(mode: 'full' | 'incremental' = 'incremental') {
@@ -927,6 +1005,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     bgScrapeReason,
     bgScrapeProcessed,
     bgScrapePendingCount,
+    duplicateGroups,
+    duplicateAnalyzing,
+    duplicateAnalyzedAt,
+    duplicateStale,
     filteredEntries,
     scrapedCount,
     starredCount,
@@ -934,6 +1016,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     init,
     syncIndex,
     refreshLocalContext,
+    runDuplicateAnalysis,
     enqueueScrape,
     cancelScrape,
     rescrape,

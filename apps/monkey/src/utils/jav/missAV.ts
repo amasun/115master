@@ -1,5 +1,6 @@
 import type { JavInfo } from './jav'
 import dayjs from 'dayjs'
+import { cleanActorName } from '@/utils/actressNameMatcher'
 import { performerFaceCache } from '@/utils/cache/performerFaceCache'
 import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
@@ -176,14 +177,14 @@ export class MissAV extends Jav {
     const labeledActors = [
       ...(femaleActors?.length
         ? Array.from(femaleActors).map(i => ({
-            name: i.textContent?.trim() ?? '',
+            name: cleanActorName(i.textContent ?? ''),
             url: this.resolveActorUrl(i.getAttribute('href')),
             sex: 1 as const,
           }))
         : []),
       ...(maleActors?.length
         ? Array.from(maleActors).map(i => ({
-            name: i.textContent?.trim() ?? '',
+            name: cleanActorName(i.textContent ?? ''),
             url: this.resolveActorUrl(i.getAttribute('href')),
             sex: 0 as const,
           }))
@@ -192,7 +193,7 @@ export class MissAV extends Jav {
     const fallbackActors = Array.from(
       dom.querySelectorAll('a[href*="/actresses/"]'),
     ).map(i => ({
-      name: i.textContent?.trim() || getActorNameFromUrl(this.resolveActorUrl(i.getAttribute('href'))),
+      name: cleanActorName(i.textContent?.trim() || getActorNameFromUrl(this.resolveActorUrl(i.getAttribute('href')))),
       url: this.resolveActorUrl(i.getAttribute('href')),
       sex: 1 as const,
     }))

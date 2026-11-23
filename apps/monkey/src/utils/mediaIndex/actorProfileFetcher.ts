@@ -1,5 +1,5 @@
 import { CacheCore } from '@115master/shared'
-import { normalizeActressName } from '@/utils/actressNameMatcher'
+import { cleanActorName, extractCleanElementText, normalizeActressName } from '@/utils/actressNameMatcher'
 import { STORE_NAME } from '@/utils/cache/const'
 import { appLogger } from '@/utils/logger'
 import { GMRequest } from '@/utils/request/gmRequest'
@@ -81,7 +81,7 @@ export function parseJavBusActorProfile(
     return null
 
   const titleEl = box.querySelector('.photo-info .pb10')
-  const name = cleanValue(titleEl?.textContent ?? '') || fallbackName
+  const name = extractCleanElementText(titleEl) || cleanActorName(fallbackName) || fallbackName
 
   const imgSrc = box.querySelector('.photo-frame img')?.getAttribute('src')?.trim()
   const avatarUrl = imgSrc && !/nowprinting/i.test(imgSrc)
@@ -170,11 +170,10 @@ function findMatchingStarUrl(html: string, targets: string[]): string | null {
     const href = link?.getAttribute('href')?.trim()
     if (!href || !href.includes('/star/'))
       return []
-    const rawName = cleanValue(
-      box.querySelector('span')?.textContent
-      || box.querySelector('img')?.getAttribute('title')
-      || link?.textContent
-      || '',
+    const rawName = (
+      cleanActorName(box.querySelector('img')?.getAttribute('title') ?? '')
+      || extractCleanElementText(box.querySelector('span'))
+      || extractCleanElementText(link)
     )
     return [{
       name: rawName,

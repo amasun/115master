@@ -7,6 +7,7 @@ import type {
 } from './types'
 import type { JavInfo } from '@/utils/jav/jav'
 import { format, image as imageUtil } from '@115master/utils'
+import { cleanActorName } from '@/utils/actressNameMatcher'
 import { javCache } from '@/utils/cache/javCache'
 import { createJavInfoSources, isFd2PpvAvNumber } from '@/utils/jav'
 import { Jav, normalizeAvNumber } from '@/utils/jav/jav'
@@ -57,9 +58,13 @@ function collectCoverCandidates(info: JavInfo): MediaCoverCandidate[] {
 
 function mapActors(info: JavInfo): MediaActor[] {
   return (info.actors ?? [])
-    .filter(actor => Boolean(actor.name?.trim()))
     .map(actor => ({
-      name: actor.name.trim(),
+      ...actor,
+      name: cleanActorName(actor.name ?? ''),
+    }))
+    .filter(actor => Boolean(actor.name))
+    .map(actor => ({
+      name: actor.name,
       url: actor.url,
       avatarUrl: actor.face,
       avatarReferer: actor.faceReferer ?? info.detailUrl,

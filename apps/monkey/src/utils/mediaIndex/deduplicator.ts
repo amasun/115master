@@ -359,6 +359,138 @@ export function analyzeDuplicateGroups(
   )
 }
 
+function yieldMainThread(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted)
+    throw signal.reason ?? new DOMException('重复检测已取消', 'AbortError')
+}
+
+/**
+ * 分片异步分析重复视频组：每处理 chunkSize 条记录主动让出主线程，避免万级库卡顿 UI
+ */
+export async function analyzeDuplicateGroupsAsync(
+  videos: IndexedVideo[],
+  entries: LibraryEntry[],
+  markerDocs?: Record<string, MarkerDoc>,
+  options: { chunkSize?: number, signal?: AbortSignal } = {},
+): Promise<DuplicateGroup[]> {
+  const chunkSize = Math.max(50, options.chunkSize ?? 400)
+  const signal = options.signal
+  throwIfAborted(signal)
+
+  const fidToMediaKey = new Map<string, string>()
+  const mediaKeyToTitle = new Map<string, string>()
+
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i]
+    if (entry.meta?.title)
+      mediaKeyToTitle.set(entry.mediaKey, entry.meta.title)
+    else if (entry.externalId)
+      mediaKeyToTitle.set(entry.mediaKey, entry.externalId)
+
+    for (const file of entry.files)
+      fidToMediaKey.set(file.fid, entry.mediaKey)
+
+    if ((i + 1) % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  const sha1Buckets = new Map<string, IndexedVideo[]>()
+  const avBuckets = new Map<string, IndexedVideo[]>()
+  const unnumbered: IndexedVideo[] = []
+
+  for (let i = 0; i < videos.length; i += 1) {
+    const video = videos[i]
+    const sha1 = video.sha1?.trim().toLowerCase()
+    if (sha1) {
+      const list = sha1Buckets.get(sha1)
+      if (list)
+        list.push(video)
+      else
+        sha1Buckets.set(sha1, [video])
+    }
+
+    const entryKey = fidToMediaKey.get(video.fid)
+    let avKey: string | null = null
+    if (entryKey && !entryKey.startsWith('file:')) {
+      avKey = entryKey
+    }
+    else if (video.avNumber) {
+      const normalized = normalizeAvNumber(video.avNumber)
+      avKey = normalized ? `jav:${normalized}` : `jav:${video.avNumber.trim().toUpperCase()}`
+    }
+
+    if (avKey) {
+      const list = avBuckets.get(avKey)
+      if (list)
+        list.push(video)
+      else
+        avBuckets.set(avKey, [video])
+    }
+    else if (!video.avNumber) {
+      unnumbered.push(video)
+    }
+
+    if ((i + 1) % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  const groups: DuplicateGroup[] = []
+  const sha1Signatures = new Set<string>()
+  let builtCount = 0
+
+  for (const [sha1, list] of sha1Buckets.entries()) {
+    if (list.length < 2)
+      continue
+    sha1Signatures.add(signatureOf(list))
+    const mediaKey = fidToMediaKey.get(list[0].fid) ?? resolveFallbackMediaKey(list[0])
+    const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
+    groups.push(buildGroup(`sha1:${sha1}`, 'sha1', title, sha1, list, fidToMediaKey, markerDocs, mediaKey))
+    builtCount += 1
+    if (builtCount % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  for (const [mediaKey, list] of avBuckets.entries()) {
+    if (list.length < 2 || sha1Signatures.has(signatureOf(list)))
+      continue
+    const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
+    groups.push(buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey))
+    builtCount += 1
+    if (builtCount % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  const similarBuckets = collectSimilarBuckets(unnumbered)
+  for (const list of similarBuckets) {
+    if (sha1Signatures.has(signatureOf(list)))
+      continue
+    const stem = normalizeStem(list[0].name)
+    const key = stem.length >= 2 ? stem : `${list[0].size}:${Math.round(list[0].duration)}`
+    groups.push(buildGroup(`similar:${list[0].fid}`, 'similar', list[0].name, key, list, fidToMediaKey, markerDocs))
+    builtCount += 1
+    if (builtCount % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  return groups.sort(
+    (a, b) => b.reclaimableSize - a.reclaimableSize || b.totalSize - a.totalSize || a.id.localeCompare(b.id),
+  )
+}
+
 /**
  * 为媒体库单条目的文件列表计算去重保留评分与推荐保留标记
  */

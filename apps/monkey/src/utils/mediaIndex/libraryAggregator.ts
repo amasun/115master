@@ -11,7 +11,7 @@ import type {
 } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
-import { normalizeActressName } from '@/utils/actressNameMatcher'
+import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 
 export interface YearFacetCount {
@@ -289,15 +289,17 @@ export function buildLibraryIndex(
   const knownAliases = new Map<string, Set<string>>()
 
   actorWorks.forEach((item) => {
-    const canonicalKey = normalizeNameKey(item.actorKey || item.name)
+    const cleanedKeyInput = cleanActorName(item.actorKey || item.name)
+    const canonicalKey = normalizeNameKey(cleanedKeyInput)
     if (!canonicalKey)
       return
 
-    if (item.name && !preferredNames.has(canonicalKey))
-      preferredNames.set(canonicalKey, item.name.trim())
+    const cleanedItemName = cleanActorName(item.name)
+    if (cleanedItemName && !preferredNames.has(canonicalKey))
+      preferredNames.set(canonicalKey, cleanedItemName)
 
     aliasToCanonical.set(canonicalKey, canonicalKey)
-    const names = [item.name, ...item.aliases].map(name => name.trim()).filter(Boolean)
+    const names = [cleanedItemName, ...item.aliases.map(alias => cleanActorName(alias))].filter(Boolean)
     names.forEach((name) => {
       addSetValue(knownAliases, canonicalKey, name)
       const norm = normalizeNameKey(name)
@@ -354,7 +356,7 @@ export function buildLibraryIndex(
       return
 
     entry.meta.actors.forEach((actor) => {
-      const rawName = actor.name.trim()
+      const rawName = cleanActorName(actor.name)
       if (!rawName)
         return
       const key = resolveActorKey(rawName)
@@ -389,11 +391,11 @@ export function buildLibraryIndex(
   })
 
   actorWorks.forEach((item) => {
-    const canonicalKey = resolveActorKey(item.actorKey || item.name)
+    const canonicalKey = resolveActorKey(cleanActorName(item.actorKey || item.name))
     if (!canonicalKey)
       return
 
-    const actorNames = [item.name, ...item.aliases].map(name => name.trim()).filter(Boolean)
+    const actorNames = [cleanActorName(item.name), ...item.aliases.map(name => cleanActorName(name))].filter(Boolean)
     item.avNumbers.forEach((av) => {
       const avKey = normalizeAvNumber(av)
       const mediaKey = avKey ? entryByAvKey.get(avKey) : undefined

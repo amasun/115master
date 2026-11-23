@@ -41,9 +41,9 @@ test.describe('影视库主界面（替代原 Fusion）', () => {
     const tagRail = page.getByLabel('标签面板')
     await expect(tagRail).toBeVisible()
 
-    // 切换到面板内的「标签管理」模块可看到「新建标签」入口
-    await tagRail.getByRole('tab', { name: '标签管理' }).click()
-    await expect(tagRail.getByRole('button', { name: '新建标签' }).first()).toBeVisible()
+    // 点击面板内的「管理」按钮进入内联管理模式并可看到「新建标签」入口
+    await tagRail.getByRole('button', { name: '管理' }).click()
+    await expect(tagRail.getByRole('button', { name: '新建标签' })).toBeVisible()
     expect(errors).toEqual([])
   })
 })

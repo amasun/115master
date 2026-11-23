@@ -4,7 +4,7 @@ import type {
   ActorWorksCacheEntry,
   ActorWorksSource,
 } from './types'
-import { normalizeActressName } from '@/utils/actressNameMatcher'
+import { cleanActorName, extractCleanElementText, normalizeActressName } from '@/utils/actressNameMatcher'
 import { getAvNumber } from '@/utils/getNumber'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { appLogger } from '@/utils/logger'
@@ -159,11 +159,11 @@ function parseDocument(html: string): Document {
 function splitAliases(rawText: string): string[] {
   const parts = rawText
     .split(/[（）()、,，/]+/)
-    .map(part => part.replace(/\s+/g, ' ').trim())
+    .map(part => cleanActorName(part))
     .filter(Boolean)
   if (parts.length > 0)
     return Array.from(new Set(parts))
-  const full = rawText.replace(/\s+/g, ' ').trim()
+  const full = cleanActorName(rawText)
   return full ? [full] : []
 }
 
@@ -268,11 +268,10 @@ function parseJavBusCandidates(html: string): ActorCandidate[] {
     if (!href)
       return []
     const rawName = (
-      box.querySelector('span')?.textContent
-      || box.querySelector('img')?.getAttribute('title')
-      || link?.textContent
-      || ''
-    ).replace(/\s+/g, ' ').trim()
+      cleanActorName(box.querySelector('img')?.getAttribute('title') ?? '')
+      || extractCleanElementText(box.querySelector('span'))
+      || extractCleanElementText(link)
+    )
     if (!rawName)
       return []
     return [{
@@ -333,13 +332,13 @@ function parseJavDBCandidates(html: string): ActorCandidate[] {
     const href = link.getAttribute('href')?.trim()
     if (!href)
       return []
-    const primary = (
+    const primary = cleanActorName(
       link.querySelector('strong')?.textContent
       || link.getAttribute('title')
-      || link.textContent
-      || ''
-    ).replace(/\s+/g, ' ').trim()
-    const rawText = (link.textContent ?? '').replace(/\s+/g, ' ').trim()
+      || extractCleanElementText(link)
+      || '',
+    )
+    const rawText = extractCleanElementText(link)
     if (!primary && !rawText)
       return []
     return [{

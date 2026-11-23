@@ -9,16 +9,16 @@
           {{ allItems.length }}
         </span>
       </div>
-      <div class="flex shrink-0 items-center gap-0.5">
+      <div class="flex shrink-0 items-center gap-1">
         <Button
-          variant="ghost"
           size="xs"
-          shape="circle"
-          title="新建标签"
-          aria-label="新建标签"
-          @click="openTagForm()"
+          :variant="managing ? 'soft' : 'ghost'"
+          :color="managing ? 'primary' : 'neutral'"
+          class="rounded-full px-2.5 text-xs"
+          :aria-pressed="managing"
+          @click="toggleManaging"
         >
-          <Icon :name="I.PLUS" class="text-sm" />
+          {{ managing ? '完成' : '管理' }}
         </Button>
         <Button
           variant="ghost"
@@ -45,42 +45,6 @@
       </div>
     </div>
 
-    <!-- 功能模块切换：筛选作品 / 标签管理 -->
-    <div class="px-3 pb-2.5">
-      <div
-        role="tablist"
-        aria-label="标签面板模块"
-        class="bg-base-content/5 grid grid-cols-2 gap-1 rounded-xl p-0.5"
-      >
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="mode === 'filter'"
-          class="flex h-7 items-center justify-center gap-1.5 rounded-lg text-xs transition-colors"
-          :class="mode === 'filter'
-            ? 'bg-base-100/80 text-base-content font-medium shadow-xs'
-            : 'text-base-content/60 hover:text-base-content'"
-          @click="mode = 'filter'"
-        >
-          <Icon :name="I.FILTER" :filled="mode === 'filter'" class="text-xs" />
-          <span>筛选作品</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="mode === 'manage'"
-          class="flex h-7 items-center justify-center gap-1.5 rounded-lg text-xs transition-colors"
-          :class="mode === 'manage'
-            ? 'bg-base-100/80 text-base-content font-medium shadow-xs'
-            : 'text-base-content/60 hover:text-base-content'"
-          @click="mode = 'manage'"
-        >
-          <Icon :name="I.SETTINGS" :filled="mode === 'manage'" class="text-xs" />
-          <span>标签管理</span>
-        </button>
-      </div>
-    </div>
-
     <!-- 搜索框 -->
     <div class="px-3 pb-2">
       <label class="bg-base-content/5 border-base-content/8 focus-within:border-primary/40 flex h-8 items-center gap-1.5 rounded-full border px-2.5 transition-colors">
@@ -103,9 +67,9 @@
       </label>
     </div>
 
-    <!-- 筛选模式快捷开关 -->
+    <!-- 浏览模式快捷开关 -->
     <div
-      v-if="mode === 'filter'"
+      v-if="!managing"
       class="flex shrink-0 items-center justify-between gap-2 px-3.5 pb-2"
     >
       <span class="text-base-content/50 text-[11px] tabular-nums">
@@ -123,17 +87,26 @@
       </button>
     </div>
 
-    <!-- 管理模式顶部主操作 -->
-    <div v-else class="shrink-0 px-3 pb-2">
+    <!-- 管理模式顶部操作栏 -->
+    <div v-else class="flex shrink-0 items-center justify-between gap-2 px-3 pb-2">
       <Button
         color="primary"
         variant="soft"
-        size="sm"
-        class="w-full gap-1.5 rounded-xl text-xs"
+        size="xs"
+        class="flex-1 gap-1 rounded-xl text-xs"
         @click="openTagForm()"
       >
         <Icon :name="I.PLUS" class="text-sm" />
         <span>新建标签</span>
+      </Button>
+      <Button
+        v-if="manageableVisibleIds.length > 0"
+        variant="ghost"
+        size="xs"
+        class="shrink-0 rounded-xl px-2.5 text-xs font-normal"
+        @click="toggleSelectAllVisible"
+      >
+        {{ allVisibleSelected ? '取消全选' : '全选' }}
       </Button>
     </div>
 
@@ -163,8 +136,8 @@
         <span>加载标签中...</span>
       </div>
 
-      <!-- 筛选作品模式列表 -->
-      <template v-else-if="mode === 'filter'">
+      <!-- 浏览筛选模式 -->
+      <template v-else-if="!managing">
         <button
           type="button"
           class="mb-1 flex h-8.5 w-full items-center justify-between gap-2 rounded-xl border border-transparent px-2.5 text-left text-xs transition-colors"
@@ -218,7 +191,7 @@
         </ul>
       </template>
 
-      <!-- 标签管理模式列表 -->
+      <!-- 管理模式列表（支持单条编辑/删除及勾选批量删除） -->
       <template v-else>
         <div
           v-if="visibleItems.length === 0"
@@ -231,9 +204,17 @@
           <li
             v-for="item in visibleItems"
             :key="item.id"
-            class="group hover:bg-base-content/5 flex h-9 items-center justify-between gap-1.5 rounded-xl px-2.5 transition-colors"
+            class="group hover:bg-base-content/5 flex h-9 items-center justify-between gap-1.5 rounded-xl px-2 transition-colors"
+            :class="selectedTagIds.has(item.id) ? 'bg-primary/10' : ''"
           >
-            <div class="flex min-w-0 flex-1 items-center gap-2">
+            <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+              <input
+                v-if="item.fromDrive"
+                type="checkbox"
+                class="checkbox checkbox-xs checkbox-primary shrink-0"
+                :checked="selectedTagIds.has(item.id)"
+                @change="toggleSelectTag(item.id)"
+              >
               <span
                 class="size-2.5 shrink-0 rounded-full"
                 :class="item.color === LabelColor.Blank ? 'border-base-content/35 bg-base-content/5 border' : ''"
@@ -245,10 +226,10 @@
               <span class="text-base-content/40 shrink-0 text-[11px] tabular-nums">
                 {{ item.count }}
               </span>
-            </div>
+            </label>
             <div
               v-if="item.fromDrive"
-              class="flex shrink-0 items-center gap-0.5 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+              class="flex shrink-0 items-center gap-0.5"
             >
               <Button
                 variant="ghost"
@@ -277,29 +258,29 @@
       </template>
     </div>
 
-    <!-- 管理模式底部入口：完整批量管理页 -->
+    <!-- 管理模式底部批量删除栏 -->
     <div
-      v-if="mode === 'manage'"
-      class="border-base-content/5 shrink-0 border-t px-3 py-2"
+      v-if="managing && selectedTagIds.size > 0"
+      class="border-base-content/5 flex shrink-0 items-center justify-between gap-2 border-t px-3 py-2"
     >
+      <span class="text-base-content/70 text-xs tabular-nums">
+        已选 {{ selectedTagIds.size }} 个
+      </span>
       <Button
-        variant="ghost"
+        color="error"
+        variant="soft"
         size="xs"
-        class="text-base-content/65 hover:text-base-content w-full justify-between rounded-xl px-2.5 text-xs font-normal"
-        @click="openFullTagsPage"
+        class="gap-1 rounded-full px-3 text-xs"
+        @click="deleteBatchSelected"
       >
-        <span class="flex items-center gap-1.5">
-          <Icon :name="I.SELECT_ALL" class="text-sm" />
-          <span>批量管理完整页</span>
-        </span>
-        <Icon :name="I.RIGHT" class="text-xs" />
+        <Icon :name="I.DELETE" class="text-xs" />
+        <span>批量删除</span>
       </Button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { TagRailMode } from './tagRail'
 import type { TagFormState } from '@/pages/tags/TagFormContent'
 import type { Tag } from '@/store/tagList'
 import { Api, Core } from '@115master/drive115'
@@ -327,9 +308,10 @@ const tagStore = useTagStore()
 const dialog = useAppDialog()
 const toast = useToast()
 
-const mode = ref<TagRailMode>('filter')
+const managing = ref(false)
 const searchKeyword = ref('')
 const onlyWithWorks = ref(false)
+const selectedTagIds = ref(new Set<string>())
 
 const allItems = computed(() =>
   mergeTagRailItems(tagStore.tags, store.libraryIndex.driveLabels, LabelColor.Blank),
@@ -342,10 +324,48 @@ const withWorksCount = computed(() =>
 const visibleItems = computed(() =>
   filterTagRailItems(allItems.value, {
     keyword: searchKeyword.value,
-    mode: mode.value,
+    mode: managing.value ? 'manage' : 'filter',
     onlyWithWorks: onlyWithWorks.value,
   }),
 )
+
+const manageableVisibleIds = computed(() =>
+  visibleItems.value.filter(item => item.fromDrive).map(item => item.id),
+)
+
+const allVisibleSelected = computed(() =>
+  manageableVisibleIds.value.length > 0
+  && manageableVisibleIds.value.every(id => selectedTagIds.value.has(id)),
+)
+
+function toggleManaging() {
+  managing.value = !managing.value
+  if (!managing.value)
+    selectedTagIds.value = new Set()
+}
+
+function toggleSelectTag(id: string) {
+  const next = new Set(selectedTagIds.value)
+  if (next.has(id))
+    next.delete(id)
+  else
+    next.add(id)
+  selectedTagIds.value = next
+}
+
+function toggleSelectAllVisible() {
+  if (allVisibleSelected.value) {
+    const next = new Set(selectedTagIds.value)
+    for (const id of manageableVisibleIds.value)
+      next.delete(id)
+    selectedTagIds.value = next
+    return
+  }
+  const next = new Set(selectedTagIds.value)
+  for (const id of manageableVisibleIds.value)
+    next.add(id)
+  selectedTagIds.value = next
+}
 
 function findDriveTag(id: string): Tag | undefined {
   return tagStore.tags.find(tag => tag.id === id)
@@ -425,16 +445,51 @@ async function deleteTag(tag?: Tag) {
     await tagStore.remove(tag.id)
     if (store.filter.driveLabel === tag.id)
       store.selectDriveLabel(undefined)
+    if (selectedTagIds.value.has(tag.id)) {
+      const next = new Set(selectedTagIds.value)
+      next.delete(tag.id)
+      selectedTagIds.value = next
+    }
   }
   catch (e) {
     toast.error(Core.toDrive115Error(e).message)
   }
 }
 
-function openFullTagsPage() {
-  if (props.mobile)
-    store.setTagRailOpen(false)
-  if (route.name !== 'library-tags')
-    void router.push({ name: 'library-tags' })
+async function deleteBatchSelected() {
+  const ids = Array.from(selectedTagIds.value)
+  if (ids.length === 0)
+    return
+  if (ids.length === 1) {
+    const tag = findDriveTag(ids[0])
+    if (tag) {
+      await deleteTag(tag)
+      return
+    }
+  }
+
+  const confirmed = await dialog.confirm({
+    title: '批量删除标签',
+    content: `将删除选中的 ${ids.length} 个标签，并从所有关联文件移除，且不可恢复。`,
+    confirmText: '删除',
+    cancelText: '取消',
+  })
+  if (!confirmed)
+    return
+
+  const failed = await tagStore.removeBatch(ids)
+  const failedSet = new Set(failed.map(item => item.id))
+  for (const id of ids) {
+    if (!failedSet.has(id) && store.filter.driveLabel === id)
+      store.selectDriveLabel(undefined)
+  }
+  selectedTagIds.value = failedSet
+
+  if (failed.length > 0) {
+    const names = failed.map(f => findDriveTag(f.id)?.name ?? f.id).join('、')
+    toast.error(`${failed.length} 个删除失败：${names}`)
+    return
+  }
+  toast.success(`已删除 ${ids.length} 个标签`)
 }
 </script>

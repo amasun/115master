@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ActressNameMatcher } from '../actressNameMatcher'
+import { ActressNameMatcher, cleanActorName } from '../actressNameMatcher'
 
 const matcher = new ActressNameMatcher([
   '大橋未久',
@@ -83,6 +83,19 @@ describe('actressNameMatcher', () => {
       expect(matcher.searchCandidates('明里')).toEqual(['明里', '明里つむぎ'])
       expect(matcher.searchCandidates('未知')).toEqual([])
       expect(matcher.searchCandidates('a')).toEqual([])
+    })
+  })
+
+  describe('cleanActorName', () => {
+    it('strips trailing site category badges and preserves pure actress names', () => {
+      expect(cleanActorName('三上悠亚有码')).toBe('三上悠亚')
+      expect(cleanActorName('三上悠亜 有碼')).toBe('三上悠亜')
+      expect(cleanActorName('三上悠亚 [有码]')).toBe('三上悠亚')
+      expect(cleanActorName('橋本ありな 無碼')).toBe('橋本ありな')
+      expect(cleanActorName('三上悠亚 ♀')).toBe('三上悠亚')
+      expect(cleanActorName('白桃はな (12)')).toBe('白桃はな')
+      expect(cleanActorName('明里つむぎ')).toBe('明里つむぎ')
+      expect(cleanActorName('Julia')).toBe('Julia')
     })
   })
 })

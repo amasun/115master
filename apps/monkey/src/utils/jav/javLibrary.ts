@@ -1,5 +1,6 @@
 import type { JavInfo } from './jav'
 import dayjs from 'dayjs'
+import { cleanActorName } from '@/utils/actressNameMatcher'
 import { appLogger } from '@/utils/logger'
 import { isSameAvNumber, Jav, JAV_SOURCE, normalizeAvNumber } from './jav'
 import { createJavLibraryWorkerRequest } from './javLibraryWorker'
@@ -275,7 +276,8 @@ export class JavLibrary extends Jav {
   parseActor(dom: Document): JavInfo['actors'] {
     return this
       .parseNamedLinks(dom, '#video_cast .cast .star a, #video_cast .star a')
-      ?.map(actor => ({ ...actor, sex: 1 as const }))
+      ?.map(actor => ({ ...actor, name: cleanActorName(actor.name), sex: 1 as const }))
+      .filter(actor => Boolean(actor.name))
   }
 
   parseStudio(dom: Document): JavInfo['studio'] {

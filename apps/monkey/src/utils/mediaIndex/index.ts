@@ -6,6 +6,7 @@ export {
 export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
 export {
   analyzeDuplicateGroups,
+  analyzeDuplicateGroupsAsync,
   isSuspectedMultiPartGroup,
   scoreEntryFilesForDedupe,
   scoreFileForKeep,

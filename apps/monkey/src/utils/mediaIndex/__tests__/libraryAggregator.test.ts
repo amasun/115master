@@ -367,4 +367,43 @@ describe('libraryAggregator', () => {
     expect(index.query(createFilter({ keyword: '新ありな' })).map(i => i.mediaKey))
       .toEqual(['jav:SSIS103', 'jav:SSIS102', 'jav:SSIS101'])
   })
+
+  it('自动清洗历史缓存中的「有码」等非名字后缀并归并为同一演员', () => {
+    const entries = aggregateLibraryEntries(
+      [
+        { fid: 'f1', cid: 'c1', pickCode: 'pc1', avNumber: 'SSIS-001', name: 'SSIS-001.mp4', size: 1000, duration: 100, mtime: 100 },
+      ],
+      new Map([
+        [
+          'jav:SSIS001',
+          createMeta({
+            mediaKey: 'jav:SSIS001',
+            externalId: 'SSIS-001',
+            actors: [{ name: '三上悠亜 有碼' }],
+          }),
+        ],
+      ]),
+      {},
+    )
+
+    const actorWorks: ActorWorksCacheEntry[] = [
+      {
+        actorKey: '三上悠亚有码',
+        name: '三上悠亚有码',
+        aliases: ['三上悠亜 有碼'],
+        source: 'javbus',
+        profileUrl: 'https://javbus.example/star/mikami',
+        avNumbers: ['SSIS-001'],
+        fetchedPages: 1,
+        hasMore: false,
+        cachedAt: 1_700_000_000_000,
+      },
+    ]
+
+    const index = buildLibraryIndex(entries, actorWorks)
+    expect(index.actors).toEqual([
+      { name: '三上悠亚', count: 1 },
+    ])
+    expect(index.actorStats[0].name).toBe('三上悠亚')
+  })
 })
