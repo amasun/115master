@@ -1,5 +1,5 @@
-import Icon from './icon'
+import Icon, { getOfflineIcon, resolveIconName } from './icon'
 import { I } from './registry'
 
-export { I, Icon }
+export { getOfflineIcon, I, Icon, resolveIconName }
 export type { IconSize, IconValue } from './types'

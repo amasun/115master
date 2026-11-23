@@ -102,7 +102,7 @@
         :class="store.filter.onlyStarred ? 'btn-warning' : 'btn-ghost'"
         @click="store.filter.onlyStarred = !store.filter.onlyStarred"
       >
-        <Icon :name="I.STAR_FILL" class="text-sm" />
+        <Icon :name="I.STAR" :filled="store.filter.onlyStarred" class="text-sm" />
         <span>仅看星标</span>
       </button>
 
@@ -113,7 +113,7 @@
         :class="store.filter.onlyMarked ? 'btn-secondary' : 'btn-ghost'"
         @click="store.filter.onlyMarked = !store.filter.onlyMarked"
       >
-        <Icon :name="I.MARKER" class="text-sm" />
+        <Icon :name="I.MARKER" :filled="store.filter.onlyMarked" class="text-sm" />
         <span>仅看有打点</span>
       </button>
 

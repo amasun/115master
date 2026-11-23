@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import { defineConfig } from 'vite'
 import svgLoader from 'vite-svg-loader'
+import { phosphorIconsPlugin } from '../plugins/phosphorIcons'
 
 export default defineConfig({
   resolve: {
@@ -14,5 +15,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@libmedia/avplayer'],
   },
-  plugins: [vue(), vueJsx(), tailwindcss(), svgLoader()],
+  plugins: [phosphorIconsPlugin(), vue(), vueJsx(), tailwindcss(), svgLoader()],
 })

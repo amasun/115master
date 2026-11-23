@@ -22,8 +22,10 @@ class OfficialPage {
   private previewIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
   private previewDisposer: (() => void) | null = null
   private avInfoButton: HTMLButtonElement | null = null
+  private avInfoIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
   private avInfoDisposer: (() => void) | null = null
   private actressFacesButton: HTMLButtonElement | null = null
+  private actressFacesIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
   private actressFacesDisposer: (() => void) | null = null
   private shortcutDisposer: (() => void) | null = null
   private scheduledFrame: number | null = null
@@ -76,7 +78,9 @@ class OfficialPage {
     this.previewButton = null
     this.previewIcon = null
     this.avInfoButton = null
+    this.avInfoIcon = null
     this.actressFacesButton = null
+    this.actressFacesIcon = null
 
     this.logger.info('新版页面适配销毁完成')
   }
@@ -231,7 +235,9 @@ class OfficialPage {
     let preview: HTMLButtonElement | null = null
     let previewIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
     let avInfo: HTMLButtonElement | null = null
+    let avInfoIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
     let actressFaces: HTMLButtonElement | null = null
+    let actressFacesIcon: HTMLElementTagNameMap['iconify-icon'] | null = null
 
     if (supportsPreview) {
       // 1. 截图开关
@@ -254,7 +260,7 @@ class OfficialPage {
       avInfo.type = 'button'
       avInfo.className = 'control av-info'
       avInfo.setAttribute('data-115master-av-toggle', '')
-      const avInfoIcon = this.createIcon(officialIcons.documentText)
+      avInfoIcon = this.createIcon(officialIcons.documentText)
       const avInfoLabel = document.createElement('span')
       avInfoLabel.className = 'label'
       avInfoLabel.textContent = '介绍'
@@ -268,7 +274,7 @@ class OfficialPage {
       actressFaces.type = 'button'
       actressFaces.className = 'control actress-faces'
       actressFaces.setAttribute('data-115master-actress-toggle', '')
-      const actressFacesIcon = this.createIcon(officialIcons.person)
+      actressFacesIcon = this.createIcon(officialIcons.person)
       const actressFacesLabel = document.createElement('span')
       actressFacesLabel.className = 'label'
       actressFacesLabel.textContent = '头像'
@@ -340,7 +346,9 @@ class OfficialPage {
     this.previewButton = preview
     this.previewIcon = previewIcon
     this.avInfoButton = avInfo
+    this.avInfoIcon = avInfoIcon
     this.actressFacesButton = actressFaces
+    this.actressFacesIcon = actressFacesIcon
     this.shortcutDisposer = registerSuperSearchShortcut()
 
     if (preview) {
@@ -417,7 +425,7 @@ class OfficialPage {
     this.previewIcon.icon = enabled ? officialIcons.eye : officialIcons.eyeOff
   }
 
-  /** 同步介绍开关的状态和提示。 */
+  /** 同步介绍开关的图标、状态和提示。 */
   private syncAvInfoButton(enabled: boolean): void {
     if (!this.avInfoButton)
       return
@@ -429,9 +437,11 @@ class OfficialPage {
       enabled ? '关闭作品介绍' : '开启作品介绍',
     )
     this.avInfoButton.title = enabled ? '关闭作品介绍' : '开启作品介绍'
+    if (this.avInfoIcon)
+      this.avInfoIcon.icon = enabled ? officialIcons.documentTextActive : officialIcons.documentText
   }
 
-  /** 同步头像开关的状态和提示。 */
+  /** 同步头像开关的图标、状态和提示。 */
   private syncActressFacesButton(enabled: boolean): void {
     if (!this.actressFacesButton)
       return
@@ -443,6 +453,8 @@ class OfficialPage {
       enabled ? '关闭演员头像' : '开启演员头像',
     )
     this.actressFacesButton.title = enabled ? '关闭演员头像' : '开启演员头像'
+    if (this.actressFacesIcon)
+      this.actressFacesIcon.icon = enabled ? officialIcons.personActive : officialIcons.person
   }
 
   /** 把高频 DOM 变化合并为每帧最多一次位置同步。 */

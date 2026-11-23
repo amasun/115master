@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          '集中式图标组件：ionicons Filled 套件（`ion:*`）委托 @iconify/vue 渲染，自定义 SVG（`custom:*`）动态异步加载。颜色通过 Tailwind 文本类（`text-base-content` 等）控制，尺寸用 `size` prop（xs~2xl）。**所有图标引用必须走 `I.*` 语义常量，禁止字面量字符串。**',
+          '集中式图标组件：Phosphor 套件（`ph:*`，默认 `bold` 风格，传入 `filled` 切换为 `fill` 选中态）委托 @iconify/vue 渲染，自定义 SVG（`custom:*`）动态异步加载。颜色通过 Tailwind 文本类（`text-base-content` 等）控制，尺寸用 `size` prop（xs~2xl）。**所有图标引用必须走 `I.*` 语义常量，禁止字面量字符串。**',
       },
     },
   },
@@ -104,7 +104,7 @@ export const CustomSvg: Story = {
   parameters: {
     docs: {
       description: {
-        story: '`custom:` 前缀的图标从 `./custom/<name>.svg` 动态异步加载为 Vue 组件。当前有 `FILE_FOLDER`（文件夹）和 `FILE_IMAGE`（图片文件）两个自定义图标，补充 ionicons 无合适对应物的场景。',
+        story: '`custom:` 前缀的图标从 `./custom/<name>.svg` 动态异步加载为 Vue 组件。当前有 `FILE_FOLDER`（文件夹）和 `FILE_IMAGE`（图片文件）两个自定义图标，补充 Phosphor 无合适对应物的场景。',
       },
     },
   },
@@ -132,15 +132,22 @@ export const Dynamic: Story = {
     components: { Button, Icon },
     setup: () => {
       const playing = ref(false)
-      return { I, playing }
+      const active = ref(false)
+      return { I, playing, active }
     },
     template: `
-      <div class="flex flex-col items-start gap-3">
-        <Button color="primary" type="button" @click="playing = !playing">
-          <Icon :name="playing ? I.PAUSE : I.PLAY" size="sm" />
-          {{ playing ? '暂停' : '播放' }}
-        </Button>
-        <p class="text-sm opacity-60">点击按钮切换 PLAY / PAUSE 图标</p>
+      <div class="flex flex-col items-start gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <Button color="primary" type="button" @click="playing = !playing">
+            <Icon :name="playing ? I.PAUSE : I.PLAY" :filled="playing" size="sm" />
+            {{ playing ? '暂停' : '播放' }}
+          </Button>
+          <Button :variant="active ? 'solid' : 'soft'" type="button" @click="active = !active">
+            <Icon :name="I.LIBRARY" :filled="active" size="sm" />
+            {{ active ? '已选中（fill）' : '未选中（bold）' }}
+          </Button>
+        </div>
+        <p class="text-sm opacity-60">点击按钮切换 PLAY / PAUSE 及 bold / fill 风格</p>
       </div>
     `,
   }),
@@ -270,7 +277,12 @@ export const Gallery: Story = {
             { key: 'GRID', value: I.GRID },
             { key: 'LIST', value: I.LIST },
             { key: 'NEW_FOLDER', value: I.NEW_FOLDER },
+            { key: 'FOLDER_OPEN', value: I.FOLDER_OPEN },
             { key: 'DOCUMENT', value: I.DOCUMENT },
+            { key: 'LIBRARY', value: I.LIBRARY },
+            { key: 'PEOPLE', value: I.PEOPLE },
+            { key: 'FILTER', value: I.FILTER },
+            { key: 'CALENDAR', value: I.CALENDAR },
             { key: 'STAR_RATING', value: I.STAR_RATING },
             { key: 'STAR_FILL', value: I.STAR_FILL },
             { key: 'STAR', value: I.STAR },

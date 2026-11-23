@@ -13,6 +13,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 import PKG from './package.json'
 import { devConfig } from './plugins/dev'
+import { phosphorIconsPlugin } from './plugins/phosphorIcons'
 
 // eslint-disable-next-line node/prefer-global/process
 const env = process.env
@@ -48,6 +49,7 @@ export default defineConfig({
   },
   server: dev?.server,
   plugins: [
+    phosphorIconsPlugin(),
     typescript({
       // ref: https://zhaohappy.github.io/libmedia/docs/guide/quick-start#%E7%BC%96%E8%AF%91%E9%85%8D%E7%BD%AE
       // 配置使用的 tsconfig.json 配置文件

@@ -79,7 +79,7 @@
     "@115master/shared": "workspace:*",
     "@115master/tsconfig": "workspace:*",
     "@115master/utils": "workspace:*",
-    "@iconify-json/ion": "^1.2.7",
+    "@iconify-json/ph": "^1.2.2",
     "@libmedia/avpipeline": "^1.2.0",
     "@libmedia/cheap": "^1.2.0",
     "@playwright/test": "^1.57.0",

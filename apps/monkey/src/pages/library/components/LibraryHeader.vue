@@ -95,7 +95,7 @@
           :class="!isActors && (showFilters || subFilterCount > 0) ? 'ring-primary/50 text-primary ring-1' : ''"
           @click="$emit('toggleFilters')"
         >
-          <Icon :name="I.FILTER" class="text-base" />
+          <Icon :name="I.FILTER" :filled="!isActors && (showFilters || subFilterCount > 0)" class="text-base" />
         </Button>
       </Tooltip>
 

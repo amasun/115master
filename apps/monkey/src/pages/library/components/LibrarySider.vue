@@ -36,7 +36,7 @@
           @click="selectAllWorks"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.LIBRARY" class="text-lg" />
+            <Icon :name="I.LIBRARY" :filled="isAllWorksActive" class="text-lg" />
             <span>全部作品</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.entries.length }}</span>
@@ -52,7 +52,7 @@
           @click="openActorsWall"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.PEOPLE" class="text-lg" />
+            <Icon :name="I.PEOPLE" :filled="isActorsActive" class="text-lg" />
             <span>演员</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.libraryIndex.actors.length }}</span>
@@ -68,7 +68,7 @@
           @click="selectView('recent')"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.HISTORY" class="text-lg" />
+            <Icon :name="I.HISTORY" :filled="isRecentActive" class="text-lg" />
             <span>最近入库</span>
           </span>
         </button>
@@ -83,7 +83,7 @@
           @click="selectView('starred')"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.STAR" class="text-lg" />
+            <Icon :name="I.STAR" :filled="isStarredActive" class="text-lg" />
             <span>星标收藏</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.starredCount }}</span>
@@ -99,7 +99,7 @@
           @click="selectView('marked')"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.MARKER" class="text-lg" />
+            <Icon :name="I.MARKER" :filled="isMarkedActive" class="text-lg" />
             <span>有打点</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.markedCount }}</span>
@@ -115,7 +115,7 @@
           @click="openTagsPage"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.TAG" class="text-lg" />
+            <Icon :name="I.TAG" :filled="isTagsActive" class="text-lg" />
             <span>标签管理</span>
           </span>
         </button>

@@ -35,7 +35,7 @@
             ]"
             @click="activeTab = tab.key"
           >
-            <Icon :name="tab.icon" class="size-6" />
+            <Icon :name="tab.icon" :filled="activeTab === tab.key" class="size-6" />
             <span>{{ tab.name }}</span>
           </button>
         </div>

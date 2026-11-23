@@ -79,7 +79,7 @@ const SortOptions = defineComponent({
                   'active:bg-primary/10': !on,
                 }}
               >
-                <Icon class="text-lg" name={option.icon} />
+                <Icon class="text-lg" name={option.icon} filled={on} />
                 <span class="mr-auto ml-2">{option.name}</span>
                 {items.map((sub) => {
                   const onItem = active(sub)

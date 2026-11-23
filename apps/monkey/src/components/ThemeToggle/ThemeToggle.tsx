@@ -64,7 +64,7 @@ const ThemeToggle = defineComponent({
               }).btn}
               onClick={() => pickMode(opt.value)}
             >
-              <Icon name={opt.icon} class="text-base" />
+              <Icon name={opt.icon} filled={active} class="text-base" />
               <span>{opt.label}</span>
             </button>
           )

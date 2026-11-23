@@ -1,15 +1,15 @@
 import { createDialogService, DialogHost, ModalHost, OverlayHost } from '@115master/ui'
-import { icons } from '@iconify-json/ion'
 import { addCollection } from '@iconify/vue'
 import addonA11y from '@storybook/addon-a11y'
 import addonDocs from '@storybook/addon-docs'
 import addonVitest from '@storybook/addon-vitest'
 import { definePreview } from '@storybook/vue3-vite'
+import { phCollection } from 'virtual:phosphor-icons'
 import { computed, watchEffect } from 'vue'
 import '../src/styles/main.css'
 
-/** 本地预载 registry 使用的 Ion 集合，避免 Story 渲染时访问 Iconify API。 */
-addCollection(icons)
+/** 本地预载 registry 使用的 Phosphor 离线子集，避免 Story 渲染时访问外网 API。 */
+addCollection(phCollection)
 
 /**
  * 应用仍有直接使用 #my-app 的历史 Teleport 集成；它不是 Tooltip 宿主。
