@@ -1,3 +1,9 @@
+export {
+  actorProfileCache,
+  fetchActorProfile,
+  parseJavBusActorProfile,
+} from './actorProfileFetcher'
+export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
 export { aggregateLibraryEntries, buildLibraryIndex } from './libraryAggregator'
 export type { LibraryIndex, YearFacetCount } from './libraryAggregator'
 export {
