@@ -1152,10 +1152,25 @@ watch(
 )
 
 watch(
-  () => activeFile.value,
-  (file) => {
-    void loadTimelineCovers(file)
-    void loadMarkers(file)
+  [
+    () => activeFile.value?.pickCode ?? '',
+    () => activeFile.value?.sha1 ?? '',
+    () => activeFile.value?.duration ?? 0,
+    previewSlotCount,
+  ],
+  () => {
+    void loadTimelineCovers(activeFile.value)
+  },
+  { immediate: true },
+)
+
+watch(
+  [
+    () => activeFile.value?.pickCode ?? '',
+    () => activeFile.value?.fid ?? '',
+  ],
+  () => {
+    void loadMarkers(activeFile.value)
   },
   { immediate: true },
 )
