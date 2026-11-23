@@ -126,12 +126,13 @@ export function useLibraryFileActions() {
     options?: {
       onPlay?: (file: LibraryFileItem) => void
       onOpenDetail?: () => void
+      onChangeCover?: () => void
       hooks?: LibraryFileActionHooks
     },
   ): ActionMenuGroup[] {
     const groups: ActionMenuGroup[] = []
 
-    if (options?.onPlay || options?.onOpenDetail) {
+    if (options?.onPlay || options?.onOpenDetail || options?.onChangeCover) {
       groups.push([
         ...(options.onPlay
           ? [{
@@ -151,6 +152,14 @@ export function useLibraryFileActions() {
               label: '查看详情',
               leading: actionIcon(I.DOCUMENT),
               onSelect: () => options.onOpenDetail?.(),
+            }]
+          : []),
+        ...(options.onChangeCover
+          ? [{
+              id: 'change-cover',
+              label: '更换封面',
+              leading: actionIcon(I.RENAME),
+              onSelect: () => options.onChangeCover?.(),
             }]
           : []),
       ])

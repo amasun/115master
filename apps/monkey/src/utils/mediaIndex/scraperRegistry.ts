@@ -13,7 +13,7 @@ import { Jav, normalizeAvNumber } from '@/utils/jav/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
 import { GMRequest } from '@/utils/request/gmRequest'
-import { posterThumbCache } from './videoIndexStore'
+import { getCustomCover, posterThumbCache } from './videoIndexStore'
 
 const logger = appLogger.sub('ScraperRegistry')
 const gm = new GMRequest()
@@ -228,7 +228,20 @@ function createBlobResource(blob: Blob): PosterThumbResource {
   }
 }
 
-/** 按需加载海报墙封面缩略图（优先读本地 WebP 永久缓存，未命中则压缩后持久化） */
+/** 加载用户手动设置的自定义高清封面 */
+export async function loadCustomFullCoverUrl(mediaKey: string): Promise<PosterThumbResource | null> {
+  const custom = await getCustomCover(mediaKey)
+  if (!custom)
+    return null
+  const blob = custom.fullBlob instanceof Blob && custom.fullBlob.size > 0
+    ? custom.fullBlob
+    : custom.thumbBlob
+  if (!(blob instanceof Blob) || blob.size === 0)
+    return null
+  return createBlobResource(blob)
+}
+
+/** 按需加载海报墙封面缩略图（优先读自定义封面与本地 WebP 永久缓存，未命中则压缩后持久化） */
 export async function loadPosterThumbUrl(
   mediaKey: string,
   candidates: MediaCoverCandidate[],
@@ -236,6 +249,12 @@ export async function loadPosterThumbUrl(
 ): Promise<PosterThumbResource | null> {
   if (signal.aborted)
     throw signal.reason ?? new DOMException('请求已取消', 'AbortError')
+
+  const custom = await getCustomCover(mediaKey)
+  if (signal.aborted)
+    throw signal.reason ?? new DOMException('请求已取消', 'AbortError')
+  if (custom?.thumbBlob instanceof Blob && custom.thumbBlob.size > 0)
+    return createBlobResource(custom.thumbBlob)
 
   const cached = await posterThumbCache.get(mediaKey)
   if (signal.aborted)

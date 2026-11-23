@@ -1,7 +1,7 @@
 import type { ActressImageInfo, ActressImageMap } from '@/types/actress'
 import { GM_notification } from '$'
 import { CDN_BASE_URL } from '@/constants'
-import { ActressNameMatcher } from './actressNameMatcher'
+import { ActressNameMatcher, normalizeActressName } from './actressNameMatcher'
 import { actressFaceCache } from './cache/actressFaceCache'
 import { appLogger } from './logger'
 
@@ -119,6 +119,57 @@ export class ActressFaceDB {
       ...file,
       url: `${GFRIENDS_REP_URL}/Content/${file.folder}/${file.filename}`,
     }
+  }
+
+  /**
+   * 查找演员在头像库中的所有候选头像（含别名、繁简及 `-2` 等多版本后缀）
+   */
+  async findActressAll(
+    names: string[],
+  ): Promise<Array<{ name: string, folder: string, filename: string, url: string }>> {
+    await this.init()
+    const seenUrls = new Set<string>()
+    const results: Array<{ name: string, folder: string, filename: string, url: string }> = []
+    const normalizedTargets = new Set<string>()
+    const matchedKeys = new Set<string>()
+
+    names.map(item => item.trim()).filter(Boolean).forEach((raw) => {
+      const normalized = normalizeActressName(raw)
+      if (normalized)
+        normalizedTargets.add(normalized)
+      if (this.imageMap.has(raw))
+        matchedKeys.add(raw)
+      const matched = this.getMatcher().matchName(raw)
+      if (matched)
+        matchedKeys.add(matched)
+    })
+
+    this.imageMap.forEach((_files, key) => {
+      const baseKey = key.replace(/-\d+$/, '')
+      const normalizedKey = normalizeActressName(baseKey)
+      if (normalizedKey && normalizedTargets.has(normalizedKey))
+        matchedKeys.add(key)
+    })
+
+    matchedKeys.forEach((key) => {
+      const files = this.imageMap.get(key)
+      if (!files)
+        return
+      files.forEach((file) => {
+        const url = `${GFRIENDS_REP_URL}/Content/${file.folder}/${file.filename}`
+        if (seenUrls.has(url))
+          return
+        seenUrls.add(url)
+        results.push({
+          name: key,
+          folder: file.folder,
+          filename: file.filename,
+          url,
+        })
+      })
+    })
+
+    return results
   }
 
   /**

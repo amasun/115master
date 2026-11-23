@@ -27,6 +27,7 @@ vi.mock('@/utils/cache/javCache', () => ({
   },
 }))
 vi.mock('../videoIndexStore', () => ({
+  getCustomCover: vi.fn().mockResolvedValue(null),
   posterThumbCache: { get: vi.fn(), set: vi.fn() },
   videoIndexStore: { getSnapshot: vi.fn(), saveSnapshot: vi.fn() },
   requestPersistentStorage: vi.fn(),

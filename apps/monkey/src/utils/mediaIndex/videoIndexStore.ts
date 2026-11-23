@@ -9,6 +9,7 @@ import {
 
 const POSTER_THUMB_STORE_NAME = 'library_poster_thumb_v1'
 const SCRAPE_MISS_STORE_NAME = 'library_scrape_miss_v1'
+const CUSTOM_MEDIA_STORE_NAME = 'library_custom_media_v1'
 export const DEFAULT_SCRAPE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export interface ScrapeMissEntry {
@@ -16,6 +17,25 @@ export interface ScrapeMissEntry {
   missedAt: number
   expiresAt: number
 }
+
+export interface CustomCoverRecord {
+  kind: 'cover'
+  mediaKey: string
+  thumbBlob: Blob
+  fullBlob: Blob
+  sourceLabel: string
+  updatedAt: number
+}
+
+export interface CustomAvatarRecord {
+  kind: 'avatar'
+  actorKey: string
+  blob: Blob
+  sourceLabel: string
+  updatedAt: number
+}
+
+export type CustomMediaRecord = CustomCoverRecord | CustomAvatarRecord
 
 class PosterThumbCache extends CacheCore<Blob> {
   constructor() {
@@ -39,8 +59,99 @@ class ScrapeMissCache extends CacheCore<ScrapeMissEntry> {
   }
 }
 
+class CustomMediaCache extends CacheCore<CustomMediaRecord> {
+  constructor() {
+    super({
+      name: STORE_NAME,
+      storeName: CUSTOM_MEDIA_STORE_NAME,
+      enableQuotaManagement: false,
+      logger: appLogger.sub('CustomMediaCache'),
+    })
+  }
+}
+
 export const posterThumbCache = new PosterThumbCache()
 export const scrapeMissCache = new ScrapeMissCache()
+export const customMediaCache = new CustomMediaCache()
+
+function customCoverKey(mediaKey: string): string {
+  return `cover:${mediaKey}`
+}
+
+function customAvatarKey(actorKey: string): string {
+  return `avatar:${actorKey}`
+}
+
+export async function getCustomCover(mediaKey: string): Promise<CustomCoverRecord | null> {
+  try {
+    const cached = await customMediaCache.get(customCoverKey(mediaKey))
+    const value = cached?.value
+    if (!value || value.kind !== 'cover')
+      return null
+    return value
+  }
+  catch {
+    return null
+  }
+}
+
+export async function saveCustomCover(record: CustomCoverRecord): Promise<void> {
+  await customMediaCache.set(customCoverKey(record.mediaKey), record)
+  await posterThumbCache.set(record.mediaKey, record.thumbBlob)
+}
+
+export async function removeCustomCover(mediaKey: string): Promise<void> {
+  await customMediaCache.remove(customCoverKey(mediaKey))
+  await posterThumbCache.remove(mediaKey)
+}
+
+export async function getCustomAvatar(actorKey: string): Promise<CustomAvatarRecord | null> {
+  try {
+    const cached = await customMediaCache.get(customAvatarKey(actorKey))
+    const value = cached?.value
+    if (!value || value.kind !== 'avatar')
+      return null
+    return value
+  }
+  catch {
+    return null
+  }
+}
+
+export async function saveCustomAvatar(record: CustomAvatarRecord): Promise<void> {
+  await customMediaCache.set(customAvatarKey(record.actorKey), record)
+}
+
+export async function removeCustomAvatar(actorKey: string): Promise<void> {
+  await customMediaCache.remove(customAvatarKey(actorKey))
+}
+
+export async function readAllCustomMediaKeys(): Promise<{
+  coverKeys: Set<string>
+  avatars: Map<string, CustomAvatarRecord>
+}> {
+  const coverKeys = new Set<string>()
+  const avatars = new Map<string, CustomAvatarRecord>()
+  try {
+    await customMediaCache.storage.iterate<{ value?: CustomMediaRecord } | null, void>(
+      (entry: { value?: CustomMediaRecord } | null) => {
+        const value = entry?.value
+        if (!value)
+          return
+        if (value.kind === 'cover' && value.mediaKey) {
+          coverKeys.add(value.mediaKey)
+          return
+        }
+        if (value.kind === 'avatar' && value.actorKey)
+          avatars.set(value.actorKey, value)
+      },
+    )
+  }
+  catch {
+    // 忽略自定义媒体索引遍历异常
+  }
+  return { coverKeys, avatars }
+}
 
 export async function isScrapeMissed(mediaKey: string, now = Date.now()): Promise<boolean> {
   try {

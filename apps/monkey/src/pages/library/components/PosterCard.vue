@@ -163,6 +163,7 @@ const menuGroups = fileActions.buildFileMenuGroups(
   {
     onPlay: () => playPrimary(),
     onOpenDetail: () => openDetail(),
+    onChangeCover: () => store.openCoverPicker(props.entry.mediaKey),
   },
 )
 
@@ -233,7 +234,12 @@ async function refreshThumb() {
 }
 
 watch(
-  [() => props.entry.mediaKey, () => props.entry.meta?.coverUrl, () => props.entry.meta?.updatedAt],
+  [
+    () => props.entry.mediaKey,
+    () => props.entry.meta?.coverUrl,
+    () => props.entry.meta?.updatedAt,
+    () => store.customCoverVersions[props.entry.mediaKey],
+  ],
   () => {
     void refreshThumb()
   },

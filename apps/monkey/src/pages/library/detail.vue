@@ -66,6 +66,15 @@
                 <Icon :name="I.RENAME" class="text-sm" />
                 <span>指定番号</span>
               </Button>
+              <Button
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                @click="store.openCoverPicker(mediaKey)"
+              >
+                <Icon :name="I.UPLOAD" class="text-sm" />
+                <span>更换封面</span>
+              </Button>
               <a
                 v-if="entry.meta?.detailUrl"
                 :href="entry.meta.detailUrl"
@@ -104,30 +113,48 @@
 
           <!-- 主封面与核心元数据 -->
           <div class="flex flex-col gap-6 md:flex-row md:items-start">
-            <!-- 主封面（WebP 缩略图瞬时占位 + 高清原图异步升级） -->
-            <div class="bg-base-300/70 relative aspect-[3/2] w-full shrink-0 overflow-hidden rounded-2xl shadow-lg md:w-[420px]">
+            <!-- 主封面（自定义封面优先，否则 WebP 缩略图瞬时占位 + 高清原图异步升级） -->
+            <div class="group bg-base-300/70 relative aspect-[3/2] w-full shrink-0 overflow-hidden rounded-2xl shadow-lg md:w-[420px]">
               <img
-                v-if="thumbUrl"
-                :src="thumbUrl"
+                v-if="customCoverUrl"
+                :src="customCoverUrl"
                 :alt="displayTitle"
-                class="absolute inset-0 size-full object-cover"
+                class="relative z-1 size-full object-cover"
               >
-              <Image
-                v-if="coverLoader"
-                :src="entry.meta?.coverUrl || thumbUrl || ''"
-                :alt="displayTitle"
-                :loader="coverLoader"
-                :fallback="coverFallback"
-                class="relative z-1 size-full"
-                fit="cover"
-              />
-              <div
-                v-else-if="!thumbUrl"
-                class="text-base-content/35 flex size-full flex-col items-center justify-center gap-2"
+              <template v-else>
+                <img
+                  v-if="thumbUrl"
+                  :src="thumbUrl"
+                  :alt="displayTitle"
+                  class="absolute inset-0 size-full object-cover"
+                >
+                <Image
+                  v-if="coverLoader"
+                  :src="entry.meta?.coverUrl || thumbUrl || ''"
+                  :alt="displayTitle"
+                  :loader="coverLoader"
+                  :fallback="coverFallback"
+                  class="relative z-1 size-full"
+                  fit="cover"
+                />
+                <div
+                  v-else-if="!thumbUrl"
+                  class="text-base-content/35 flex size-full flex-col items-center justify-center gap-2"
+                >
+                  <Icon :name="I.LIBRARY" class="text-4xl" />
+                  <span v-if="entry.externalId" class="font-mono text-xs">{{ entry.externalId }}</span>
+                </div>
+              </template>
+              <button
+                type="button"
+                title="更换封面"
+                aria-label="更换封面"
+                class="btn btn-xs border-base-content/15 absolute right-2.5 bottom-2.5 z-2 gap-1 rounded-full border bg-black/75 px-2.5 text-white opacity-0 shadow-sm backdrop-blur-xs transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-black/90"
+                @click.stop="store.openCoverPicker(mediaKey)"
               >
-                <Icon :name="I.LIBRARY" class="text-4xl" />
-                <span v-if="entry.externalId" class="font-mono text-xs">{{ entry.externalId }}</span>
-              </div>
+                <Icon :name="I.RENAME" class="text-xs" />
+                <span>更换封面</span>
+              </button>
             </div>
 
             <!-- 标题与简介元信息 -->
@@ -267,29 +294,43 @@
             演员
           </h2>
           <div class="flex flex-wrap gap-3">
-            <button
+            <div
               v-for="actor in entry.meta.actors"
               :key="actor.name"
-              type="button"
-              class="bg-base-200/60 hover:bg-base-200 border-base-content/6 flex items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-1.5 text-left transition-colors"
-              @click="openActorInLibrary(actor.name)"
+              class="group bg-base-200/60 hover:bg-base-200 border-base-content/6 inline-flex items-center gap-1 rounded-full border py-1.5 pr-2.5 pl-1.5 transition-colors"
+              @contextmenu.prevent="store.openAvatarPicker({ name: actor.name, avatarUrl: actor.avatarUrl })"
             >
-              <img
-                v-if="getActorAvatar(actor) && !failedActorAvatars.has(actor.name)"
-                :src="getActorAvatar(actor)"
-                :alt="actor.name"
-                referrerpolicy="no-referrer"
-                class="size-9 rounded-full object-cover"
-                @error="markActorAvatarFailed(actor.name)"
+              <button
+                type="button"
+                class="flex items-center gap-2.5 text-left"
+                @click="openActorInLibrary(actor.name)"
               >
-              <span
-                v-else
-                class="bg-base-content/10 text-base-content/65 flex size-9 items-center justify-center rounded-full text-xs font-semibold"
+                <img
+                  v-if="getActorAvatar(actor) && !failedActorAvatars.has(actor.name)"
+                  :src="getActorAvatar(actor)"
+                  :alt="actor.name"
+                  referrerpolicy="no-referrer"
+                  class="size-9 rounded-full object-cover object-top"
+                  @error="markActorAvatarFailed(actor.name)"
+                >
+                <span
+                  v-else
+                  class="bg-base-content/10 text-base-content/65 flex size-9 items-center justify-center rounded-full text-xs font-semibold"
+                >
+                  {{ actor.name.slice(0, 1) }}
+                </span>
+                <span class="pr-1 text-sm font-medium">{{ actor.name }}</span>
+              </button>
+              <button
+                type="button"
+                title="更换演员头像"
+                aria-label="更换演员头像"
+                class="btn btn-ghost btn-circle btn-xs text-base-content/50 hover:text-base-content opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                @click.stop="store.openAvatarPicker({ name: actor.name, avatarUrl: actor.avatarUrl })"
               >
-                {{ actor.name.slice(0, 1) }}
-              </span>
-              <span class="text-sm font-medium">{{ actor.name }}</span>
-            </button>
+                <Icon :name="I.RENAME" class="text-xs" />
+              </button>
+            </div>
           </div>
         </section>
 
@@ -507,7 +548,7 @@ import { drive115 } from '@/utils/drive115Instance'
 import { errorFeedback } from '@/utils/errorFeedback'
 import { createGMImageFallbackLoader } from '@/utils/imageLoader'
 import { syncMarkersFromFileDesc } from '@/utils/markers'
-import { getCoverCandidates, loadPosterThumbUrl } from '@/utils/mediaIndex'
+import { getCoverCandidates, loadCustomFullCoverUrl, loadPosterThumbUrl } from '@/utils/mediaIndex'
 import { userSettings, useUserSetting } from '@/utils/userSettings'
 import 'photoswipe/style.css'
 
@@ -547,6 +588,7 @@ function openFileMenu(event: MouseEvent, file: LibraryFileItem) {
   fileMenuOpen.value = true
 }
 
+const customCoverUrl = shallowRef('')
 const thumbUrl = shallowRef('')
 const showManualAv = shallowRef(false)
 const manualAvInput = shallowRef('')
@@ -564,6 +606,8 @@ const previewGalleryRef = ref<HTMLElement | null>(null)
 let lightbox: PhotoSwipeLightbox | null = null
 let thumbController: AbortController | null = null
 let thumbResource: PosterThumbResource | null = null
+let customCoverResource: PosterThumbResource | null = null
+let customCoverRequestId = 0
 let timelineRequestId = 0
 
 const previewSlotCount = computed(() => {
@@ -600,7 +644,7 @@ const coverLoader = computed(() => {
   })
 })
 
-const heroImageSrc = computed(() => thumbUrl.value || entry.value?.meta?.coverUrl || '')
+const heroImageSrc = computed(() => customCoverUrl.value || thumbUrl.value || entry.value?.meta?.coverUrl || '')
 
 function coverFallback() {
   if (thumbUrl.value) {
@@ -614,7 +658,7 @@ function coverFallback() {
 }
 
 function getActorAvatar(actor: MediaActor): string {
-  return store.actorAvatars[actor.name] || actor.avatarUrl || ''
+  return store.getActorAvatarUrl(actor)
 }
 
 function markActorAvatarFailed(name: string) {
@@ -664,6 +708,32 @@ const visiblePreviews = computed(() => {
     })
     .filter(item => item.src && !failedPreviews.value.has(item.key))
 })
+
+function cleanupCustomCover() {
+  customCoverResource?.dispose()
+  customCoverResource = null
+  customCoverUrl.value = ''
+}
+
+async function refreshCustomCover() {
+  customCoverRequestId += 1
+  const currentId = customCoverRequestId
+  cleanupCustomCover()
+
+  const key = entry.value?.mediaKey || mediaKey.value
+  if (!key)
+    return
+
+  const resource = await loadCustomFullCoverUrl(key).catch(() => null)
+  if (currentId !== customCoverRequestId) {
+    resource?.dispose()
+    return
+  }
+  if (resource) {
+    customCoverResource = resource
+    customCoverUrl.value = resource.url
+  }
+}
 
 function cleanupThumb() {
   thumbController?.abort()
@@ -809,11 +879,24 @@ watch(
 )
 
 watch(
-  [() => entry.value?.mediaKey, () => entry.value?.meta?.coverUrl, () => entry.value?.meta?.updatedAt],
+  [
+    () => entry.value?.mediaKey,
+    () => entry.value?.meta?.coverUrl,
+    () => entry.value?.meta?.updatedAt,
+    () => store.customCoverVersions[mediaKey.value],
+  ],
   () => {
+    void refreshCustomCover()
     void refreshThumb()
   },
   { immediate: true },
+)
+
+watch(
+  () => store.customAvatarUrls,
+  () => {
+    failedActorAvatars.value = new Set()
+  },
 )
 
 watch(
@@ -861,7 +944,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  customCoverRequestId += 1
   timelineRequestId += 1
+  cleanupCustomCover()
   cleanupThumb()
   revokeTimelineCovers(timelineCovers.value)
   lightbox?.destroy()

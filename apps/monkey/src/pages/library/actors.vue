@@ -149,6 +149,17 @@
             <Icon :name="I.MARKER" class="text-[11px]" />
             <span>{{ actor.markedCount }}</span>
           </span>
+
+          <!-- 右下角：悬停更换头像 -->
+          <button
+            type="button"
+            title="更换头像"
+            aria-label="更换头像"
+            class="btn btn-circle btn-xs border-base-content/15 absolute right-2 bottom-2 border bg-black/70 text-white opacity-0 shadow-sm backdrop-blur-xs transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-black/90"
+            @click.stop="store.openAvatarPicker(actor)"
+          >
+            <Icon :name="I.RENAME" class="text-xs" />
+          </button>
         </div>
 
         <div class="flex flex-col gap-1 p-3">
@@ -258,6 +269,12 @@ const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
         leading: actionIcon(I.LIBRARY),
         onSelect: () => openActorWorks(target.name),
       },
+      {
+        id: 'change-avatar',
+        label: '更换头像',
+        leading: actionIcon(I.RENAME),
+        onSelect: () => store.openAvatarPicker(target),
+      },
     ],
     [
       {
@@ -332,7 +349,7 @@ const sortedActors = computed(() => {
 })
 
 function getActorAvatar(actor: ActorFacetStat): string {
-  return store.actorAvatars[actor.name] || actor.avatarUrl || ''
+  return store.getActorAvatarUrl(actor)
 }
 
 function markAvatarFailed(key: string) {

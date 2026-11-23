@@ -23,6 +23,16 @@
               variant="ghost"
               size="xs"
               shape="circle"
+              title="更换头像"
+              aria-label="更换头像"
+              @click="openAvatarPicker"
+            >
+              <Icon :name="I.RENAME" class="text-sm" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              shape="circle"
               title="刷新个人资料"
               aria-label="刷新个人资料"
               :disabled="loading"
@@ -262,7 +272,8 @@ const displayAliases = computed(() => {
 })
 
 const avatarSrc = computed(() =>
-  store.actorAvatars[displayName.value]
+  store.customAvatarUrls[actorStat.value?.key ?? normalizedName.value]
+  || store.actorAvatars[displayName.value]
   || profile.value?.avatarUrl
   || actorStat.value?.avatarUrl
   || '',
@@ -345,6 +356,15 @@ async function loadProfile(forceRefresh = false) {
 
 function closeActorRail() {
   store.selectActor(undefined)
+}
+
+function openAvatarPicker() {
+  store.openAvatarPicker({
+    key: actorStat.value?.key ?? normalizedName.value,
+    name: displayName.value,
+    aliases: displayAliases.value,
+    avatarUrl: profile.value?.avatarUrl || actorStat.value?.avatarUrl,
+  })
 }
 
 watch(

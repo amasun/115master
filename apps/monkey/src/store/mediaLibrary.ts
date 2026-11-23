@@ -16,6 +16,7 @@ import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, reactive, shallowRef } from 'vue'
 import { actressFaceDB } from '@/utils/actressFaceDB'
+import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
 import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
@@ -23,11 +24,18 @@ import {
   aggregateLibraryEntries,
   buildLibraryIndex,
   clearScrapeMissed,
+  compressCustomAvatar,
+  compressCustomCover,
   loadVideoIndexSnapshot,
   markScrapeMissed,
   readActiveScrapeMissKeys,
   readAllCachedJavMeta,
+  readAllCustomMediaKeys,
+  removeCustomAvatar,
+  removeCustomCover,
   requestPersistentStorage,
+  saveCustomAvatar,
+  saveCustomCover,
   saveVideoIndexSnapshot,
   scrapeJavMetaDetailed,
   syncDriveVideoIndex,
@@ -38,6 +46,21 @@ import { getAllCachedActorWorks } from '@/utils/superSearch'
 const logger = appLogger.sub('MediaLibraryStore')
 
 export type BackgroundScrapeState = 'idle' | 'running' | 'paused' | 'circuit_open' | 'done'
+
+export type MediaImagePickerTarget
+  = | {
+    mode: 'cover'
+    mediaKey: string
+    title: string
+    externalId?: string
+  }
+  | {
+    mode: 'avatar'
+    actorKey: string
+    name: string
+    aliases?: string[]
+    avatarUrl?: string
+  }
 
 const BG_SCRAPE_MIN_DELAY_MS = 1500
 const BG_SCRAPE_MAX_DELAY_MS = 3000
@@ -107,6 +130,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
   const scrollTop = shallowRef(0)
   const actorAvatars = shallowRef<Record<string, string>>({})
+  const customCoverKeys = shallowRef<Set<string>>(new Set())
+  const customCoverVersions = shallowRef<Record<string, number>>({})
+  const customAvatarUrls = shallowRef<Record<string, string>>({})
+  const imagePickerTarget = shallowRef<MediaImagePickerTarget | null>(null)
   const scrapingKeys = shallowRef<Set<string>>(new Set())
   const viewportScrapingKeys = shallowRef<Set<string>>(new Set())
   const missedScrapeKeys = shallowRef<Set<string>>(new Set())
@@ -272,18 +299,28 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     initPromise = (async () => {
       try {
         void requestPersistentStorage()
-        const [snapshot, cachedMeta, cachedActorWorks, markers, activeMissKeys] = await Promise.all([
+        const [snapshot, cachedMeta, cachedActorWorks, markers, activeMissKeys, customMedia] = await Promise.all([
           loadVideoIndexSnapshot(),
           readAllCachedJavMeta(),
           getAllCachedActorWorks(),
           markerStore.getAllDocs(),
           readActiveScrapeMissKeys(),
+          readAllCustomMediaKeys(),
         ])
 
         metaMap.value = cachedMeta
         actorWorks.value = cachedActorWorks
         markerDocs.value = markers
         missedScrapeKeys.value = activeMissKeys
+        customCoverKeys.value = customMedia.coverKeys
+
+        const nextAvatarUrls: Record<string, string> = {}
+        customMedia.avatars.forEach((record, key) => {
+          if (record.blob instanceof Blob && record.blob.size > 0)
+            nextAvatarUrls[key] = URL.createObjectURL(record.blob)
+        })
+        Object.values(customAvatarUrls.value).forEach(url => URL.revokeObjectURL(url))
+        customAvatarUrls.value = nextAvatarUrls
 
         if (snapshot && snapshot.items.length > 0) {
           videos.value = snapshot.items
@@ -706,6 +743,110 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     return libraryIndex.value.entryMap.get(mediaKey)
   }
 
+  function resolveActorStorageKey(name: string, explicitKey?: string): string {
+    if (explicitKey)
+      return explicitKey
+    const normalized = normalizeActressName(name) || name.trim().toLowerCase()
+    const matched = libraryIndex.value.actorStats.find(stat =>
+      stat.key === normalized
+      || stat.name === name
+      || stat.aliases.includes(name),
+    )
+    return matched?.key ?? normalized
+  }
+
+  function getActorAvatarUrl(actor: { key?: string, name: string, avatarUrl?: string }): string {
+    const key = resolveActorStorageKey(actor.name, actor.key)
+    return customAvatarUrls.value[key] || actorAvatars.value[actor.name] || actor.avatarUrl || ''
+  }
+
+  function openCoverPicker(mediaKey: string) {
+    const entry = libraryIndex.value.entryMap.get(mediaKey)
+    if (!entry)
+      return
+    imagePickerTarget.value = {
+      mode: 'cover',
+      mediaKey,
+      title: entry.meta?.title || entry.externalId || entry.files[0]?.name || '未命名作品',
+      externalId: entry.externalId,
+    }
+  }
+
+  function openAvatarPicker(actor: { key?: string, name: string, aliases?: string[], avatarUrl?: string }) {
+    const actorKey = resolveActorStorageKey(actor.name, actor.key)
+    const stat = libraryIndex.value.actorStats.find(item => item.key === actorKey)
+    imagePickerTarget.value = {
+      mode: 'avatar',
+      actorKey,
+      name: stat?.name || actor.name,
+      aliases: actor.aliases ?? stat?.aliases,
+      avatarUrl: actor.avatarUrl ?? stat?.avatarUrl,
+    }
+  }
+
+  function closeImagePicker() {
+    imagePickerTarget.value = null
+  }
+
+  function bumpCustomCoverVersion(mediaKey: string) {
+    customCoverVersions.value = {
+      ...customCoverVersions.value,
+      [mediaKey]: (customCoverVersions.value[mediaKey] ?? 0) + 1,
+    }
+  }
+
+  async function applyCustomCover(mediaKey: string, blob: Blob, sourceLabel: string) {
+    const { thumbBlob, fullBlob } = await compressCustomCover(blob)
+    await saveCustomCover({
+      kind: 'cover',
+      mediaKey,
+      thumbBlob,
+      fullBlob,
+      sourceLabel,
+      updatedAt: Date.now(),
+    })
+    const nextKeys = new Set(customCoverKeys.value)
+    nextKeys.add(mediaKey)
+    customCoverKeys.value = nextKeys
+    bumpCustomCoverVersion(mediaKey)
+  }
+
+  async function resetCustomCover(mediaKey: string) {
+    await removeCustomCover(mediaKey)
+    const nextKeys = new Set(customCoverKeys.value)
+    nextKeys.delete(mediaKey)
+    customCoverKeys.value = nextKeys
+    bumpCustomCoverVersion(mediaKey)
+  }
+
+  async function applyCustomAvatar(actorKey: string, blob: Blob, sourceLabel: string) {
+    const compressed = await compressCustomAvatar(blob)
+    await saveCustomAvatar({
+      kind: 'avatar',
+      actorKey,
+      blob: compressed,
+      sourceLabel,
+      updatedAt: Date.now(),
+    })
+    const prevUrl = customAvatarUrls.value[actorKey]
+    if (prevUrl)
+      URL.revokeObjectURL(prevUrl)
+    customAvatarUrls.value = {
+      ...customAvatarUrls.value,
+      [actorKey]: URL.createObjectURL(compressed),
+    }
+  }
+
+  async function resetCustomAvatar(actorKey: string) {
+    await removeCustomAvatar(actorKey)
+    const prevUrl = customAvatarUrls.value[actorKey]
+    if (prevUrl)
+      URL.revokeObjectURL(prevUrl)
+    const next = { ...customAvatarUrls.value }
+    delete next[actorKey]
+    customAvatarUrls.value = next
+  }
+
   const filteredEntries = computed(() => libraryIndex.value.query(filter))
   const scrapedCount = computed(() => entries.value.filter(item => item.meta !== null).length)
   const starredCount = computed(() => entries.value.filter(item => item.starred).length)
@@ -729,12 +870,17 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     indexError,
     lastIndexedAt,
     entries,
+    metaMap,
     libraryIndex,
     filter,
     aspectMode,
     density,
     scrollTop,
     actorAvatars,
+    customCoverKeys,
+    customCoverVersions,
+    customAvatarUrls,
+    imagePickerTarget,
     scrapingKeys,
     scrapingCount,
     missedScrapeCount,
@@ -768,5 +914,14 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     setView,
     resetFilters,
     getEntry,
+    resolveActorStorageKey,
+    getActorAvatarUrl,
+    openCoverPicker,
+    openAvatarPicker,
+    closeImagePicker,
+    applyCustomCover,
+    resetCustomCover,
+    applyCustomAvatar,
+    resetCustomAvatar,
   }
 })

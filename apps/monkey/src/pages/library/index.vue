@@ -16,6 +16,7 @@
         <RouterView />
       </Main>
     </Layout>
+    <MediaImagePickerDialog />
   </div>
 </template>
 
@@ -29,6 +30,7 @@ import { setThemeOverride } from '@/utils/theme'
 import FilterBar from './components/FilterBar.vue'
 import LibraryHeader from './components/LibraryHeader.vue'
 import LibrarySider from './components/LibrarySider.vue'
+import MediaImagePickerDialog from './components/MediaImagePickerDialog.vue'
 
 setThemeOverride('dark')
 

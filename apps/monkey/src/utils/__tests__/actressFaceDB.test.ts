@@ -11,7 +11,11 @@ vi.mock('@/utils/cache/actressFaceCache', () => ({
     getActressData: vi.fn().mockResolvedValue({
       timestamp: Date.now(),
       imageMap: [
-        ['大橋未久', [{ folder: 'D', filename: '大橋未久.jpg', timestamp: 12345 }]],
+        ['大橋未久', [
+          { folder: 'D', filename: '大橋未久.jpg', timestamp: 12345 },
+          { folder: 'D2', filename: '大橋未久_alt.jpg', timestamp: 12346 },
+        ]],
+        ['大橋未久-2', [{ folder: 'D3', filename: '大橋未久-2.jpg', timestamp: 12347 }]],
         ['美谷朱音', [{ folder: 'M', filename: '美谷朱音.jpg', timestamp: 12345 }]],
         ['美谷朱里', [{ folder: 'M', filename: '美谷朱里.jpg', timestamp: 12345 }]],
       ],
@@ -67,5 +71,15 @@ describe('actressFaceDB findActress 降级匹配', () => {
     expect(limited).toHaveLength(1)
     expect(limited[0]?.name).toBe('美谷朱音')
     expect(db.searchActresses('  ')).toEqual([])
+  })
+
+  it('findActressAll 汇总多目录与 -2 变体头像并去重', async () => {
+    const list = await db.findActressAll(['大桥未久', '大橋未久'])
+    expect(list.map(item => item.folder)).toEqual(['D', 'D2', 'D3'])
+    expect(list.map(item => item.filename)).toEqual([
+      '大橋未久.jpg',
+      '大橋未久_alt.jpg',
+      '大橋未久-2.jpg',
+    ])
   })
 })
