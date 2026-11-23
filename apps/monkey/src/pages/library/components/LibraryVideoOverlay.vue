@@ -5,7 +5,7 @@
       role="dialog"
       aria-modal="true"
       aria-label="浮窗播放器"
-      class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 p-2 backdrop-blur-sm sm:p-5"
+      class="ui-z-host fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/75 p-2 backdrop-blur-sm sm:p-5"
       @click="store.closePlayerOverlay()"
     >
       <div

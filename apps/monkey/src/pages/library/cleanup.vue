@@ -1353,17 +1353,14 @@ async function executeBatchCleanup() {
       await store.applyFilesDelete(res.deletedFileIds)
       const deletedSet = new Set(res.deletedFileIds)
 
-      if (activeTab.value === 'duplicates') {
-        selectedDupFids.value = new Set(
-          Array.from(selectedDupFids.value).filter(fid => !deletedSet.has(fid)),
-        )
-      }
-      else {
-        scannedDriveJunk.value = scannedDriveJunk.value.filter(item => !deletedSet.has(item.fid))
-        selectedJunkFids.value = new Set(
-          Array.from(selectedJunkFids.value).filter(fid => !deletedSet.has(fid)),
-        )
-      }
+      scannedDriveJunk.value = scannedDriveJunk.value.filter(item => !deletedSet.has(item.fid))
+      adVideoItems.value = adVideoItems.value.filter(item => !deletedSet.has(item.fid))
+      selectedDupFids.value = new Set(
+        Array.from(selectedDupFids.value).filter(fid => !deletedSet.has(fid)),
+      )
+      selectedJunkFids.value = new Set(
+        Array.from(selectedJunkFids.value).filter(fid => !deletedSet.has(fid)),
+      )
     }
 
     const parts = [`已将 ${res.deletedFileIds.length} 个文件移入回收站`]

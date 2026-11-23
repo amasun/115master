@@ -37,6 +37,7 @@ import {
   DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
   DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
   isAdLibraryEntry,
+  isSuspectedMultiPartGroup,
   loadVideoIndexSnapshot,
   markScrapeMissed,
   normalizeAdMatchMode,
@@ -837,6 +838,36 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     await persistVideosSnapshot()
   }
 
+  function pruneDuplicateGroupsByFids(fidSet: ReadonlySet<string>) {
+    if (duplicateGroups.value.length === 0)
+      return
+
+    const nextGroups: DuplicateGroup[] = []
+    for (const group of duplicateGroups.value) {
+      const remaining = group.files.filter(file => !fidSet.has(file.fid))
+      if (remaining.length < 2)
+        continue
+      if (remaining.length === group.files.length) {
+        nextGroups.push(group)
+        continue
+      }
+      const files = remaining.map((file, idx) => ({
+        ...file,
+        recommendedKeep: idx === 0,
+      }))
+      const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+      const keptSize = files[0]?.size ?? 0
+      nextGroups.push({
+        ...group,
+        files,
+        totalSize,
+        reclaimableSize: Math.max(0, totalSize - keptSize),
+        suspectedMultiPart: isSuspectedMultiPartGroup(files.map(f => f.name)),
+      })
+    }
+    duplicateGroups.value = nextGroups
+  }
+
   async function applyFilesDelete(fids: string[]) {
     if (fids.length === 0)
       return
@@ -846,6 +877,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       return
     videos.value = next
     rebuildEntries()
+    pruneDuplicateGroupsByFids(fidSet)
     await persistVideosSnapshot()
   }
 
