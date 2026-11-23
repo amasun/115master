@@ -4,7 +4,6 @@ import { defineComponent, onBeforeUnmount, onErrorCaptured, onMounted } from 'vu
 import { RouterView } from 'vue-router'
 import { appDialog } from '@/app/dialog'
 import {
-  GlobalSearchModal,
   ToastContainer,
   useSponsorBoot,
 } from '@/components'
@@ -46,7 +45,6 @@ const App = defineComponent({
           <DialogHost service={appDialog}>
             <Boot />
             <ToastContainer>
-              <GlobalSearchModal />
               <SuperSearchDialog />
               <PreferencesDialog />
               <RouterView />

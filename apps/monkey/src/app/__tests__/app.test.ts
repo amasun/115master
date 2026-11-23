@@ -49,7 +49,6 @@ vi.mock('@/app/dialog', () => ({ appDialog: {} }))
 vi.mock('@/components', async () => {
   const { defineComponent } = await import('vue')
   return {
-    GlobalSearchModal: defineComponent({ setup: () => () => null }),
     ToastContainer: defineComponent({
       setup: (_, { slots }) => () => slots.default?.(),
     }),

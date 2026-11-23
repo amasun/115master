@@ -5,7 +5,7 @@ import type {
   MarkerDoc,
   UpdateMarkerPatch,
 } from '@/utils/markers'
-import { computed, shallowRef, toValue, watch } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 import { useToast } from '@/components/Toast'
 import { markerStore } from '@/utils/cache/markerStore'
 import { appLogger } from '@/utils/logger'
@@ -13,10 +13,13 @@ import {
   addMarker,
   createDoc,
   pruneTombstones,
+  pushMarkersToFileDesc,
   removeMarker,
+  syncMarkersFromFileDesc,
   updateMarker,
   visibleMarkers,
 } from '@/utils/markers'
+import { userSettings } from '@/utils/userSettings'
 
 /** 日志记录器 */
 const logger = appLogger.sub('useDataMarkers')
@@ -97,11 +100,67 @@ export function useDataMarkers(
   })
 
   /** 加载打点文档（带序列号防竞态） */
+  let descPushTimer: ReturnType<typeof globalThis.setTimeout> | undefined
+  let lastPulledKey = ''
+
+  function resolveFileId(code: string): string {
+    return extractMeta(code, fileInfo).fileId ?? currentDoc.value?.fileId ?? ''
+  }
+
+  function clearDescPushTimer() {
+    if (descPushTimer !== undefined) {
+      globalThis.clearTimeout(descPushTimer)
+      descPushTimer = undefined
+    }
+  }
+
+  function scheduleDescPush(doc: MarkerDoc) {
+    if (!userSettings.value.syncMarkersToFileDesc)
+      return
+    const fileId = doc.fileId || resolveFileId(doc.pickCode)
+    if (!fileId)
+      return
+
+    clearDescPushTimer()
+    descPushTimer = globalThis.setTimeout(() => {
+      descPushTimer = undefined
+      void pushMarkersToFileDesc(fileId, doc).then((res) => {
+        if (!res.truncated)
+          return
+        try {
+          useToast().warning('文件备注长度已达上限，本次打点仅保存在本地')
+        }
+        catch {
+          // 忽略无 ToastContainer
+        }
+      })
+    }, 800)
+  }
+
+  async function pullFromFileDesc(code: string, sequence: number) {
+    if (!userSettings.value.syncMarkersToFileDesc)
+      return
+    const meta = extractMeta(code, fileInfo)
+    const fileId = meta.fileId || currentDoc.value?.fileId
+    if (!fileId)
+      return
+    const pullKey = `${code}:${fileId}`
+    if (lastPulledKey === pullKey)
+      return
+    lastPulledKey = pullKey
+
+    const merged = await syncMarkersFromFileDesc(fileId, meta)
+    if (merged && sequence === loadSequence && toValue(pickCode) === code)
+      currentDoc.value = merged
+  }
+
+  /** 按提取码加载打点文档 */
   async function loadDoc(code: string | undefined): Promise<void> {
     const sequence = ++loadSequence
     // 切换开始时立即把 currentDoc 置空（界面不再显示上一个视频的刻度）
     currentDoc.value = null
     loadFailed = false
+    clearDescPushTimer()
 
     if (!code) {
       loading.value = false
@@ -118,6 +177,7 @@ export function useDataMarkers(
         }
         currentDoc.value = doc
         loadFailed = false
+        void pullFromFileDesc(code, sequence)
       }
       catch (error) {
         if (sequence !== loadSequence) {
@@ -200,11 +260,14 @@ export function useDataMarkers(
     }
 
     const previousDoc = currentDoc.value
-    const pruned = pruneTombstones(doc, Date.now())
+    const fileId = doc.fileId || resolveFileId(activeCode)
+    const docWithFileId = fileId && !doc.fileId ? { ...doc, fileId } : doc
+    const pruned = pruneTombstones(docWithFileId, Date.now())
     currentDoc.value = pruned
 
     try {
       await markerStore.saveDoc(pruned)
+      scheduleDescPush(pruned)
     }
     catch (error) {
       // 保存失败时回滚恢复为保存前的文档
@@ -290,6 +353,25 @@ export function useDataMarkers(
     },
     { immediate: true },
   )
+
+  /** 监听文件信息就绪后补充拉取一次云端备注打点 */
+  watch(
+    () => {
+      const code = toValue(pickCode)
+      return code ? extractMeta(code, fileInfo).fileId : ''
+    },
+    (fid) => {
+      const code = toValue(pickCode)
+      if (code && fid)
+        void pullFromFileDesc(code, loadSequence)
+    },
+  )
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      clearDescPushTimer()
+    })
+  }
 
   return {
     markers,

@@ -9,7 +9,7 @@ import type { JavInfo } from '@/utils/jav/jav'
 import { format, image as imageUtil } from '@115master/utils'
 import { javCache } from '@/utils/cache/javCache'
 import { createJavInfoSources, isFd2PpvAvNumber } from '@/utils/jav'
-import { normalizeAvNumber } from '@/utils/jav/jav'
+import { Jav, normalizeAvNumber } from '@/utils/jav/jav'
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
 import { GMRequest } from '@/utils/request/gmRequest'
@@ -160,13 +160,63 @@ export async function readAllCachedJavMeta(): Promise<Map<string, UnifiedMediaMe
   return result
 }
 
+export type ScrapeResult
+  = | { status: 'ok', meta: UnifiedMediaMeta }
+    | { status: 'not_found' }
+    | { status: 'rate_limited', reason: string }
+    | { status: 'challenge', reason: string }
+    | { status: 'network_error', reason: string }
+
+function classifySourceError(error: unknown): 'not_found' | 'rate_limited' | 'challenge' | 'network_error' {
+  if (error instanceof Jav.NotFound)
+    return 'not_found'
+  const text = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase()
+  if (/\b429\b|too many requests|rate.?limit|频繁|限流/.test(text))
+    return 'rate_limited'
+  if (/cloudflare|just a moment|turnstile|captcha|challenge|\b403\b|\b503\b|人机验证/.test(text))
+    return 'challenge'
+  return 'network_error'
+}
+
+/** 联网刮削单个番号元数据并返回结构化结果（用于熔断保护与空结果负缓存） */
+export async function scrapeJavMetaDetailed(avNumber: string): Promise<ScrapeResult> {
+  const sources = createJavInfoSources(avNumber)
+  let rateLimitedReason = ''
+  let challengeReason = ''
+  let networkErrorReason = ''
+  let timedOutCount = 0
+
+  const info = await loadJavInfo(avNumber, sources, {
+    onSourceError: (source, error) => {
+      const kind = classifySourceError(error)
+      const message = error instanceof Error ? error.message : String(error ?? '')
+      if (kind === 'rate_limited' && !rateLimitedReason)
+        rateLimitedReason = `${source}: ${message || 'HTTP 429'}`
+      else if (kind === 'challenge' && !challengeReason)
+        challengeReason = `${source}: ${message || 'Cloudflare 校验'}`
+      else if (kind === 'network_error' && !networkErrorReason)
+        networkErrorReason = `${source}: ${message || '网络异常'}`
+    },
+    onSourceTimeout: () => {
+      timedOutCount += 1
+    },
+  })
+
+  if (info)
+    return { status: 'ok', meta: javInfoToUnifiedMeta(avNumber, info) }
+  if (challengeReason)
+    return { status: 'challenge', reason: challengeReason }
+  if (rateLimitedReason)
+    return { status: 'rate_limited', reason: rateLimitedReason }
+  if (networkErrorReason || timedOutCount > 0)
+    return { status: 'network_error', reason: networkErrorReason || '请求超时' }
+  return { status: 'not_found' }
+}
+
 /** 联网刮削单个番号元数据 */
 export async function scrapeJavMeta(avNumber: string): Promise<UnifiedMediaMeta | null> {
-  const sources = createJavInfoSources(avNumber)
-  const info = await loadJavInfo(avNumber, sources)
-  if (!info)
-    return null
-  return javInfoToUnifiedMeta(avNumber, info)
+  const result = await scrapeJavMetaDetailed(avNumber)
+  return result.status === 'ok' ? result.meta : null
 }
 
 function createBlobResource(blob: Blob): PosterThumbResource {
@@ -217,9 +267,9 @@ export async function loadPosterThumbUrl(
         continue
 
       const compressed = await imageUtil.compress(original, {
-        maxWidth: 640,
-        maxHeight: 640,
-        quality: 0.8,
+        maxWidth: 480,
+        maxHeight: 480,
+        quality: 0.75,
         type: 'image/webp',
       }).catch(() => original)
 

@@ -253,6 +253,33 @@ export class FileApiClient extends BaseApiClient {
     )
   }
 
+  /** 获取文件备注 */
+  async getFileDesc(params: Req.GetFileDesc): Promise<Drive115Response<Res.FileDesc>> {
+    return this.handle<Res.FileDesc>(
+      this.fetchRequest.get(
+        new URL('/files/desc', URL_115.WEB_API).href,
+        {
+          params: {
+            compat: 1,
+            new_html: 1,
+            format: 'json',
+            ...params,
+          },
+        },
+      ).then(r => r.json()),
+    )
+  }
+
+  /** 设置文件备注 */
+  async setFileDesc(params: Req.SetFileDesc): Promise<Drive115Response<Res.SetFileDesc>> {
+    return this.handle<Res.SetFileDesc>(
+      this.fetchRequest.post(
+        new URL('/files/desc', URL_115.WEB_API).href,
+        { data: params },
+      ).then(r => r.json()),
+    )
+  }
+
   private async apsGetNatsortFilesRaw(
     params: Req.GetFiles,
     order?: string,

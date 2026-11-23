@@ -216,8 +216,8 @@
                 </button>
               </div>
 
-              <!-- 快捷播放主按钮 -->
-              <div v-if="activeFile" class="flex flex-wrap items-center gap-2.5 pt-1">
+              <!-- 快捷播放与轻量操作按钮 -->
+              <div v-if="activeFile" class="flex flex-wrap items-center gap-2 pt-1">
                 <Button
                   color="primary"
                   class="gap-2 rounded-full px-6"
@@ -228,11 +228,31 @@
                 </Button>
                 <Button
                   variant="soft"
-                  class="gap-1.5 rounded-full px-4"
-                  @click="openFolder(activeFile.cid)"
+                  shape="circle"
+                  :title="activeFile.starred ? '取消星标' : '星标收藏'"
+                  :aria-label="activeFile.starred ? '取消星标' : '星标收藏'"
+                  :class="activeFile.starred ? 'text-warning' : ''"
+                  @click="fileActions.toggleStar(activeFile)"
                 >
-                  <Icon :name="I.FOLDER_OPEN" class="text-base" />
-                  <span>在文件管理中打开目录</span>
+                  <Icon :name="activeFile.starred ? I.STAR_FILL : I.STAR" class="text-lg" />
+                </Button>
+                <Button
+                  variant="soft"
+                  shape="circle"
+                  title="打标签"
+                  aria-label="打标签"
+                  @click="fileActions.editTags(activeFile)"
+                >
+                  <Icon :name="I.TAG" class="text-lg" />
+                </Button>
+                <Button
+                  variant="soft"
+                  shape="circle"
+                  title="更多文件操作"
+                  aria-label="更多文件操作"
+                  @click="openFileMenu($event, activeFile)"
+                >
+                  <Icon :name="I.MORE" class="text-lg" />
                 </Button>
               </div>
             </div>
@@ -305,7 +325,7 @@
                   <span v-if="file.mtime > 0">{{ format.dateTime(file.mtime) }}</span>
                 </div>
               </div>
-              <div class="flex shrink-0 items-center gap-2">
+              <div class="flex shrink-0 items-center gap-1.5">
                 <Button
                   color="primary"
                   variant="soft"
@@ -319,10 +339,12 @@
                 <Button
                   variant="ghost"
                   size="sm"
-                  class="rounded-full px-3 text-xs"
-                  @click.stop="openFolder(file.cid)"
+                  shape="circle"
+                  title="文件操作"
+                  aria-label="文件操作"
+                  @click.stop="openFileMenu($event, file)"
                 >
-                  目录
+                  <Icon :name="I.MORE" class="text-base" />
                 </Button>
               </div>
             </div>
@@ -451,6 +473,14 @@
         </section>
       </div>
     </template>
+
+    <ActionMenu
+      aria-label="文件操作"
+      :groups="fileMenuGroups"
+      :open="fileMenuOpen"
+      :position="fileMenuPosition"
+      @update:open="fileMenuOpen = $event"
+    />
   </div>
 </template>
 
@@ -459,7 +489,7 @@ import type { VideoCover } from '@/hooks/useVideoCover'
 import type { Marker } from '@/utils/markers/types'
 import type { LibraryFileItem, MediaActor, MediaPreview, PosterThumbResource } from '@/utils/mediaIndex'
 import { Core } from '@115master/drive115'
-import { Button, Empty, Image, StatusFeedback } from '@115master/ui'
+import { ActionMenu, Button, Empty, Image, StatusFeedback } from '@115master/ui'
 import { format } from '@115master/utils'
 import { useTitle } from '@vueuse/core'
 import PhotoSwipe from 'photoswipe'
@@ -470,18 +500,21 @@ import { formatTime } from '@/components/XPlayer/utils/time'
 import { FRIENDLY_ERROR_MESSAGE } from '@/constants'
 import { calculateVideoCoverTimes, getVideoCover } from '@/hooks/useVideoCover'
 import { I, Icon } from '@/icons'
+import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { markerStore } from '@/utils/cache/markerStore'
 import { drive115 } from '@/utils/drive115Instance'
 import { errorFeedback } from '@/utils/errorFeedback'
 import { createGMImageFallbackLoader } from '@/utils/imageLoader'
+import { syncMarkersFromFileDesc } from '@/utils/markers'
 import { getCoverCandidates, loadPosterThumbUrl } from '@/utils/mediaIndex'
-import { useUserSetting } from '@/utils/userSettings'
+import { userSettings, useUserSetting } from '@/utils/userSettings'
 import 'photoswipe/style.css'
 
 const route = useRoute('library-detail')
 const router = useRouter()
 const store = useMediaLibraryStore()
+const fileActions = useLibraryFileActions()
 const previewCountSetting = useUserSetting('filelistPreviewCount')
 
 const mediaKey = computed(() => String(route.params.mediaKey ?? ''))
@@ -489,6 +522,30 @@ const entry = computed(() => store.getEntry(mediaKey.value))
 
 const activeFileIndex = shallowRef(0)
 const activeFile = computed(() => entry.value?.files[activeFileIndex.value] ?? entry.value?.files[0])
+const fileMenuTarget = shallowRef<LibraryFileItem | undefined>(undefined)
+const fileMenuOpen = shallowRef(false)
+const fileMenuPosition = shallowRef({ x: 0, y: 0 })
+
+const fileMenuGroups = fileActions.buildFileMenuGroups(
+  () => fileMenuTarget.value,
+  {
+    hooks: {
+      onDeleted: () => {
+        if (!store.getEntry(mediaKey.value))
+          void router.push({ name: 'library' })
+      },
+    },
+  },
+)
+
+function openFileMenu(event: MouseEvent, file: LibraryFileItem) {
+  fileMenuTarget.value = file
+  const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect()
+  fileMenuPosition.value = rect
+    ? { x: rect.left, y: rect.bottom + 4 }
+    : { x: event.clientX, y: event.clientY }
+  fileMenuOpen.value = true
+}
 
 const thumbUrl = shallowRef('')
 const showManualAv = shallowRef(false)
@@ -715,10 +772,29 @@ async function loadMarkers(file?: LibraryFileItem) {
     activeMarkers.value = []
     return
   }
+  const applyDoc = (doc: Awaited<ReturnType<typeof markerStore.getDoc>>) => {
+    if (activeFile.value?.pickCode !== file.pickCode)
+      return
+    activeMarkers.value = (doc?.markers ?? [])
+      .filter(marker => !marker.deleted)
+      .sort((a, b) => a.time - b.time)
+  }
+
   const doc = await markerStore.getDoc(file.pickCode)
-  activeMarkers.value = (doc?.markers ?? [])
-    .filter(marker => !marker.deleted)
-    .sort((a, b) => a.time - b.time)
+  applyDoc(doc)
+
+  if (userSettings.value.syncMarkersToFileDesc && file.fid) {
+    const merged = await syncMarkersFromFileDesc(file.fid, {
+      pickCode: file.pickCode,
+      fileId: file.fid,
+      fileName: file.name,
+      duration: file.duration,
+    })
+    if (merged) {
+      applyDoc(merged)
+      void store.refreshLocalContext()
+    }
+  }
 }
 
 watch(
@@ -850,13 +926,6 @@ function playAt(pickCode: string, seconds = 0) {
     name: 'video',
     params: { pickCode },
     query: t > 0 ? { t: String(t) } : undefined,
-  })
-}
-
-function openFolder(cid: string) {
-  void router.push({
-    name: 'drive',
-    params: { cid: cid === '0' ? '' : cid },
   })
 }
 </script>

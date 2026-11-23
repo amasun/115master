@@ -214,3 +214,23 @@ export interface FilesScore {
   /** 评分 (0-5，0 表示取消评分) */
   score: number
 }
+
+/** 获取文件备注请求 */
+export interface GetFileDesc {
+  /** 文件 id */
+  file_id: string
+  /** 兼容参数 */
+  compat?: 0 | 1
+  /** 返回格式 */
+  new_html?: 0 | 1
+  /** JSON 格式 */
+  format?: 'json'
+}
+
+/** 设置文件备注请求 */
+export interface SetFileDesc {
+  /** 文件 id */
+  file_id: string
+  /** 文件备注内容 */
+  file_desc: string
+}

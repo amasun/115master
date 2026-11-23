@@ -30,6 +30,8 @@ export interface LoadJavInfoOptions {
   hedgeDelay?: number
   sourceWaitTimeout?: number
   onUpgrade?: (info: JavInfo) => void
+  onSourceError?: (source: string, error: unknown) => void
+  onSourceTimeout?: (source: string) => void
 }
 
 interface SourceResult {
@@ -230,7 +232,11 @@ function startBackgroundUpgrade(
 }
 
 /** 请求单个资料源，并把可回退错误转换为空结果。 */
-async function requestSource(source: JavInfoSource, avNumber: string): Promise<SourceResult> {
+async function requestSource(
+  source: JavInfoSource,
+  avNumber: string,
+  onSourceError?: (source: string, error: unknown) => void,
+): Promise<SourceResult> {
   try {
     const info = await source.getInfo(avNumber) ?? null
     if (info && !isJavInfoForAvNumber(avNumber, info)) {
@@ -242,6 +248,7 @@ async function requestSource(source: JavInfoSource, avNumber: string): Promise<S
     }
   }
   catch (error) {
+    onSourceError?.(source.source, error)
     if (!(error instanceof Jav.NotFound))
       logger.warn('番号资料源加载失败，继续回退', source.source, error)
     return { info: null }
@@ -253,6 +260,7 @@ function scheduleSource(
   source: JavInfoSource,
   avNumber: string,
   delay: number,
+  onSourceError?: (source: string, error: unknown) => void,
 ): ScheduledSource {
   let started = false
   let settledResult: SourceResult | undefined
@@ -263,7 +271,7 @@ function scheduleSource(
     const start = () => {
       started = true
       timer = undefined
-      requestSource(source, avNumber).then((result) => {
+      requestSource(source, avNumber, onSourceError).then((result) => {
         settledResult = result
         resolve(result)
       })
@@ -346,6 +354,8 @@ export function loadJavInfo(
     options.hedgeDelay ?? DEFAULT_HEDGE_DELAY,
     options.sourceWaitTimeout,
     options.onUpgrade,
+    options.onSourceError,
+    options.onSourceTimeout,
   ).finally(() => {
     if (inFlightLoads.get(lookupKey) === task)
       inFlightLoads.delete(lookupKey)
@@ -361,6 +371,8 @@ async function loadJavInfoInternal(
   hedgeDelay: number,
   sourceWaitTimeout?: number,
   onUpgrade?: (info: JavInfo) => void,
+  onSourceError?: (source: string, error: unknown) => void,
+  onSourceTimeout?: (source: string) => void,
 ): Promise<JavInfo | null> {
   const mergedCache = await javCache.get(`${MERGED_CACHE_PREFIX}:${avNumber}`)
   const mergedInfo = mergedCache?.value ?? null
@@ -482,7 +494,7 @@ async function loadJavInfoInternal(
      */
     logger.info('开始按优先级请求番号资料', avNumber)
     const scheduledSources = sources.map((source, index) =>
-      scheduleSource(source, avNumber, index * hedgeDelay),
+      scheduleSource(source, avNumber, index * hedgeDelay, onSourceError),
     )
     const results = [...cachedInfos]
 
@@ -495,6 +507,7 @@ async function loadJavInfoInternal(
         ?? DEFAULT_SOURCE_WAIT_TIMEOUTS[DEFAULT_SOURCE_WAIT_TIMEOUTS.length - 1]!,
       )
       if (!result) {
+        onSourceTimeout?.(sources[index]?.source ?? '')
         logger.warn('番号资料源等待超时，检查已完成后备来源', sources[index]?.source, avNumber)
         scheduledSources[index]!.cancel()
       }

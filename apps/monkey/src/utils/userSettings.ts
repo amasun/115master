@@ -18,6 +18,8 @@ export interface Settings {
   enableActressFaces: boolean
   /** 显示播放页影片详情 */
   enablePlayerMovieInfo: boolean
+  /** 将播放打点同步到 115 原生文件备注 */
+  syncMarkersToFileDesc: boolean
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
 }
@@ -32,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
   compactAvInfo: false,
   enableActressFaces: true,
   enablePlayerMovieInfo: true,
+  syncMarkersToFileDesc: true,
   theme: 'system',
 }
 

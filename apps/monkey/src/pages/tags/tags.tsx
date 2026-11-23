@@ -9,10 +9,6 @@ import { computed, defineComponent, h, onBeforeMount, reactive, ref, watch } fro
 import { useAppDialog } from '@/app/dialog'
 import {
   ActionBar,
-  Layout,
-  Main,
-  Sider,
-  SiderContent,
   useToast,
 } from '@/components'
 import { I, Icon } from '@/icons'
@@ -291,31 +287,24 @@ const Tags = defineComponent({
     }
 
     return () => (
-      <div class="flex h-full flex-col [--main-content-gutter:calc(var(--spacing)*3)] [--ui-header-gutter:var(--main-content-gutter)] sm:[--main-content-gutter:calc(var(--spacing)*6)]">
-        <Layout class="[--navbar-frosted-glass-height:var(--navbar-height)]">
-          <Sider>
-            <SiderContent />
-          </Sider>
-          <Main class="relative flex min-h-screen flex-col">
-            <ListHeader />
-            <ListArea />
-            <div class="ui-z-elevated pointer-events-none fixed right-0 bottom-16 left-(--sider-width) flex items-center justify-center">
-              <FloatingDock contentKey={multi.selectMode.value && store.selectedCount > 0 ? 'actions' : null}>
-                <ActionBar embedded groups={batchActions.value} />
-              </FloatingDock>
-            </div>
-            <ActionMenu
-              aria-label="标签操作"
-              groups={contextActions.value}
-              open={multi.contextmenuShow.value}
-              position={multi.contextmenuPosition.value}
-              onUpdate:open={(open) => {
-                if (!open)
-                  multi.closeContextmenu()
-              }}
-            />
-          </Main>
-        </Layout>
+      <div class="relative flex min-h-screen flex-1 flex-col">
+        <ListHeader />
+        <ListArea />
+        <div class="ui-z-elevated pointer-events-none fixed right-0 bottom-16 left-(--sider-width) flex items-center justify-center">
+          <FloatingDock contentKey={multi.selectMode.value && store.selectedCount > 0 ? 'actions' : null}>
+            <ActionBar embedded groups={batchActions.value} />
+          </FloatingDock>
+        </div>
+        <ActionMenu
+          aria-label="标签操作"
+          groups={contextActions.value}
+          open={multi.contextmenuShow.value}
+          position={multi.contextmenuPosition.value}
+          onUpdate:open={(open) => {
+            if (!open)
+              multi.closeContextmenu()
+          }}
+        />
       </div>
     )
   },

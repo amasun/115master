@@ -5,18 +5,19 @@ export const routes: RouteRecordRaw[] = [
   {
     name: 'home',
     path: '/',
-    redirect: {
-      name: 'drive',
-      params: {
-        cid: '0',
-      },
-    },
+    redirect: to => ({
+      name: 'library',
+      query: to.query,
+    }),
   },
 
   {
     name: 'drive',
     path: '/drive/:area?/:cid?',
-    component: async () => import('../pages/drive/drive'),
+    redirect: to => ({
+      name: 'library',
+      query: to.query,
+    }),
   },
 
   {
@@ -32,7 +33,10 @@ export const routes: RouteRecordRaw[] = [
   {
     name: 'tags',
     path: '/tags',
-    component: () => import('../pages/tags/tags'),
+    redirect: to => ({
+      name: 'library-tags',
+      query: to.query,
+    }),
   },
   {
     path: '/library',
@@ -47,6 +51,11 @@ export const routes: RouteRecordRaw[] = [
         name: 'library-actors',
         path: 'actors',
         component: () => import('../pages/library/actors.vue'),
+      },
+      {
+        name: 'library-tags',
+        path: 'tags',
+        component: () => import('../pages/tags/tags'),
       },
       {
         name: 'library-detail',

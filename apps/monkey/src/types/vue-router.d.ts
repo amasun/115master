@@ -40,6 +40,13 @@ export interface RouteNamedMap {
     Record<never, never>,
     Record<never, never>
   >
+  /** 影视库标签管理 */
+  'library-tags': RouteRecordInfo<
+    'library-tags',
+    '/library/tags',
+    Record<never, never>,
+    Record<never, never>
+  >
   /** 影视库详情页 */
   'library-detail': RouteRecordInfo<
     'library-detail',

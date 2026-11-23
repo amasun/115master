@@ -62,6 +62,24 @@
         </select>
       </label>
 
+      <!-- 115 网盘标签 -->
+      <label v-if="store.libraryIndex.driveLabels.length > 0" class="flex items-center gap-1.5">
+        <span class="text-base-content/55">标签</span>
+        <select
+          v-model="store.filter.driveLabel"
+          class="select select-xs select-bordered bg-base-100/70 max-w-36 rounded-full"
+        >
+          <option :value="undefined">全部标签</option>
+          <option
+            v-for="item in store.libraryIndex.driveLabels"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.name }} ({{ item.count }})
+          </option>
+        </select>
+      </label>
+
       <!-- 刮削状态 -->
       <div class="flex items-center gap-1">
         <span class="text-base-content/55 mr-0.5">状态</span>
@@ -76,6 +94,17 @@
           {{ option.label }}
         </button>
       </div>
+
+      <!-- 仅看星标 -->
+      <button
+        type="button"
+        class="btn btn-xs gap-1 rounded-full font-normal"
+        :class="store.filter.onlyStarred ? 'btn-warning' : 'btn-ghost'"
+        @click="store.filter.onlyStarred = !store.filter.onlyStarred"
+      >
+        <Icon :name="I.STAR_FILL" class="text-sm" />
+        <span>仅看星标</span>
+      </button>
 
       <!-- 仅看有打点 -->
       <button
@@ -193,11 +222,26 @@ const activeChips = computed(() => {
       clear: () => { store.filter.director = undefined },
     })
   }
+  if (store.filter.driveLabel) {
+    const labelName = store.libraryIndex.driveLabels.find(item => item.id === store.filter.driveLabel)?.name ?? store.filter.driveLabel
+    chips.push({
+      key: 'driveLabel',
+      label: `标签: ${labelName}`,
+      clear: () => store.selectDriveLabel(undefined),
+    })
+  }
   if (store.filter.scrapeStatus !== 'all') {
     chips.push({
       key: 'scrapeStatus',
       label: store.filter.scrapeStatus === 'scraped' ? '仅已刮削' : '仅待刮削',
       clear: () => { store.filter.scrapeStatus = 'all' },
+    })
+  }
+  if (store.filter.onlyStarred) {
+    chips.push({
+      key: 'onlyStarred',
+      label: '仅看星标',
+      clear: () => { store.filter.onlyStarred = false },
     })
   }
   if (store.filter.onlyMarked) {

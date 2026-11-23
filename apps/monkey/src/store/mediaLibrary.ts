@@ -2,11 +2,13 @@ import type { MarkerDoc } from '@/utils/markers/types'
 import type {
   ActorFacetStat,
   IndexedVideo,
+  IndexedVideoLabel,
   IndexProgress,
   LibraryEntry,
   LibraryFilterState,
   LibraryIndex,
   LibraryView,
+  ScrapeResult,
   UnifiedMediaMeta,
 } from '@/utils/mediaIndex'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
@@ -15,20 +17,51 @@ import { defineStore } from 'pinia'
 import { computed, reactive, shallowRef } from 'vue'
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { markerStore } from '@/utils/cache/markerStore'
+import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
 import {
   aggregateLibraryEntries,
   buildLibraryIndex,
+  clearScrapeMissed,
   loadVideoIndexSnapshot,
+  markScrapeMissed,
+  readActiveScrapeMissKeys,
   readAllCachedJavMeta,
   requestPersistentStorage,
-  scrapeJavMeta,
+  saveVideoIndexSnapshot,
+  scrapeJavMetaDetailed,
   syncDriveVideoIndex,
 } from '@/utils/mediaIndex'
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
 import { getAllCachedActorWorks } from '@/utils/superSearch'
 
 const logger = appLogger.sub('MediaLibraryStore')
+
+export type BackgroundScrapeState = 'idle' | 'running' | 'paused' | 'circuit_open' | 'done'
+
+const BG_SCRAPE_MIN_DELAY_MS = 1500
+const BG_SCRAPE_MAX_DELAY_MS = 3000
+const BG_SCRAPE_CIRCUIT_THRESHOLD = 3
+const BG_SCRAPE_REBUILD_BATCH = 5
+const BG_SCRAPE_REBUILD_INTERVAL_MS = 3000
+
+function sleepWithAbort(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted)
+    return Promise.resolve()
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined
+    const onAbort = () => {
+      if (timer !== undefined)
+        globalThis.clearTimeout(timer)
+      resolve()
+    }
+    timer = globalThis.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
 
 export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const initialized = shallowRef(false)
@@ -42,6 +75,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   })
   const indexError = shallowRef<unknown>(null)
   const lastIndexedAt = shallowRef(0)
+  const snapshotMeta = shallowRef({
+    rootCids: ['0'],
+    lastFullSyncAt: 0,
+    lastSyncAt: 0,
+  })
 
   const videos = shallowRef<IndexedVideo[]>([])
   const metaMap = shallowRef<Map<string, UnifiedMediaMeta>>(new Map())
@@ -57,7 +95,9 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     genre: undefined,
     director: undefined,
     year: undefined,
+    driveLabel: undefined,
     scrapeStatus: 'all',
+    onlyStarred: false,
     onlyMarked: false,
     sortBy: 'mtime',
     sortAsc: false,
@@ -68,16 +108,23 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const scrollTop = shallowRef(0)
   const actorAvatars = shallowRef<Record<string, string>>({})
   const scrapingKeys = shallowRef<Set<string>>(new Set())
+  const viewportScrapingKeys = shallowRef<Set<string>>(new Set())
+  const missedScrapeKeys = shallowRef<Set<string>>(new Set())
+
+  const bgScrapeState = shallowRef<BackgroundScrapeState>('idle')
+  const bgScrapeReason = shallowRef('')
+  const bgScrapeProcessed = shallowRef(0)
 
   const attemptedScrapeKeys = new Set<string>()
   const checkedAvatarActors = new Set<string>()
-  const scrapeScheduler = new Scheduler<UnifiedMediaMeta | null>({
+  const scrapeScheduler = new Scheduler<ScrapeResult>({
     maxConcurrent: 2,
     maxQueueLength: 200,
   })
 
   let initPromise: Promise<void> | null = null
   let syncController: AbortController | null = null
+  let bgScrapeController: AbortController | null = null
   let avatarTaskRunning = false
 
   function updateScrapingKeys(mediaKey: string, active: boolean) {
@@ -173,6 +220,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
       videos.value = snapshot.items
       lastIndexedAt.value = snapshot.lastSyncAt
+      snapshotMeta.value = {
+        rootCids: snapshot.rootCids,
+        lastFullSyncAt: snapshot.lastFullSyncAt,
+        lastSyncAt: snapshot.lastSyncAt,
+      }
       metaMap.value = mergedMeta
       actorWorks.value = cachedActorWorks
       markerDocs.value = markers
@@ -220,20 +272,27 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     initPromise = (async () => {
       try {
         void requestPersistentStorage()
-        const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
+        const [snapshot, cachedMeta, cachedActorWorks, markers, activeMissKeys] = await Promise.all([
           loadVideoIndexSnapshot(),
           readAllCachedJavMeta(),
           getAllCachedActorWorks(),
           markerStore.getAllDocs(),
+          readActiveScrapeMissKeys(),
         ])
 
         metaMap.value = cachedMeta
         actorWorks.value = cachedActorWorks
         markerDocs.value = markers
+        missedScrapeKeys.value = activeMissKeys
 
         if (snapshot && snapshot.items.length > 0) {
           videos.value = snapshot.items
           lastIndexedAt.value = snapshot.lastSyncAt
+          snapshotMeta.value = {
+            rootCids: snapshot.rootCids,
+            lastFullSyncAt: snapshot.lastFullSyncAt,
+            lastSyncAt: snapshot.lastSyncAt,
+          }
           rebuildEntries()
         }
         else {
@@ -251,30 +310,67 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     return initPromise
   }
 
+  function updateViewportScrapingKeys(mediaKey: string, active: boolean) {
+    const next = new Set(viewportScrapingKeys.value)
+    if (active)
+      next.add(mediaKey)
+    else
+      next.delete(mediaKey)
+    viewportScrapingKeys.value = next
+  }
+
+  function addMissedScrapeKey(mediaKey: string, avNumber: string) {
+    const next = new Set(missedScrapeKeys.value)
+    next.add(mediaKey)
+    missedScrapeKeys.value = next
+    void markScrapeMissed(mediaKey, avNumber)
+  }
+
+  function removeMissedScrapeKey(mediaKey: string) {
+    if (!missedScrapeKeys.value.has(mediaKey))
+      return
+    const next = new Set(missedScrapeKeys.value)
+    next.delete(mediaKey)
+    missedScrapeKeys.value = next
+    void clearScrapeMissed(mediaKey)
+  }
+
   function enqueueScrape(mediaKey: string) {
     const entry = libraryIndex.value.entryMap.get(mediaKey)
     if (!entry || entry.meta !== null || entry.kind !== 'jav' || !entry.externalId)
       return
-    if (attemptedScrapeKeys.has(mediaKey) || scrapingKeys.value.has(mediaKey))
+    if (
+      attemptedScrapeKeys.has(mediaKey)
+      || scrapingKeys.value.has(mediaKey)
+      || missedScrapeKeys.value.has(mediaKey)
+    ) {
       return
+    }
 
     const avNumber = entry.externalId
     updateScrapingKeys(mediaKey, true)
+    updateViewportScrapingKeys(mediaKey, true)
 
     void scrapeScheduler.add(
-      () => scrapeJavMeta(avNumber),
+      () => scrapeJavMetaDetailed(avNumber),
       { id: mediaKey, immediate: true, action: 'push' },
-    ).then((meta) => {
+    ).then((result) => {
       attemptedScrapeKeys.add(mediaKey)
       updateScrapingKeys(mediaKey, false)
-      if (!meta)
+      updateViewportScrapingKeys(mediaKey, false)
+      if (result.status === 'ok') {
+        removeMissedScrapeKey(mediaKey)
+        const nextMap = new Map(metaMap.value)
+        nextMap.set(mediaKey, { ...result.meta, mediaKey })
+        metaMap.value = nextMap
+        rebuildEntries()
         return
-      const nextMap = new Map(metaMap.value)
-      nextMap.set(mediaKey, { ...meta, mediaKey })
-      metaMap.value = nextMap
-      rebuildEntries()
+      }
+      if (result.status === 'not_found')
+        addMissedScrapeKey(mediaKey, avNumber)
     }).catch((error) => {
       updateScrapingKeys(mediaKey, false)
+      updateViewportScrapingKeys(mediaKey, false)
       if (error instanceof SchedulerError.TaskCancelled || error instanceof SchedulerError.TaskExist)
         return
       attemptedScrapeKeys.add(mediaKey)
@@ -287,6 +383,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     if (task && task.status === TaskStatus.Pending) {
       scrapeScheduler.cancel(mediaKey)
       updateScrapingKeys(mediaKey, false)
+      updateViewportScrapingKeys(mediaKey, false)
     }
   }
 
@@ -297,12 +394,16 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       return null
 
     attemptedScrapeKeys.delete(mediaKey)
+    removeMissedScrapeKey(mediaKey)
     updateScrapingKeys(mediaKey, true)
     try {
-      const meta = await scrapeJavMeta(targetAv)
-      if (!meta)
+      const result = await scrapeJavMetaDetailed(targetAv)
+      if (result.status !== 'ok') {
+        if (result.status === 'not_found')
+          addMissedScrapeKey(mediaKey, targetAv)
         return null
-      const patched: UnifiedMediaMeta = { ...meta, mediaKey }
+      }
+      const patched: UnifiedMediaMeta = { ...result.meta, mediaKey }
       const nextMap = new Map(metaMap.value)
       nextMap.set(mediaKey, patched)
       metaMap.value = nextMap
@@ -313,6 +414,250 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       attemptedScrapeKeys.add(mediaKey)
       updateScrapingKeys(mediaKey, false)
     }
+  }
+
+  function getNextBackgroundCandidate(): LibraryEntry | undefined {
+    return entries.value.find(entry =>
+      entry.kind === 'jav'
+      && Boolean(entry.externalId)
+      && entry.meta === null
+      && !missedScrapeKeys.value.has(entry.mediaKey)
+      && !scrapingKeys.value.has(entry.mediaKey)
+      && !attemptedScrapeKeys.has(entry.mediaKey),
+    )
+  }
+
+  async function runBackgroundScrapeLoop(controller: AbortController) {
+    let consecutiveBlocks = 0
+    let pendingRebuilds = 0
+    let lastRebuildAt = Date.now()
+
+    const flushRebuilds = () => {
+      if (pendingRebuilds <= 0)
+        return
+      pendingRebuilds = 0
+      lastRebuildAt = Date.now()
+      rebuildEntries()
+    }
+
+    try {
+      while (!controller.signal.aborted) {
+        // 视口优先插队：只要当前视口有活跃刮削任务，后台循环主动让路
+        while (!controller.signal.aborted && viewportScrapingKeys.value.size > 0) {
+          await sleepWithAbort(250, controller.signal)
+        }
+        if (controller.signal.aborted)
+          break
+
+        const candidate = getNextBackgroundCandidate()
+        if (!candidate || !candidate.externalId) {
+          flushRebuilds()
+          bgScrapeState.value = 'done'
+          bgScrapeReason.value = ''
+          break
+        }
+
+        const { mediaKey, externalId } = candidate
+        updateScrapingKeys(mediaKey, true)
+        let result: ScrapeResult
+        try {
+          result = await scrapeJavMetaDetailed(externalId)
+        }
+        catch (error) {
+          result = {
+            status: 'network_error',
+            reason: error instanceof Error ? error.message : String(error ?? '未知错误'),
+          }
+        }
+        finally {
+          updateScrapingKeys(mediaKey, false)
+        }
+
+        if (controller.signal.aborted)
+          break
+
+        bgScrapeProcessed.value += 1
+
+        if (result.status === 'ok') {
+          consecutiveBlocks = 0
+          attemptedScrapeKeys.add(mediaKey)
+          removeMissedScrapeKey(mediaKey)
+          const nextMap = new Map(metaMap.value)
+          nextMap.set(mediaKey, { ...result.meta, mediaKey })
+          metaMap.value = nextMap
+          pendingRebuilds += 1
+          if (
+            pendingRebuilds >= BG_SCRAPE_REBUILD_BATCH
+            || Date.now() - lastRebuildAt >= BG_SCRAPE_REBUILD_INTERVAL_MS
+          ) {
+            flushRebuilds()
+          }
+        }
+        else if (result.status === 'not_found') {
+          consecutiveBlocks = 0
+          attemptedScrapeKeys.add(mediaKey)
+          addMissedScrapeKey(mediaKey, externalId)
+        }
+        else if (result.status === 'challenge') {
+          flushRebuilds()
+          bgScrapeState.value = 'circuit_open'
+          bgScrapeReason.value = `触发源站验证，已自动暂停保护（${result.reason}）`
+          logger.warn('后台刮削触发人机校验熔断', result.reason)
+          break
+        }
+        else if (result.status === 'rate_limited') {
+          consecutiveBlocks += 1
+          if (consecutiveBlocks >= BG_SCRAPE_CIRCUIT_THRESHOLD) {
+            flushRebuilds()
+            bgScrapeState.value = 'circuit_open'
+            bgScrapeReason.value = `连续 ${consecutiveBlocks} 次限流，已自动暂停保护（${result.reason}）`
+            logger.warn('后台刮削触发限流熔断', result.reason)
+            break
+          }
+        }
+        else {
+          // 临时网络错误不写负缓存，标记本次会话已尝试，避免死循环卡住同一部
+          attemptedScrapeKeys.add(mediaKey)
+        }
+
+        const delayMs = BG_SCRAPE_MIN_DELAY_MS
+          + Math.floor(Math.random() * (BG_SCRAPE_MAX_DELAY_MS - BG_SCRAPE_MIN_DELAY_MS + 1))
+        await sleepWithAbort(delayMs, controller.signal)
+      }
+    }
+    finally {
+      flushRebuilds()
+      if (bgScrapeController === controller)
+        bgScrapeController = null
+    }
+  }
+
+  function startBackgroundScrape() {
+    if (bgScrapeState.value === 'running')
+      return
+    bgScrapeController?.abort()
+    const controller = new AbortController()
+    bgScrapeController = controller
+    bgScrapeState.value = 'running'
+    bgScrapeReason.value = ''
+    void runBackgroundScrapeLoop(controller)
+  }
+
+  function pauseBackgroundScrape() {
+    if (bgScrapeState.value !== 'running')
+      return
+    bgScrapeController?.abort()
+    bgScrapeController = null
+    bgScrapeState.value = 'paused'
+  }
+
+  function resumeBackgroundScrape() {
+    if (bgScrapeState.value === 'running')
+      return
+    startBackgroundScrape()
+  }
+
+  function stopBackgroundScrape() {
+    bgScrapeController?.abort()
+    bgScrapeController = null
+    bgScrapeState.value = 'idle'
+    bgScrapeReason.value = ''
+  }
+
+  async function persistVideosSnapshot() {
+    if (videos.value.length === 0 && snapshotMeta.value.lastFullSyncAt === 0)
+      return
+    try {
+      await saveVideoIndexSnapshot({
+        schemaVersion: 1,
+        rootCids: snapshotMeta.value.rootCids,
+        lastFullSyncAt: snapshotMeta.value.lastFullSyncAt || Date.now(),
+        lastSyncAt: snapshotMeta.value.lastSyncAt || Date.now(),
+        items: videos.value,
+      })
+    }
+    catch (error) {
+      logger.warn('回写视频索引快照失败', error)
+    }
+  }
+
+  async function applyFileStar(fid: string, starred: boolean) {
+    let changed = false
+    const next = videos.value.map((video) => {
+      if (video.fid !== fid)
+        return video
+      changed = true
+      if (starred)
+        return { ...video, starred: true }
+      const { starred: _removed, ...rest } = video
+      return rest
+    })
+    if (!changed)
+      return
+    videos.value = next
+    rebuildEntries()
+    await persistVideosSnapshot()
+  }
+
+  async function applyFileLabels(fid: string, labels: IndexedVideoLabel[]) {
+    let changed = false
+    const next = videos.value.map((video) => {
+      if (video.fid !== fid)
+        return video
+      changed = true
+      if (labels.length > 0)
+        return { ...video, labels }
+      const { labels: _removed, ...rest } = video
+      return rest
+    })
+    if (!changed)
+      return
+    videos.value = next
+    rebuildEntries()
+    await persistVideosSnapshot()
+  }
+
+  async function applyFileRename(fid: string, nextName: string) {
+    let changed = false
+    const next = videos.value.map((video) => {
+      if (video.fid !== fid)
+        return video
+      changed = true
+      return {
+        ...video,
+        name: nextName,
+        avNumber: getAvNumber(nextName) || null,
+      }
+    })
+    if (!changed)
+      return
+    videos.value = next
+    rebuildEntries()
+    await persistVideosSnapshot()
+  }
+
+  async function applyFileMove(fid: string, nextCid: string) {
+    let changed = false
+    const next = videos.value.map((video) => {
+      if (video.fid !== fid)
+        return video
+      changed = true
+      return { ...video, cid: nextCid }
+    })
+    if (!changed)
+      return
+    videos.value = next
+    rebuildEntries()
+    await persistVideosSnapshot()
+  }
+
+  async function applyFileDelete(fid: string) {
+    const next = videos.value.filter(video => video.fid !== fid)
+    if (next.length === videos.value.length)
+      return
+    videos.value = next
+    rebuildEntries()
+    await persistVideosSnapshot()
   }
 
   function selectActor(name?: string) {
@@ -328,12 +673,18 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.genre = !name || filter.genre === name ? undefined : name
   }
 
+  function selectDriveLabel(labelId?: string) {
+    filter.driveLabel = !labelId || filter.driveLabel === labelId ? undefined : labelId
+  }
+
   function setView(view: LibraryView) {
     filter.view = view
     if (view === 'recent') {
       filter.sortBy = 'mtime'
       filter.sortAsc = false
     }
+    if (view === 'starred')
+      filter.onlyStarred = false
     if (view === 'marked')
       filter.onlyMarked = false
   }
@@ -345,7 +696,9 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.genre = undefined
     filter.director = undefined
     filter.year = undefined
+    filter.driveLabel = undefined
     filter.scrapeStatus = 'all'
+    filter.onlyStarred = false
     filter.onlyMarked = false
   }
 
@@ -355,8 +708,18 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   const filteredEntries = computed(() => libraryIndex.value.query(filter))
   const scrapedCount = computed(() => entries.value.filter(item => item.meta !== null).length)
+  const starredCount = computed(() => entries.value.filter(item => item.starred).length)
   const markedCount = computed(() => entries.value.filter(item => item.markerCount > 0).length)
   const scrapingCount = computed(() => scrapingKeys.value.size)
+  const missedScrapeCount = computed(() => missedScrapeKeys.value.size)
+  const bgScrapePendingCount = computed(() =>
+    entries.value.filter(entry =>
+      entry.kind === 'jav'
+      && Boolean(entry.externalId)
+      && entry.meta === null
+      && !missedScrapeKeys.value.has(entry.mediaKey),
+    ).length,
+  )
 
   return {
     initialized,
@@ -374,8 +737,14 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     actorAvatars,
     scrapingKeys,
     scrapingCount,
+    missedScrapeCount,
+    bgScrapeState,
+    bgScrapeReason,
+    bgScrapeProcessed,
+    bgScrapePendingCount,
     filteredEntries,
     scrapedCount,
+    starredCount,
     markedCount,
     init,
     syncIndex,
@@ -383,9 +752,19 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     enqueueScrape,
     cancelScrape,
     rescrape,
+    startBackgroundScrape,
+    pauseBackgroundScrape,
+    resumeBackgroundScrape,
+    stopBackgroundScrape,
+    applyFileStar,
+    applyFileLabels,
+    applyFileRename,
+    applyFileMove,
+    applyFileDelete,
     selectActor,
     setActorFilter,
     selectGenre,
+    selectDriveLabel,
     setView,
     resetFilters,
     getEntry,

@@ -8,6 +8,7 @@
       </Sider>
       <Main class="relative flex min-h-screen flex-col">
         <LibraryHeader
+          v-if="!isTags"
           :show-filters="showFilters"
           @toggle-filters="handleToggleFilters"
         />
@@ -19,9 +20,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { Layout, Main, Sider } from '@/components'
+import { useCloudDownloadAction } from '@/hooks/useDriveAction/useCloudDownloadAction'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { setThemeOverride } from '@/utils/theme'
 import FilterBar from './components/FilterBar.vue'
@@ -33,8 +35,10 @@ setThemeOverride('dark')
 const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
+const cloudAction = useCloudDownloadAction()
 const showFilters = shallowRef(false)
 const isWall = computed(() => route.name === 'library')
+const isTags = computed(() => route.name === 'library-tags')
 
 function handleToggleFilters() {
   if (!isWall.value) {
@@ -46,7 +50,27 @@ function handleToggleFilters() {
   showFilters.value = !showFilters.value
 }
 
+async function consumeOfflineUrl() {
+  const raw = route.query.offline_url
+  const offlineUrl = Array.isArray(raw) ? raw[0] : raw
+  if (!offlineUrl)
+    return
+
+  const nextQuery = { ...route.query }
+  delete nextQuery.offline_url
+  void router.replace({ query: nextQuery })
+  await cloudAction.cloudDownload('', [], offlineUrl)
+}
+
+watch(
+  () => route.query.offline_url,
+  () => {
+    void consumeOfflineUrl()
+  },
+)
+
 onMounted(async () => {
+  void consumeOfflineUrl()
   await store.init()
 })
 

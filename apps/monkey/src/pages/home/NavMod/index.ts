@@ -39,7 +39,7 @@ export default class NavMod extends BaseMod {
 
     const masterDriveLinkNode = topDocument.createElement('a')
     masterDriveLinkNode.classList.add('master-drive-link')
-    masterDriveLinkNode.href = 'https://115.com/web/lixian/master/#/drive'
+    masterDriveLinkNode.href = 'https://115.com/web/lixian/master/#/library'
     masterDriveLinkNode.innerHTML = `
       <span>115Master</span>
     `

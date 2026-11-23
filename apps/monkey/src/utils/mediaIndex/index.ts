@@ -6,11 +6,13 @@ export {
   loadPosterThumbUrl,
   readAllCachedJavMeta,
   scrapeJavMeta,
+  scrapeJavMetaDetailed,
   shouldCropRightHalfForPortrait,
 } from './scraperRegistry'
-export type { PosterThumbResource } from './scraperRegistry'
+export type { PosterThumbResource, ScrapeResult } from './scraperRegistry'
 export type {
   ActorFacetStat,
+  DriveLabelFacetCount,
   FacetCount,
   IndexedVideo,
   IndexedVideoLabel,
@@ -29,11 +31,18 @@ export type {
   VideoIndexSnapshot,
 } from './types'
 export {
+  clearScrapeMissed,
   clearVideoIndexSnapshot,
+  DEFAULT_SCRAPE_MISS_TTL_MS,
+  isScrapeMissed,
   loadVideoIndexSnapshot,
+  markScrapeMissed,
   posterThumbCache,
+  readActiveScrapeMissKeys,
   requestPersistentStorage,
   saveVideoIndexSnapshot,
+  scrapeMissCache,
 } from './videoIndexStore'
+export type { ScrapeMissEntry } from './videoIndexStore'
 export { syncDriveVideoIndex } from '@/utils/superSearch'
 export type { SyncVideoIndexOptions } from '@/utils/superSearch'

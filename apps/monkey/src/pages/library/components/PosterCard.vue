@@ -3,6 +3,7 @@
     class="group bg-base-200/45 border-base-content/5 hover:border-primary/40 hover:bg-base-200/75 flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-200"
     tabindex="0"
     @click="openDetail"
+    @contextmenu.prevent="openContextMenu"
     @keydown.enter.prevent="openDetail"
   >
     <!-- 封面区域 -->
@@ -117,15 +118,26 @@
         </span>
       </div>
     </div>
+
+    <ActionMenu
+      v-if="primaryFile"
+      aria-label="作品操作"
+      :groups="menuGroups"
+      :open="menuOpen"
+      :position="menuPosition"
+      @update:open="menuOpen = $event"
+    />
   </article>
 </template>
 
 <script setup lang="ts">
 import type { LibraryEntry, PosterThumbResource } from '@/utils/mediaIndex'
+import { ActionMenu } from '@115master/ui'
 import { computed, onUnmounted, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
+import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { getCoverCandidates, loadPosterThumbUrl, shouldCropRightHalfForPortrait } from '@/utils/mediaIndex'
 
@@ -136,13 +148,30 @@ const props = defineProps<{
 
 const router = useRouter()
 const store = useMediaLibraryStore()
+const fileActions = useLibraryFileActions()
 
 const thumbUrl = shallowRef('')
 const isRightHalfPortrait = shallowRef(false)
+const menuOpen = shallowRef(false)
+const menuPosition = shallowRef({ x: 0, y: 0 })
 let activeController: AbortController | null = null
 let activeResource: PosterThumbResource | null = null
 
 const primaryFile = computed(() => props.entry.files[0])
+const menuGroups = fileActions.buildFileMenuGroups(
+  () => primaryFile.value,
+  {
+    onPlay: () => playPrimary(),
+    onOpenDetail: () => openDetail(),
+  },
+)
+
+function openContextMenu(event: MouseEvent) {
+  if (!primaryFile.value)
+    return
+  menuPosition.value = { x: event.clientX, y: event.clientY }
+  menuOpen.value = true
+}
 const isScraping = computed(() => store.scrapingKeys.has(props.entry.mediaKey))
 const visibleGenres = computed(() => props.entry.meta?.genres.slice(0, 3) ?? [])
 

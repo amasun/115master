@@ -7,7 +7,6 @@ import { useAppDialog } from '@/app/dialog'
 import { router } from '@/app/router'
 import { useToast } from '@/components'
 import TagPickerContent from '@/components/TagPicker/TagPickerContent'
-import { useDriveStore } from '@/store/driveList'
 import { useTagStore } from '@/store/tagList'
 import { drive115 } from '@/utils/drive115Instance'
 import { getFilesItemId } from '@/utils/filesItem'
@@ -19,20 +18,22 @@ interface TagApplyFailure {
   error: Core.Drive115Error
 }
 
+export interface TagBatchOptions {
+  /** 标签写回后回调（至少有一项成功时触发） */
+  onApplied?: (applied: FileTagChange[], failedIds: string[]) => Promise<void> | void
+}
+
 /**
  * 「打标签」文件操作。
  *
- * 在文件列表右键对选中文件（单 / 批、文件 / 文件夹）增量增删已有标签：
  * 弹窗初始勾选为选中文件标签交集，确认后客户端 diff 出每文件目标标签集，
  * 逐文件全量写回（`setFileLabels`），其余标签保留。批量用 `Promise.allSettled`
- * 聚合；全成功靠 UI 徽章反馈（`drive.refresh()` 后 tag badge 更新），仅失败时
- * toast 提示并把失败项重新勾选便于重试。auth 类错误升级 dialog（US 14 行动指引）。
+ * 聚合；仅失败时 toast 提示。auth 类错误升级 dialog。
  */
 export function useTagAction() {
   const dialog = useAppDialog()
   const toast = useToast()
   const tagStore = useTagStore()
-  const drive = useDriveStore()
 
   /** 单文件写回；失败抛 `Drive115Error`（经 `handle()` 边界归一，保留 action 分类） */
   async function applyOne(fileId: string, labelIds: string[]) {
@@ -81,15 +82,7 @@ export function useTagAction() {
     reportBatch(failed.map(f => f.id), nameById)
   }
 
-  /** 失败项按 id 重新勾选（refresh 后引用已变，按 id 在新列表中匹配） */
-  function reselectFailed(failedIds: string[]) {
-    const idSet = new Set(failedIds)
-    drive.items
-      .filter(item => idSet.has(getFilesItemId(item)))
-      .forEach(item => drive.selection.toggle(item, true))
-  }
-
-  async function tagBatch(items: Share.Entity.FilesItem[]): Promise<void> {
+  async function tagBatch(items: Share.Entity.FilesItem[], options?: TagBatchOptions): Promise<void> {
     const files: FileTagInput[] = items.map(item => ({
       id: getFilesItemId(item),
       tagIds: (item.fl ?? []).map(t => t.id),
@@ -118,16 +111,13 @@ export function useTagAction() {
       try {
         const failed = await applyAll(changes)
         const failedIds = failed.map(f => f.id)
+        const failedSet = new Set(failedIds)
 
         await reportResult(failed, nameById)
 
-        // 成功项已生效：刷新徽章；失败项按 id 重新勾选以保留重试入口。全失败则不动列表。
-        if (changes.length - failedIds.length > 0) {
-          await drive.refresh()
-          drive.selection.clear()
-          if (failedIds.length > 0)
-            reselectFailed(failedIds)
-        }
+        const applied = changes.filter(change => !failedSet.has(change.fileId))
+        if (applied.length > 0)
+          await options?.onApplied?.(applied, failedIds)
       }
       catch (e) {
         await reportError(e)
@@ -149,7 +139,7 @@ export function useTagAction() {
         <TagPickerContent
           state={pickerState}
           intersection={intersection}
-          onGotoTags={() => router.push('/tags')}
+          onGotoTags={() => router.push('/library/tags')}
         />
       ),
       onConfirm,

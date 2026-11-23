@@ -1,5 +1,6 @@
 import type {
   ActorFacetStat,
+  DriveLabelFacetCount,
   FacetCount,
   IndexedVideo,
   IndexedVideoLabel,
@@ -25,11 +26,13 @@ export interface LibraryIndex {
   byGenre: Map<string, Set<string>>
   byYear: Map<number, Set<string>>
   byDirector: Map<string, Set<string>>
+  byDriveLabel: Map<string, Set<string>>
   actors: FacetCount[]
   actorStats: ActorFacetStat[]
   genres: FacetCount[]
   years: YearFacetCount[]
   directors: FacetCount[]
+  driveLabels: DriveLabelFacetCount[]
   query: (filter: LibraryFilterState) => LibraryEntry[]
 }
 
@@ -319,6 +322,8 @@ export function buildLibraryIndex(
   const byGenre = new Map<string, Set<string>>()
   const byYear = new Map<number, Set<string>>()
   const byDirector = new Map<string, Set<string>>()
+  const byDriveLabel = new Map<string, Set<string>>()
+  const driveLabelMeta = new Map<string, { id: string, name: string, color?: string }>()
 
   entries.forEach((entry) => {
     entryMap.set(entry.mediaKey, entry)
@@ -329,6 +334,20 @@ export function buildLibraryIndex(
       if (normalizedAv)
         entryByAvKey.set(normalizedAv, entry.mediaKey)
     }
+
+    entry.driveLabels.forEach((label) => {
+      const key = label.id || label.name
+      if (!key)
+        return
+      addToIndex(byDriveLabel, key, entry.mediaKey)
+      if (!driveLabelMeta.has(key)) {
+        driveLabelMeta.set(key, {
+          id: key,
+          name: label.name || key,
+          ...(label.color ? { color: label.color } : {}),
+        })
+      }
+    })
 
     if (!entry.meta)
       return
@@ -444,6 +463,17 @@ export function buildLibraryIndex(
   const years = Array.from(byYear.entries())
     .map(([year, keys]) => ({ year, count: keys.size }))
     .sort((a, b) => b.year - a.year)
+  const driveLabels: DriveLabelFacetCount[] = Array.from(byDriveLabel.entries())
+    .map(([key, keys]) => {
+      const meta = driveLabelMeta.get(key)
+      return {
+        id: key,
+        name: meta?.name ?? key,
+        ...(meta?.color ? { color: meta.color } : {}),
+        count: keys.size,
+      }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))
 
   function query(filter: LibraryFilterState): LibraryEntry[] {
     const facetSets: Array<Set<string> | undefined> = []
@@ -455,6 +485,8 @@ export function buildLibraryIndex(
       facetSets.push(byDirector.get(filter.director))
     if (filter.year !== undefined)
       facetSets.push(byYear.get(filter.year))
+    if (filter.driveLabel)
+      facetSets.push(byDriveLabel.get(filter.driveLabel))
 
     const candidateKeys = intersectSets(facetSets)
     const candidates = candidateKeys
@@ -464,6 +496,8 @@ export function buildLibraryIndex(
     const keyword = filter.keyword.trim().toLowerCase()
     const normalizedKeyword = normalizeActressName(filter.keyword)
     const filtered = candidates.filter((entry) => {
+      if ((filter.view === 'starred' || filter.onlyStarred) && !entry.starred)
+        return false
       if ((filter.view === 'marked' || filter.onlyMarked) && entry.markerCount <= 0)
         return false
       if (filter.scrapeStatus === 'scraped' && entry.meta === null)
@@ -485,11 +519,13 @@ export function buildLibraryIndex(
     byGenre,
     byYear,
     byDirector,
+    byDriveLabel,
     actors,
     actorStats,
     genres,
     years,
     directors,
+    driveLabels,
     query,
   }
 }

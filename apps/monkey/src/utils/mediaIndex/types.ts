@@ -14,7 +14,7 @@ export type {
 
 export type MediaKind = 'jav' | 'movie' | 'tv' | 'unknown'
 
-export type LibraryView = 'all' | 'recent' | 'marked'
+export type LibraryView = 'all' | 'recent' | 'starred' | 'marked'
 
 export type LibrarySortBy = 'mtime' | 'releaseDate' | 'duration' | 'size' | 'title'
 
@@ -96,7 +96,9 @@ export interface LibraryFilterState {
   genre?: string
   director?: string
   year?: number
+  driveLabel?: string
   scrapeStatus: LibraryScrapeFilter
+  onlyStarred: boolean
   onlyMarked: boolean
   sortBy: LibrarySortBy
   sortAsc: boolean
@@ -104,6 +106,13 @@ export interface LibraryFilterState {
 
 export interface FacetCount {
   name: string
+  count: number
+}
+
+export interface DriveLabelFacetCount {
+  id: string
+  name: string
+  color?: string
   count: number
 }
 

@@ -239,6 +239,8 @@ const viewTitle = computed(() => {
     return '演员'
   if (store.filter.view === 'recent')
     return '最近入库'
+  if (store.filter.view === 'starred')
+    return '星标收藏'
   if (store.filter.view === 'marked')
     return '有打点'
   return '全部作品'
@@ -270,7 +272,11 @@ const subFilterCount = computed(() => {
     count += 1
   if (store.filter.director)
     count += 1
+  if (store.filter.driveLabel)
+    count += 1
   if (store.filter.scrapeStatus !== 'all')
+    count += 1
+  if (store.filter.onlyStarred)
     count += 1
   if (store.filter.onlyMarked)
     count += 1
@@ -282,6 +288,7 @@ const hasActiveFilter = computed(() =>
     store.filter.keyword.trim()
     || store.filter.actor
     || store.filter.genre
+    || store.filter.driveLabel
     || store.filter.view !== 'all'
     || subFilterCount.value > 0,
   ),

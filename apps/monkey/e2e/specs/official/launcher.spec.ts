@@ -16,10 +16,10 @@ test.describe('新版官方页面兼容入口', () => {
      * 1) 定位 Shadow DOM 内启动按钮
      * 2) 校验按钮地址和唯一性
      */
-    const launcher = page.getByRole('link', { name: '打开 115Master Fusion' })
+    const launcher = page.getByRole('link', { name: '打开 115Master 影视库' })
     const controls = page.locator('[data-115master-controls]')
     await expect(launcher).toHaveCount(1)
-    await expect(launcher).toHaveAttribute('href', `${MASTER_URL}#/drive`)
+    await expect(launcher).toHaveAttribute('href', `${MASTER_URL}#/library`)
     await expect(launcher.locator('svg')).toBeVisible()
     await expect(controls).toHaveAttribute('data-placement', 'floating')
     await expect(controls).toHaveAttribute('data-115master-version', '2.0.0-beta.101')
@@ -39,15 +39,15 @@ test.describe('新版官方页面兼容入口', () => {
 
     /**
      * ================================================================================
-     * 步骤3：验证独立文件页跳转
+     * 步骤3：验证独立影视库页跳转
      * ================================================================================
-     * 目标：确认入口能进入不依赖官方 DOM 的 MASTER SPA。
+     * 目标：确认入口能进入不依赖官方 DOM 的 MASTER SPA 影视库。
      * 操作：
      * 1) 点击启动按钮
      * 2) 等待 SPA 根节点挂载
      */
     await launcher.click()
-    await expect(page).toHaveURL(`${MASTER_URL}#/drive`)
+    await expect(page).toHaveURL(`${MASTER_URL}#/library`)
     await expect(page.locator('#my-app')).toBeAttached()
     expect(errors).toEqual([])
   })

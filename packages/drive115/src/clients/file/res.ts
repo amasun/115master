@@ -157,3 +157,12 @@ export type PostFilesTop = ApiResponseBase<unknown>
 
 /** 文件评分 */
 export type FilesScore = ApiResponseBase<unknown>
+
+/** 获取文件备注 */
+export type FileDesc = ApiResponseBase<{
+  desc?: string
+  file_desc?: string
+}>
+
+/** 设置文件备注 */
+export type SetFileDesc = ApiResponseBase<unknown>

@@ -311,17 +311,17 @@ class OfficialPage {
       showPreferencesDialog()
     })
 
-    /** 2.2 创建 MASTER 独立文件页入口。 */
+    /** 2.2 创建 MASTER 影视库入口。 */
     const launcher = document.createElement('a')
     launcher.className = 'control launcher'
-    launcher.href = `${MASTER_BASE_URL}/#/drive`
-    launcher.title = '打开 115Master Fusion'
-    launcher.ariaLabel = '打开 115Master Fusion'
+    launcher.href = `${MASTER_BASE_URL}/#/library`
+    launcher.title = '打开 115Master 影视库'
+    launcher.ariaLabel = '打开 115Master 影视库'
     launcher.target = '_self'
     launcher.setAttribute('data-115master-launcher-link', '')
     const launcherLabel = document.createElement('span')
     launcherLabel.className = 'label'
-    launcherLabel.textContent = 'Fusion'
+    launcherLabel.textContent = '影视库'
     launcher.append(this.createIcon(officialIcons.rocket), launcherLabel)
 
     const controls = document.createElement('div')

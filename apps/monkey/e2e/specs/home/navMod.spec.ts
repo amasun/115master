@@ -13,7 +13,7 @@ test.describe('NavMod', () => {
 
     const link = page.locator('.panel-nav a.master-drive-link')
     await expect(link).toHaveCount(1)
-    await expect(link).toHaveAttribute('href', 'https://115.com/web/lixian/master/#/drive')
+    await expect(link).toHaveAttribute('href', 'https://115.com/web/lixian/master/#/library')
     await expect(link).toHaveAttribute('target', '_self')
     await expect(link).toHaveText('115Master')
     expect(errors).toEqual([])

@@ -766,17 +766,7 @@ async function playVideo(video: IndexedVideo) {
 }
 
 async function openFolder(video: IndexedVideo) {
-  if (isMasterApp()) {
-    const { router } = await import('@/app/router')
-    await router.push({
-      name: 'drive',
-      params: { cid: video.cid },
-    })
-    emit('close')
-    return
-  }
-
-  const url = window.location.pathname.startsWith('/storage/')
+  const url = !isMasterApp() && window.location.pathname.startsWith('/storage/')
     ? `https://115.com/storage/allfiles?cid=${encodeURIComponent(video.cid)}`
     : `https://115.com/?cid=${encodeURIComponent(video.cid)}&offset=0&mode=wangpan`
   GM_openInTab(url, { active: true })

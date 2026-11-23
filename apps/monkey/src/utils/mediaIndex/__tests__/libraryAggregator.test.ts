@@ -26,6 +26,7 @@ function createFilter(overrides: Partial<LibraryFilterState> = {}): LibraryFilte
     view: 'all',
     keyword: '',
     scrapeStatus: 'all',
+    onlyStarred: false,
     onlyMarked: false,
     sortBy: 'mtime',
     sortAsc: false,
@@ -162,6 +163,7 @@ describe('libraryAggregator', () => {
           duration: 3600,
           mtime: 100,
           avNumber: 'SSIS-001',
+          starred: true,
           labels: [{ id: 't1', name: '珍藏标签' }],
         },
         {
@@ -235,6 +237,15 @@ describe('libraryAggregator', () => {
     // 有打点过滤
     expect(index.query(createFilter({ view: 'marked' })).map(i => i.mediaKey))
       .toEqual(['jav:ABP100'])
+
+    // 星标收藏视图与 115 网盘标签过滤
+    expect(index.driveLabels).toEqual([{ id: 't1', name: '珍藏标签', count: 1 }])
+    expect(index.query(createFilter({ view: 'starred' })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS001'])
+    expect(index.query(createFilter({ onlyStarred: true })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS001'])
+    expect(index.query(createFilter({ driveLabel: 't1' })).map(i => i.mediaKey))
+      .toEqual(['jav:SSIS001'])
 
     // 关键词匹配导演与 115 文字标签
     expect(index.query(createFilter({ keyword: '导演乙' })).map(i => i.mediaKey))

@@ -2,6 +2,7 @@ import type { SlotsType } from 'vue'
 import { Button, Drawer, scrollbar } from '@115master/ui'
 import { defineComponent, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useSuperSearchDialog } from '@/components/SuperSearch'
 import { I, Icon } from '@/icons'
 import SiderMenuButton from './SiderMenuButton'
 
@@ -14,6 +15,7 @@ const MobileSider = defineComponent({
   }>,
   setup(_, { slots }) {
     const isOpen = ref(false)
+    const openSuperSearch = useSuperSearchDialog()
     const waiters: Array<() => void> = []
     const open = () => isOpen.value = true
     const close = () => isOpen.value = false
@@ -30,6 +32,11 @@ const MobileSider = defineComponent({
 
     function closed() {
       waiters.splice(0).forEach(resolve => resolve())
+    }
+
+    async function triggerSuperSearch() {
+      await prepare()
+      openSuperSearch()
     }
 
     const route = useRoute()
@@ -69,6 +76,15 @@ const MobileSider = defineComponent({
             {slots.default?.()}
             <div class="mt-auto flex flex-col gap-2">
               {slots.left?.()}
+              <Button
+                variant="ghost"
+                class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                onClick={triggerSuperSearch}
+                title="超级搜索 (Alt+K)"
+              >
+                <Icon class="text-lg" name={I.SEARCH} />
+                <span>超级搜索</span>
+              </Button>
               <Button
                 variant="ghost"
                 class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"

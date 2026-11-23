@@ -159,6 +159,7 @@ const PreferencesContent = defineComponent({
     const compactAvInfo = useUserSetting('compactAvInfo')
     const actressFaces = useUserSetting('enableActressFaces')
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
+    const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
 
     const layoutOption = (compact: boolean, label: string, text: string) => {
       const active = compactAvInfo.value === compact
@@ -270,6 +271,13 @@ const PreferencesContent = defineComponent({
                 description="在播放器页面显示影片介绍与侧边信息"
                 modelValue={playerMovieInfo.value}
                 onUpdate:modelValue={value => playerMovieInfo.value = value}
+              />
+              <SettingToggle
+                icon={I.MARKER}
+                label="打点同步到 115 文件备注"
+                description="自动将播放打点写入文件原生备注，换设备打开即可恢复"
+                modelValue={syncMarkersToFileDesc.value}
+                onUpdate:modelValue={value => syncMarkersToFileDesc.value = value}
               />
             </div>
           </Card>
