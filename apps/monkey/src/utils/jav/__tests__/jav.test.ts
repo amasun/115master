@@ -25,9 +25,11 @@ vi.mock('@/utils/cache/javCache', () => ({
 }))
 
 const {
+  buildAvNumberQueryVariants,
   isSameAvNumber,
   Jav,
   JAV_SOURCE,
+  normalizeAvNumber,
 } = await import('../jav')
 
 function createInfo(avNumber: string, fields: Partial<JavInfo> = {}): JavInfo {
@@ -50,7 +52,7 @@ class TestJav extends Jav {
   searchUrl = ''
   networkInfo?: JavInfo
 
-  async getInfoByAvNumber(): Promise<JavInfo | undefined> {
+  async getInfoByAvNumber(_avNumber?: string): Promise<JavInfo | undefined> {
     return this.networkInfo
   }
 
@@ -91,9 +93,38 @@ describe('jav 番号验真与缓存', () => {
 
     expect(isSameAvNumber('sora-0636', 'SORA_0636')).toBe(true)
     expect(isSameAvNumber('FC2-PPV-00123456', 'fc2 ppv 00123456')).toBe(true)
+    expect(isSameAvNumber('LAF-041', 'LAF-41')).toBe(true)
+    expect(isSameAvNumber('011015_780', '011015-780')).toBe(true)
+    expect(normalizeAvNumber('011015_780')).toBe('011015780')
+    expect(normalizeAvNumber('LAFBD-41')).toBe('LAFBD041')
+    expect(normalizeAvNumber('LAF-041')).toBe('LAF041')
+    expect(normalizeAvNumber('LAF-41')).toBe('LAF041')
     expect(isSameAvNumber('SORA-636', 'SORA-636-C')).toBe(false)
     expect(isSameAvNumber('SORA-636', 'SORA-637')).toBe(false)
     testLogger.info('统一番号比较验证完成')
+  })
+
+  it('生成兼容不规范命名的番号变体并在主格式未命中时自动回退', async () => {
+    expect(buildAvNumberQueryVariants('011015_780')).toEqual(['011015_780', '011015-780'])
+    expect(buildAvNumberQueryVariants('011015-780')).toEqual(['011015-780', '011015_780'])
+    expect(buildAvNumberQueryVariants('LAF-41')).toEqual(['LAF-41', 'LAF-041'])
+    expect(buildAvNumberQueryVariants('LAF-041')).toEqual(['LAF-041', 'LAF-41'])
+    expect(buildAvNumberQueryVariants('SSIS-0001')).toEqual(['SSIS-0001', 'SSIS-001', 'SSIS-1'])
+    expect(buildAvNumberQueryVariants('SORA-636')).toEqual(['SORA-636'])
+
+    const source = new TestJav()
+    const tried: string[] = []
+    source.getInfoByAvNumber = async (candidate: string) => {
+      tried.push(candidate)
+      if (candidate === '011015_780')
+        throw new Jav.NotFound()
+      return createInfo('011015-780')
+    }
+
+    const result = await source.getInfo('011015_780')
+    expect(tried).toEqual(['011015_780', '011015-780'])
+    expect(result?.avNumber).toBe('011015-780')
+    expect(cache.set).toHaveBeenCalledWith('JavBus:011015_780', result)
   })
 
   it('错误单源缓存被忽略并由精确网络结果替换', async () => {

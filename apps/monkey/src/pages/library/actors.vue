@@ -3,44 +3,65 @@
     <!-- 顶部统计、性别筛选与排序 -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-3">
-        <!-- 女演员 / 男演员 筛选（默认仅选中女演员） -->
+        <!-- 女演员 / 男演员 / 收藏 / 隐藏 互斥标签切换 -->
         <div
           class="bg-base-200/70 border-base-content/8 inline-flex items-center gap-1 rounded-full border p-1"
-          role="group"
-          aria-label="演员性别筛选"
+          role="tablist"
+          aria-label="演员分类切换"
         >
           <button
             type="button"
+            role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
-            :class="!showHidden && showFemale
+            :class="activeTab === 'female'
               ? 'bg-primary text-primary-content font-medium shadow-xs'
               : 'text-base-content/70 hover:text-base-content'"
-            :aria-pressed="!showHidden && showFemale"
-            @click="toggleFemale"
+            :aria-selected="activeTab === 'female'"
+            @click="activeTab = 'female'"
           >
             <span>女演员</span>
             <span class="text-[11px] tabular-nums opacity-75">{{ femaleCount }}</span>
           </button>
           <button
             type="button"
+            role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
-            :class="!showHidden && showMale
+            :class="activeTab === 'male'
               ? 'bg-primary text-primary-content font-medium shadow-xs'
               : 'text-base-content/70 hover:text-base-content'"
-            :aria-pressed="!showHidden && showMale"
-            @click="toggleMale"
+            :aria-selected="activeTab === 'male'"
+            @click="activeTab = 'male'"
           >
             <span>男演员</span>
             <span class="text-[11px] tabular-nums opacity-75">{{ maleCount }}</span>
           </button>
           <button
             type="button"
+            role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
-            :class="showHidden
+            :class="activeTab === 'favorite'
               ? 'bg-primary text-primary-content font-medium shadow-xs'
               : 'text-base-content/70 hover:text-base-content'"
-            :aria-pressed="showHidden"
-            @click="toggleHidden"
+            :aria-selected="activeTab === 'favorite'"
+            @click="activeTab = 'favorite'"
+          >
+            <Icon
+              :name="activeTab === 'favorite' ? I.HEART_FILL : I.HEART"
+              class="text-xs"
+              :class="activeTab === 'favorite' ? 'text-primary-content' : 'text-rose-400'"
+            />
+            <span>收藏</span>
+            <span class="text-[11px] tabular-nums opacity-75">{{ favoriteCount }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
+            :class="activeTab === 'hidden'
+              ? 'bg-primary text-primary-content font-medium shadow-xs'
+              : 'text-base-content/70 hover:text-base-content'"
+            :aria-selected="activeTab === 'hidden'"
+            @click="activeTab = 'hidden'"
           >
             <span>隐藏</span>
             <span class="text-[11px] tabular-nums opacity-75">{{ hiddenCount }}</span>
@@ -147,10 +168,20 @@
             </span>
           </div>
 
-          <!-- 右上角：作品数 -->
-          <span class="pointer-events-none absolute top-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums backdrop-blur-xs">
-            {{ actor.count }} 部
-          </span>
+          <!-- 右上角：收藏爱心按钮 -->
+          <button
+            type="button"
+            :title="store.isActorFavorite(actor.key) ? '取消收藏' : '收藏演员'"
+            :aria-label="store.isActorFavorite(actor.key) ? '取消收藏' : '收藏演员'"
+            :aria-pressed="store.isActorFavorite(actor.key)"
+            class="btn btn-circle btn-xs absolute top-2 right-2 z-10 border border-white/15 bg-black/65 shadow-sm backdrop-blur-xs transition-all hover:bg-black/85"
+            :class="store.isActorFavorite(actor.key)
+              ? 'text-rose-500 opacity-100'
+              : 'text-white/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-rose-400'"
+            @click.stop="handleToggleFavorite(actor)"
+          >
+            <Icon :name="store.isActorFavorite(actor.key) ? I.HEART_FILL : I.HEART" class="text-xs" />
+          </button>
 
           <!-- 左上角：有打点作品数 -->
           <span
@@ -160,6 +191,11 @@
           >
             <Icon :name="I.MARKER" class="text-[11px]" />
             <span>{{ actor.markedCount }}</span>
+          </span>
+
+          <!-- 左下角：作品数 -->
+          <span class="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums backdrop-blur-xs">
+            {{ actor.count }} 部
           </span>
 
           <!-- 右下角：悬停更换头像 -->
@@ -216,6 +252,7 @@ import { normalizeActressName } from '@/utils/actressNameMatcher'
 useTitle('演员 · 影视库 · 115Master Fusion')
 
 type ActorSortBy = 'count' | 'recent' | 'name'
+type ActorTab = 'female' | 'male' | 'favorite' | 'hidden'
 
 const sortOptions: Array<{ value: ActorSortBy, label: string }> = [
   { value: 'count', label: '按作品数' },
@@ -227,9 +264,7 @@ const router = useRouter()
 const store = useMediaLibraryStore()
 const toast = useToast()
 const sortBy = useStorage<ActorSortBy>('115Master_library_actors_sort', 'count')
-const showFemale = useStorage<boolean>('115Master_library_actors_female', true)
-const showMale = useStorage<boolean>('115Master_library_actors_male', false)
-const showHidden = ref(false)
+const activeTab = useStorage<ActorTab>('115Master_library_actors_tab', 'female')
 const genderOverrides = useStorage<Record<string, 0 | 1>>('115Master_library_actor_gender_overrides', {})
 const failedAvatars = ref(new Set<string>())
 
@@ -261,6 +296,11 @@ function resetActorGender(actor: ActorFacetStat) {
   toast.success(`已恢复「${actor.name}」的自动性别判定`)
 }
 
+function handleToggleFavorite(actor: ActorFacetStat) {
+  const favorited = store.toggleFavoriteActor(actor.key)
+  toast.success(favorited ? `已收藏「${actor.name}」` : `已取消收藏「${actor.name}」`)
+}
+
 function openActorMenu(event: MouseEvent, actor: ActorFacetStat) {
   menuTarget.value = actor
   menuPosition.value = { x: event.clientX, y: event.clientY }
@@ -281,6 +321,12 @@ const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
         label: '查看名下作品',
         leading: actionIcon(I.LIBRARY),
         onSelect: () => openActorWorks(target.name),
+      },
+      {
+        id: 'toggle-favorite',
+        label: store.isActorFavorite(target.key) ? '取消收藏' : '收藏演员',
+        leading: actionIcon(store.isActorFavorite(target.key) ? I.HEART_FILL : I.HEART),
+        onSelect: () => handleToggleFavorite(target),
       },
       {
         id: 'change-avatar',
@@ -329,49 +375,26 @@ const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
   ]
 })
 
-function toggleFemale() {
-  if (showHidden.value) {
-    showHidden.value = false
-    showFemale.value = true
-    return
-  }
-  if (showFemale.value && !showMale.value) {
-    showFemale.value = false
-    showMale.value = true
-    return
-  }
-  showFemale.value = !showFemale.value
-}
-
-function toggleMale() {
-  if (showHidden.value) {
-    showHidden.value = false
-    showMale.value = true
-    return
-  }
-  if (showMale.value && !showFemale.value) {
-    showMale.value = false
-    showFemale.value = true
-    return
-  }
-  showMale.value = !showMale.value
-}
-
-function toggleHidden() {
-  showHidden.value = true
-}
-
 const hiddenCount = computed(() =>
   store.libraryIndex.actorStats.filter(actor => store.isActorHidden(actor.key)).length,
+)
+const favoriteCount = computed(() =>
+  store.libraryIndex.actorStats.filter(actor => store.isActorFavorite(actor.key)).length,
 )
 const visibleActors = computed(() =>
   store.libraryIndex.actorStats.filter(actor => !store.isActorHidden(actor.key)),
 )
-const totalActors = computed(() =>
-  showHidden.value ? hiddenCount.value : visibleActors.value.length,
-)
 const maleCount = computed(() => visibleActors.value.filter(isMaleActor).length)
 const femaleCount = computed(() => visibleActors.value.length - maleCount.value)
+const totalActors = computed(() => {
+  if (activeTab.value === 'hidden')
+    return hiddenCount.value
+  if (activeTab.value === 'favorite')
+    return favoriteCount.value
+  if (activeTab.value === 'male')
+    return maleCount.value
+  return femaleCount.value
+})
 const hasKeyword = computed(() => Boolean(store.filter.keyword.trim()))
 
 function matchesActorSearch(actor: ActorFacetStat, rawKeyword: string, normalizedKeyword: string): boolean {
@@ -387,18 +410,21 @@ const sortedActors = computed(() => {
   const keyword = store.filter.keyword.trim().toLowerCase()
   const normalizedKeyword = normalizeActressName(store.filter.keyword)
   const list = store.libraryIndex.actorStats.filter((actor) => {
-    const hidden = store.isActorHidden(actor.key)
-    if (showHidden.value) {
-      if (!hidden)
+    if (activeTab.value === 'favorite') {
+      if (!store.isActorFavorite(actor.key))
+        return false
+    }
+    else if (activeTab.value === 'hidden') {
+      if (!store.isActorHidden(actor.key))
         return false
     }
     else {
-      if (hidden)
+      if (store.isActorHidden(actor.key))
         return false
       const male = isMaleActor(actor)
-      if (male && !showMale.value)
+      if (activeTab.value === 'male' && !male)
         return false
-      if (!male && !showFemale.value)
+      if (activeTab.value === 'female' && male)
         return false
     }
     if (keyword && !matchesActorSearch(actor, keyword, normalizedKeyword))

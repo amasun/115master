@@ -42,12 +42,19 @@ describe('getNumber', () => {
 
   it('一本道系列 or Pacopacomama or 10musume系列', () => {
     expect(getAvNumber('042906_872')).toBe('042906_872')
+    expect(getAvNumber('011015-780.mp4')).toBe('011015-780')
+    expect(getAvNumber('011015_780.mp4')).toBe('011015_780')
     expect(getAvNumber('10musume-123114_01')).toBe('123114_01')
     expect(getAvNumber('10musume 123114 01')).toBe('123114_01')
     expect(getAvNumber('pacopacomama-123114_01')).toBe('123114_01')
     expect(getAvNumber('Pacopacomama 123114 01')).toBe('123114_01')
     expect(getAvNumber('1pondo-010123_001.mp4')).toBe('010123_001')
     expect(getAvNumber('10musume-133114_01.mp4')).toBeNull()
+  })
+
+  it('蓝光版与带前导零番号提取', () => {
+    expect(getAvNumber('LAF-041.mp4')).toBe('LAF-041')
+    expect(getAvNumber('LAFBD-41.mp4')).toBe('LAFBD-41')
   })
 
   it('heydouga系列', () => {

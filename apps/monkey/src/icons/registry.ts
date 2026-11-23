@@ -137,6 +137,8 @@ export const I = {
   QA: 'ph:question-bold',
   STAR_FILL: 'ph:star-fill',
   STAR: 'ph:star-bold',
+  HEART: 'ph:heart-bold',
+  HEART_FILL: 'ph:heart-fill',
 
   // === 排序 ===
   SORT_HISTORY: 'ph:file-bold',

@@ -7,11 +7,11 @@
       class="ui-glass-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
     >
       <!-- 题材 -->
-      <label class="flex items-center gap-1.5">
-        <span class="text-base-content/55">题材</span>
+      <label class="flex shrink-0 items-center gap-1.5">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">题材</span>
         <select
           v-model="store.filter.genre"
-          class="select select-xs select-bordered bg-base-100/70 max-w-36 rounded-full"
+          class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
         >
           <option :value="undefined">全部题材</option>
           <option
@@ -25,11 +25,11 @@
       </label>
 
       <!-- 年份 -->
-      <label class="flex items-center gap-1.5">
-        <span class="text-base-content/55">年份</span>
+      <label class="flex shrink-0 items-center gap-1.5">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">年份</span>
         <select
           :value="store.filter.year ?? ''"
-          class="select select-xs select-bordered bg-base-100/70 rounded-full"
+          class="select select-xs select-bordered bg-base-100/70 w-auto min-w-24 rounded-full"
           @change="onYearChange"
         >
           <option value="">全部年份</option>
@@ -44,11 +44,11 @@
       </label>
 
       <!-- 导演 -->
-      <label class="flex items-center gap-1.5">
-        <span class="text-base-content/55">导演</span>
+      <label class="flex shrink-0 items-center gap-1.5">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">导演</span>
         <select
           v-model="store.filter.director"
-          class="select select-xs select-bordered bg-base-100/70 max-w-36 rounded-full"
+          class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
         >
           <option :value="undefined">全部导演</option>
           <option
@@ -62,11 +62,11 @@
       </label>
 
       <!-- 115 网盘标签 -->
-      <label v-if="store.libraryIndex.driveLabels.length > 0" class="flex items-center gap-1.5">
-        <span class="text-base-content/55">标签</span>
+      <label v-if="store.libraryIndex.driveLabels.length > 0" class="flex shrink-0 items-center gap-1.5">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">标签</span>
         <select
           v-model="store.filter.driveLabel"
-          class="select select-xs select-bordered bg-base-100/70 max-w-36 rounded-full"
+          class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
         >
           <option :value="undefined">全部标签</option>
           <option
@@ -80,13 +80,13 @@
       </label>
 
       <!-- 刮削状态 -->
-      <div class="flex items-center gap-1">
-        <span class="text-base-content/55 mr-0.5">状态</span>
+      <div class="flex shrink-0 items-center gap-1">
+        <span class="text-base-content/55 mr-0.5 shrink-0 whitespace-nowrap">状态</span>
         <button
           v-for="option in scrapeOptions"
           :key="option.value"
           type="button"
-          class="btn btn-xs rounded-full font-normal"
+          class="btn btn-xs shrink-0 rounded-full font-normal whitespace-nowrap"
           :class="store.filter.scrapeStatus === option.value ? 'btn-primary' : 'btn-ghost'"
           @click="store.filter.scrapeStatus = option.value"
         >
@@ -97,7 +97,7 @@
       <!-- 仅看星标 -->
       <button
         type="button"
-        class="btn btn-xs gap-1 rounded-full font-normal"
+        class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
         :class="store.filter.onlyStarred ? 'btn-warning' : 'btn-ghost'"
         @click="store.filter.onlyStarred = !store.filter.onlyStarred"
       >
@@ -108,7 +108,7 @@
       <!-- 仅看有打点 -->
       <button
         type="button"
-        class="btn btn-xs gap-1 rounded-full font-normal"
+        class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
         :class="store.filter.onlyMarked ? 'btn-secondary' : 'btn-ghost'"
         @click="store.filter.onlyMarked = !store.filter.onlyMarked"
       >
@@ -117,11 +117,11 @@
       </button>
 
       <!-- 移动端补充排序切换 -->
-      <label class="flex items-center gap-1.5 md:hidden">
-        <span class="text-base-content/55">排序</span>
+      <label class="flex shrink-0 items-center gap-1.5 md:hidden">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">排序</span>
         <select
           v-model="store.filter.sortBy"
-          class="select select-xs select-bordered bg-base-100/70 rounded-full"
+          class="select select-xs select-bordered bg-base-100/70 w-auto min-w-24 rounded-full"
         >
           <option value="mtime">最近入库</option>
           <option value="releaseDate">发行日期</option>

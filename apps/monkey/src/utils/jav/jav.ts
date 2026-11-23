@@ -148,13 +148,55 @@ export interface JavInfo {
   comments?: Comment[]
 }
 
-/** 把番号统一为只含大写字母和数字的比较键。 */
+/** 把番号统一为只含大写字母和数字的比较键，并将字母前缀后数字规范为至少三位。 */
 export function normalizeAvNumber(avNumber?: string | null): string {
-  return avNumber
+  const compact = avNumber
     ?.normalize('NFKC')
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '') ?? ''
+  return compact.replace(/^([A-Z0-9]*[A-Z])(\d+)$/, (_match, prefix: string, digits: string) => {
+    const stripped = digits.replace(/^0+/, '') || '0'
+    return `${prefix}${stripped.padStart(3, '0')}`
+  })
+}
+
+/** 生成兼容不规范命名的番号检索变体列表（保留原格式优先，按需回退）。 */
+export function buildAvNumberQueryVariants(avNumber: string): string[] {
+  const trimmed = avNumber.trim()
+  if (!trimmed)
+    return []
+
+  const variants: string[] = []
+  const seen = new Set<string>()
+  const pushVariant = (candidate: string) => {
+    const value = candidate.trim()
+    if (!value || seen.has(value))
+      return
+    seen.add(value)
+    variants.push(value)
+  }
+
+  pushVariant(trimmed)
+
+  const dateMatch = trimmed.match(/^(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{2})([-_])(\d{2,3})$/)
+  if (dateMatch) {
+    const altSep = dateMatch[4] === '_' ? '-' : '_'
+    pushVariant(`${dateMatch[1]}${dateMatch[2]}${dateMatch[3]}${altSep}${dateMatch[5]}`)
+    return variants
+  }
+
+  const stdMatch = trimmed.match(/^([A-Z0-9]*[A-Z])([-_])(\d{1,6})$/i)
+  if (stdMatch && !/^FC2[-_]?PPV$/i.test(stdMatch[1]!)) {
+    const prefix = stdMatch[1]!.toUpperCase()
+    const digits = stdMatch[3]!
+    const stripped = digits.replace(/^0+(?=\d)/, '')
+    const padded3 = stripped.padStart(3, '0')
+    pushVariant(`${prefix}-${padded3}`)
+    pushVariant(`${prefix}-${stripped}`)
+  }
+
+  return variants
 }
 
 /** 判断两个番号是否仅存在大小写或分隔符差异。 */
@@ -248,44 +290,69 @@ abstract class Jav {
      * ================================================================================
      * 步骤2：请求并复核网络资料
      * ================================================================================
-     * 目标：禁止相似番号响应写入当前番号缓存。
+     * 目标：禁止相似番号响应写入当前番号缓存，并在 404/页面错误时自动回退兼容格式。
      * 数据源：当前 Jav 资料源的搜索页或详情页。
      * 操作：
-     * 1) 请求并解析详情
+     * 1) 依次尝试原番号及兼容格式变体
      * 2) 核对番号后按完整度决定是否缓存
      */
     logger.info('开始请求单源番号资料', this.source, avNumber)
-    const infoNew = await this.getInfoByAvNumber(avNumber)
-    if (!isJavInfoForAvNumber(avNumber, infoNew)) {
-      if (infoNew?.avNumber) {
-        logger.warn('单源番号不一致，忽略资料', this.source, avNumber, infoNew.avNumber)
+    const candidates = buildAvNumberQueryVariants(avNumber)
+    let lastError: unknown
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      const candidate = candidates[i]!
+      const hasNext = i < candidates.length - 1
+      try {
+        const infoNew = await this.getInfoByAvNumber(candidate)
+        if (!isJavInfoForAvNumber(avNumber, infoNew)) {
+          if (infoNew?.avNumber) {
+            logger.warn('单源番号不一致，忽略资料', this.source, avNumber, infoNew.avNumber)
+          }
+          continue
+        }
+        if (isJavInfoCacheable(infoNew, avNumber)) {
+          await this.cache.set(`${this.source}:${avNumber}`, infoNew)
+        }
+        logger.info('单源番号资料请求完成', this.source, avNumber, candidate)
+        return infoNew
       }
-      logger.info('单源番号资料请求完成，无精确结果', this.source, avNumber)
-      return info
+      catch (error) {
+        if ((error instanceof JavNotFound || error instanceof JavPageError) && hasNext) {
+          logger.info('单源番号变体未命中，尝试下一个兼容格式', this.source, candidate)
+          lastError = error
+          continue
+        }
+        throw error
+      }
     }
-    if (isJavInfoCacheable(infoNew, avNumber)) {
-      await this.cache.set(`${this.source}:${avNumber}`, infoNew)
+
+    if (lastError !== undefined && !info) {
+      throw lastError
     }
-    logger.info('单源番号资料请求完成', this.source, avNumber)
-    return infoNew
+    logger.info('单源番号资料请求完成，无精确结果', this.source, avNumber)
+    return info
   }
 
   /** 获取番号信息缓存 */
   async getInfoByCache(avNumber: string): Promise<JavInfo | undefined> {
-    const info = await this.cache.get(`${this.source}:${avNumber}`)
-    if (!info) {
-      return undefined
+    const candidates = buildAvNumberQueryVariants(avNumber)
+    for (const candidate of candidates) {
+      const info = await this.cache.get(`${this.source}:${candidate}`)
+      if (!info)
+        continue
+      if (!isJavInfoForAvNumber(avNumber, info.value)) {
+        logger.warn(
+          '单源番号缓存不一致，忽略缓存',
+          this.source,
+          candidate,
+          info.value.avNumber,
+        )
+        continue
+      }
+      return info.value
     }
-    if (!isJavInfoForAvNumber(avNumber, info.value)) {
-      logger.warn(
-        '单源番号缓存不一致，忽略缓存',
-        this.source,
-        avNumber,
-        info.value.avNumber,
-      )
-      return undefined
-    }
-    return info.value
+    return undefined
   }
 
   /** 解析番号信息 */

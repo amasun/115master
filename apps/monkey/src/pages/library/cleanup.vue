@@ -172,7 +172,9 @@
                   ? 'badge-error badge-soft'
                   : group.kind === 'avNumber'
                     ? 'badge-warning badge-soft'
-                    : 'badge-info badge-soft'"
+                    : group.kind === 'edition'
+                      ? 'badge-secondary badge-soft'
+                      : 'badge-info badge-soft'"
               >
                 {{ dupKindLabel(group.kind) }}
               </span>
@@ -595,6 +597,7 @@ const dupKindOptions = computed(() => [
   { value: 'all' as const, label: '全部', count: duplicateGroups.value.length },
   { value: 'sha1' as const, label: 'SHA1 完全重复', count: duplicateGroups.value.filter(g => g.kind === 'sha1').length },
   { value: 'avNumber' as const, label: '同番号多版本', count: duplicateGroups.value.filter(g => g.kind === 'avNumber').length },
+  { value: 'edition' as const, label: '蓝光/普通版', count: duplicateGroups.value.filter(g => g.kind === 'edition').length },
   { value: 'similar' as const, label: '疑似重复', count: duplicateGroups.value.filter(g => g.kind === 'similar').length },
 ])
 
@@ -638,6 +641,8 @@ function dupKindLabel(kind: DuplicateKind): string {
     return 'SHA1 完全重复'
   if (kind === 'avNumber')
     return '同番号多版本'
+  if (kind === 'edition')
+    return '蓝光/普通版'
   return '疑似重复'
 }
 

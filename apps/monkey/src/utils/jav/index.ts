@@ -1,5 +1,5 @@
 export { Fd2Ppv, isFd2PpvAvNumber } from './fd2Ppv'
-export { Jav } from './jav'
+export { buildAvNumberQueryVariants, Jav } from './jav'
 export { JavBus } from './javBus'
 export { JavDB } from './javDB'
 export { JavLibrary } from './javLibrary'

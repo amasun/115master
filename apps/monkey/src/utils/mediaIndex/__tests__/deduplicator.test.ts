@@ -204,5 +204,33 @@ describe('deduplicator', () => {
       controller.abort()
       await expect(analyzeDuplicateGroupsAsync(videos, entries, undefined, { signal: controller.signal })).rejects.toThrow()
     })
+
+    it('groups Blu-ray and standard editions as kind=edition and recommends keeping Blu-ray', async () => {
+      const videos = [
+        makeVideo({ fid: 'bd1', pickCode: 'pc-bd', sha1: 's-bd', avNumber: 'LAFBD-41', name: 'LAFBD-41.mp4', size: 4 * 1024 ** 3 }),
+        makeVideo({ fid: 'dvd1', pickCode: 'pc-dvd', sha1: 's-dvd', avNumber: 'LAF-041', name: 'LAF-041.mp4', size: 2 * 1024 ** 3 }),
+        makeVideo({ fid: 'std1', pickCode: 'pc-s1', sha1: 's1', avNumber: 'ABP-041', name: 'ABP-041.mp4', size: 2 * 1024 ** 3 }),
+        makeVideo({ fid: 'std2', pickCode: 'pc-s2', sha1: 's2', avNumber: 'ABP-41', name: 'ABP-41.mp4', size: 1.5 * 1024 ** 3 }),
+      ]
+      const entries = [
+        makeEntry('jav:LAFBD041', [videos[0]], '天使と悪魔（ブルーレイ版）'),
+        makeEntry('jav:LAF041', [videos[1]], '天使と悪魔'),
+        makeEntry('jav:ABP041', [videos[2], videos[3]], '同番号前导零'),
+      ]
+
+      const syncGroups = analyzeDuplicateGroups(videos, entries)
+      const asyncGroups = await analyzeDuplicateGroupsAsync(videos, entries, undefined, { chunkSize: 1 })
+      expect(asyncGroups).toEqual(syncGroups)
+
+      const editionGroup = syncGroups.find(g => g.kind === 'edition')
+      expect(editionGroup).toBeDefined()
+      expect(editionGroup?.files.map(f => f.fid)).toEqual(['bd1', 'dvd1'])
+      expect(editionGroup?.files[0]?.recommendedKeep).toBe(true)
+      expect(editionGroup?.files[0]?.keepReasons).toContain('蓝光版')
+      expect(editionGroup?.files[1]?.recommendedKeep).toBe(false)
+
+      const avGroup = syncGroups.find(g => g.kind === 'avNumber')
+      expect(avGroup?.files.map(f => f.fid)).toEqual(['std1', 'std2'])
+    })
   })
 })

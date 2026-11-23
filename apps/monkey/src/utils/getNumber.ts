@@ -74,8 +74,11 @@ const AV_NUMBER_PATTERNS: AvNumberPattern[] = [
     },
   },
   {
-    pattern: /(?<!\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{2})[\s_-]+(\d{2,3})(?!\d)/,
-    format: match => `${match[1]}${match[2]}${match[3]}_${match[4]}`,
+    pattern: /(?<!\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{2})([\s_-]+)(\d{2,3})(?!\d)/,
+    format: (match) => {
+      const sep = match[4]!.includes('-') && !match[4]!.includes('_') ? '-' : '_'
+      return `${match[1]}${match[2]}${match[3]}${sep}${match[5]}`
+    },
   },
   {
     pattern: /(?<![a-z0-9])heydouga[\s_-]+(\d{4})[\s_-]+(\d{3,4})(?!\d)/i,
@@ -200,10 +203,10 @@ export function getAvNumber(filename: string): string | null {
   const cleanName = normalizedName
   // 清除 BBCode URL 标签，避免标签挡住开头的站点域名清理。
     .replace(/\[\/?url(?:=[^\]]+)?\]/gi, '')
+    // 先移除文件扩展名(.mp4)，避免 011015_780.mp4 被域名正则误删
+    .replace(/\.\w+$/, '')
   // 清楚域名(hjd2048.com)
     .replace(/^\[?(\w+\.)+[A-Z]+\]?@?/gi, '')
-    // 移除文件扩展名(.mp4)
-    .replace(/\.\w+$/, '')
   // 清除恢复工具和转码工具追加的来源尾标，避免 prob43、iris31 被当成番号。
     .replace(/[._-](?:re)?stored\d*(?:[._-].*)?$/i, '')
     .replace(/[\^._-]+wm(?:\d+|[._-].*)?$/i, '')

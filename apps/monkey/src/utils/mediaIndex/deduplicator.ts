@@ -2,7 +2,7 @@ import type { IndexedVideo, LibraryEntry, LibraryFileItem } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 
-export type DuplicateKind = 'sha1' | 'avNumber' | 'similar'
+export type DuplicateKind = 'sha1' | 'avNumber' | 'edition' | 'similar'
 
 export interface DuplicateFileCandidate extends IndexedVideo {
   mediaKey: string
@@ -27,6 +27,42 @@ export interface DuplicateGroup {
 const SIMILAR_MIN_SIZE_BYTES = 50 * 1024 * 1024
 const SIMILAR_MIN_DURATION_SEC = 60
 const BYTES_PER_GB = 1024 * 1024 * 1024
+
+const BD_EDITION_PREFIX_MAP: Record<string, string> = {
+  LAFBD: 'LAF',
+  CWPBD: 'CWP',
+  MKBD: 'MKD',
+  SMBD: 'SMD',
+  KIBD: 'KID',
+  MCBD: 'MCD',
+  S2MBD: 'S2M',
+}
+
+const BD_EDITION_ENTRIES = Object.entries(BD_EDITION_PREFIX_MAP)
+
+/** 识别同作蓝光版与普通版映射键，仅限明确白名单系列 */
+export function resolveEditionWorkKey(
+  avNumber?: string | null,
+): { workKey: string, isBluRay: boolean } | null {
+  const normalized = normalizeAvNumber(avNumber)
+  if (!normalized)
+    return null
+
+  for (const [bdPrefix, basePrefix] of BD_EDITION_ENTRIES) {
+    if (normalized.startsWith(bdPrefix)) {
+      const rest = normalized.slice(bdPrefix.length)
+      if (/^S?\d+$/.test(rest))
+        return { workKey: `${basePrefix}${rest}`, isBluRay: true }
+    }
+    if (normalized.startsWith(basePrefix)) {
+      const rest = normalized.slice(basePrefix.length)
+      if (/^S?\d+$/.test(rest))
+        return { workKey: `${basePrefix}${rest}`, isBluRay: false }
+    }
+  }
+
+  return null
+}
 
 function extractPartMarker(name: string): string | null {
   const partMatch = name.match(/(cd|part|disc)[\s._-]*(\d+)/i)
@@ -89,6 +125,11 @@ export function scoreFileForKeep(
   if (/-C(?=\.[^.]+$|$)|[-_\s[\](](?:中字|中文|CHS|CHT|SUB)/i.test(file.name)) {
     parts.push(150)
     reasons.push('含中文字幕标记')
+  }
+
+  if (/(?:^|[^A-Z0-9])(?:LAFBD|CWPBD|MKBD|SMBD|KIBD|MCBD|S2MBD)[-_\s]?S?\d+|BLU-?RAY|BDMV|BDRIP/i.test(file.name)) {
+    parts.push(120)
+    reasons.push('蓝光版')
   }
 
   if (/[_-]UC(?=\.[^.]+$|$)|无码|破解|流出/i.test(file.name)) {
@@ -339,6 +380,33 @@ export function analyzeDuplicateGroups(
       return buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey)
     })
 
+  const editionBuckets = groupByKey(videos, (video) => {
+    const resolved = resolveEditionWorkKey(video.avNumber)
+    return resolved?.workKey ?? null
+  })
+
+  const editionGroups = Array.from(editionBuckets.entries())
+    .filter(([, list]) => {
+      if (list.length < 2 || sha1Signatures.has(signatureOf(list)))
+        return false
+      const distinctMediaKeys = new Set(
+        list.map(v => fidToMediaKey.get(v.fid) ?? resolveFallbackMediaKey(v)),
+      )
+      return distinctMediaKeys.size >= 2
+    })
+    .map(([workKey, list]) => {
+      const group = buildGroup(`edition:${workKey}`, 'edition', workKey, workKey, list, fidToMediaKey, markerDocs)
+      const primaryMediaKey = group.files[0]?.mediaKey
+      const title = (primaryMediaKey ? mediaKeyToTitle.get(primaryMediaKey) : undefined)
+        ?? group.files[0]?.avNumber
+        ?? workKey
+      return {
+        ...group,
+        ...(primaryMediaKey ? { mediaKey: primaryMediaKey } : {}),
+        title,
+      }
+    })
+
   const unnumbered = videos.filter((video) => {
     if (video.avNumber)
       return false
@@ -354,7 +422,7 @@ export function analyzeDuplicateGroups(
       return buildGroup(`similar:${list[0].fid}`, 'similar', list[0].name, key, list, fidToMediaKey, markerDocs)
     })
 
-  return [...sha1Groups, ...avGroups, ...similarGroups].sort(
+  return [...sha1Groups, ...avGroups, ...editionGroups, ...similarGroups].sort(
     (a, b) => b.reclaimableSize - a.reclaimableSize || b.totalSize - a.totalSize || a.id.localeCompare(b.id),
   )
 }
@@ -402,6 +470,7 @@ export async function analyzeDuplicateGroupsAsync(
 
   const sha1Buckets = new Map<string, IndexedVideo[]>()
   const avBuckets = new Map<string, IndexedVideo[]>()
+  const editionBuckets = new Map<string, IndexedVideo[]>()
   const unnumbered: IndexedVideo[] = []
 
   for (let i = 0; i < videos.length; i += 1) {
@@ -431,6 +500,15 @@ export async function analyzeDuplicateGroupsAsync(
         list.push(video)
       else
         avBuckets.set(avKey, [video])
+
+      const editionResolved = resolveEditionWorkKey(video.avNumber)
+      if (editionResolved) {
+        const edList = editionBuckets.get(editionResolved.workKey)
+        if (edList)
+          edList.push(video)
+        else
+          editionBuckets.set(editionResolved.workKey, [video])
+      }
     }
     else if (!video.avNumber) {
       unnumbered.push(video)
@@ -465,6 +543,31 @@ export async function analyzeDuplicateGroupsAsync(
       continue
     const title = mediaKeyToTitle.get(mediaKey) ?? list[0].avNumber ?? list[0].name
     groups.push(buildGroup(`av:${mediaKey}`, 'avNumber', title, mediaKey, list, fidToMediaKey, markerDocs, mediaKey))
+    builtCount += 1
+    if (builtCount % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  for (const [workKey, list] of editionBuckets.entries()) {
+    if (list.length < 2 || sha1Signatures.has(signatureOf(list)))
+      continue
+    const distinctMediaKeys = new Set(
+      list.map(v => fidToMediaKey.get(v.fid) ?? resolveFallbackMediaKey(v)),
+    )
+    if (distinctMediaKeys.size < 2)
+      continue
+    const group = buildGroup(`edition:${workKey}`, 'edition', workKey, workKey, list, fidToMediaKey, markerDocs)
+    const primaryMediaKey = group.files[0]?.mediaKey
+    const title = (primaryMediaKey ? mediaKeyToTitle.get(primaryMediaKey) : undefined)
+      ?? group.files[0]?.avNumber
+      ?? workKey
+    groups.push({
+      ...group,
+      ...(primaryMediaKey ? { mediaKey: primaryMediaKey } : {}),
+      title,
+    })
     builtCount += 1
     if (builtCount % chunkSize === 0) {
       await yieldMainThread()

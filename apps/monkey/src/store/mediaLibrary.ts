@@ -132,6 +132,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
   const hiddenActorKeys = useStorage<string[]>('115Master_library_hidden_actors', [])
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
+  const favoriteActorKeys = useStorage<string[]>('115Master_library_favorite_actors', [])
+  const favoriteActorKeySet = computed(() => new Set(favoriteActorKeys.value))
   const scrollTop = shallowRef(0)
   const tagRailOpen = ref(false)
   const actorAvatars = shallowRef<Record<string, string>>({})
@@ -801,6 +803,21 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     hiddenActorKeys.value = hiddenActorKeys.value.filter(key => key !== actorKey)
   }
 
+  function isActorFavorite(actorKey: string): boolean {
+    return favoriteActorKeySet.value.has(actorKey)
+  }
+
+  function toggleFavoriteActor(actorKey: string): boolean {
+    if (!actorKey)
+      return false
+    if (favoriteActorKeySet.value.has(actorKey)) {
+      favoriteActorKeys.value = favoriteActorKeys.value.filter(key => key !== actorKey)
+      return false
+    }
+    favoriteActorKeys.value = [...favoriteActorKeys.value, actorKey]
+    return true
+  }
+
   function selectActor(name?: string) {
     filter.actor = !name || filter.actor === name ? undefined : name
   }
@@ -991,6 +1008,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     density,
     hiddenActorKeys,
     hiddenActorKeySet,
+    favoriteActorKeys,
+    favoriteActorKeySet,
     scrollTop,
     tagRailOpen,
     actorAvatars,
@@ -1033,6 +1052,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     isActorHidden,
     hideActor,
     unhideActor,
+    isActorFavorite,
+    toggleFavoriteActor,
     selectActor,
     setActorFilter,
     selectGenre,

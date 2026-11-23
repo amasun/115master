@@ -229,9 +229,9 @@
 
     <!-- 结果区 -->
     <div class="min-h-[260px] flex-1 overflow-y-auto pr-1">
-      <!-- 未建索引空态 -->
+      <!-- 未建索引且未输入关键词 -->
       <div
-        v-if="!snapshot && !syncing"
+        v-if="!snapshot && !syncing && !query.trim()"
         class="text-base-content/60 flex h-full min-h-[240px] flex-col items-center justify-center gap-3 text-center"
       >
         <Icon :name="I.SEARCH" class="text-base-content/25 text-4xl" />
@@ -240,7 +240,7 @@
             一键建立网盘视频索引
           </p>
           <p class="text-xs leading-relaxed">
-            通过 115 跨子目录接口仅拉取视频文件（8,000 部约 3–5 秒），零外部风控，支持按演员、标签、导演、番号和文件名毫秒检索。
+            通过 115 跨子目录接口仅拉取视频文件（8,000 部约 3–5 秒），零外部风控，支持按演员、标签、导演、番号和文件名毫秒检索；未建库时也可直接输入关键词走 115 原生搜索。
           </p>
         </div>
         <button
@@ -263,37 +263,124 @@
         </p>
       </div>
 
-      <!-- 无匹配结果 -->
+      <!-- 本地无匹配结果：展示空态与 115 原生搜索兜底 -->
       <div
         v-else-if="results.length === 0"
-        class="text-base-content/55 flex h-full min-h-[220px] flex-col items-center justify-center gap-2.5 text-center text-xs"
+        class="flex flex-col gap-3"
       >
-        <p class="text-base-content/80 text-sm font-medium">
-          未找到与「{{ query.trim() }}」匹配的视频
-        </p>
-        <p v-if="!actorEntry && !actorLoading">
-          本地索引与已缓存元数据中暂无匹配；若搜索的是演员名，可点击下方按钮在线反查其作品表。
-        </p>
-        <p v-else-if="actorEntry">
-          已对照 {{ actorEntry.source === 'javbus' ? 'JavBus' : 'JavDB' }} 的 {{ actorEntry.avNumbers.length }} 部作品，当前本地网盘索引暂无命中。
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-2">
-          <button
-            v-if="!actorLoading && !actorEntry"
-            type="button"
-            class="btn btn-xs btn-secondary rounded-lg"
-            @click="triggerActorLookup(query)"
-          >
-            在线反查「{{ query.trim() }}」
-          </button>
-          <button
-            v-if="actorEntry?.hasMore && actorEntry.fetchedPages < HARD_MAX_PAGES && !actorLoading"
-            type="button"
-            class="btn btn-xs btn-outline rounded-lg"
-            @click="loadMoreActorWorks"
-          >
-            继续加载更多作品
-          </button>
+        <div class="text-base-content/55 flex flex-col items-center justify-center gap-2 rounded-xl py-4 text-center text-xs">
+          <p class="text-base-content/80 text-sm font-medium">
+            {{ snapshot ? `本地索引未找到与「${query.trim()}」匹配的视频` : `尚未建立本地视频索引，已尝试 115 原生搜索「${query.trim()}」` }}
+          </p>
+          <p v-if="snapshot && !actorEntry && !actorLoading">
+            本地索引与已缓存元数据中暂无匹配；若搜索的是演员名，可点击下方按钮在线反查其作品表。
+          </p>
+          <p v-else-if="actorEntry">
+            已对照 {{ actorEntry.source === 'javbus' ? 'JavBus' : 'JavDB' }} 的 {{ actorEntry.avNumbers.length }} 部作品，当前本地网盘索引暂无命中。
+          </p>
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button
+              v-if="snapshot && !actorLoading && !actorEntry"
+              type="button"
+              class="btn btn-xs btn-secondary rounded-lg"
+              @click="triggerActorLookup(query)"
+            >
+              在线反查「{{ query.trim() }}」
+            </button>
+            <button
+              v-if="actorEntry?.hasMore && actorEntry.fetchedPages < HARD_MAX_PAGES && !actorLoading"
+              type="button"
+              class="btn btn-xs btn-outline rounded-lg"
+              @click="loadMoreActorWorks"
+            >
+              继续加载更多作品
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-outline rounded-lg"
+              :disabled="nativeLoading"
+              @click="runNativeFallbackSearch(query, true)"
+            >
+              {{ nativeLoading ? '正在原生搜索…' : '刷新 115 原生搜索' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 115 原生搜索兜底结果 -->
+        <div
+          v-if="nativeLoading || nativeError || nativeSearchedQuery"
+          class="bg-base-200/30 border-base-content/10 flex flex-col gap-2 rounded-xl border p-3"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="badge badge-info badge-soft badge-xs font-medium">115 原生搜索兜底</span>
+              <span v-if="!nativeLoading && !nativeError" class="text-base-content/60 text-[11px] tabular-nums">
+                匹配 {{ nativeTotal }} 条{{ nativeResults.length < nativeTotal ? `（显示前 ${nativeResults.length} 条）` : '' }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="nativeLoading" class="text-base-content/60 flex items-center gap-2 py-3 text-xs">
+            <span class="loading loading-spinner loading-xs text-info" />
+            <span>正在调用 115 原生搜索「{{ query.trim() }}」…</span>
+          </div>
+
+          <div v-else-if="nativeError" class="alert alert-warning py-2 text-xs">
+            <span>{{ nativeError }}</span>
+          </div>
+
+          <div v-else-if="nativeResults.length === 0" class="text-base-content/50 py-2 text-center text-xs">
+            115 原生搜索也未找到匹配的文件或目录
+          </div>
+
+          <div v-else class="flex flex-col gap-1.5">
+            <div
+              v-for="item in nativeResults"
+              :key="item.fc === 1 ? item.fid : item.cid"
+              class="bg-base-100/50 hover:bg-base-200/70 border-base-content/8 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors"
+            >
+              <div class="min-w-0 flex-1 space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="badge badge-xs shrink-0"
+                    :class="item.fc === 0 ? 'badge-warning badge-soft' : item.iv === 1 ? 'badge-primary badge-soft' : 'badge-ghost'"
+                  >
+                    {{ item.fc === 0 ? '目录' : item.iv === 1 ? '视频' : '文件' }}
+                  </span>
+                  <span class="text-base-content truncate text-sm font-medium" :title="item.n">
+                    {{ item.n }}
+                  </span>
+                </div>
+                <div class="text-base-content/55 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums">
+                  <span v-if="item.fc === 1 && Number(item.s) > 0">{{ formatSize(Number(item.s)) }}</span>
+                  <span v-if="item.fc === 1 && Number(item.play_long) > 0">{{ formatDuration(Number(item.play_long)) }}</span>
+                  <span v-if="Number(item.tu || item.t) > 0">{{ format.dateTime(Number(item.tu || item.t)) }}</span>
+                </div>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button
+                  v-if="item.fc === 1 && item.iv === 1 && item.pc"
+                  type="button"
+                  class="btn btn-xs btn-primary rounded-lg"
+                  title="使用 MASTER 播放器播放"
+                  @click="playNativeItem(item.pc)"
+                >
+                  <Icon :name="I.PLAY" class="text-xs" />
+                  <span>播放</span>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost rounded-lg"
+                  title="打开所在网盘目录"
+                  @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
+                >
+                  <Icon :name="I.NEW_FOLDER" class="text-xs" />
+                  <span>{{ item.fc === 0 ? '打开' : '目录' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -304,6 +391,14 @@
             共匹配 <strong class="text-base-content tabular-nums">{{ results.length }}</strong> 个视频
             <template v-if="results.length > MAX_VISIBLE">（当前显示前 {{ MAX_VISIBLE }} 条）</template>
           </span>
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost rounded-lg"
+            :disabled="nativeLoading"
+            @click="runNativeFallbackSearch(query, true)"
+          >
+            {{ nativeLoading ? '原生搜索中…' : '用 115 原生搜索' }}
+          </button>
         </div>
 
         <div
@@ -387,12 +482,90 @@
             </button>
           </div>
         </div>
+
+        <!-- 手动触发的 115 原生搜索兜底结果 -->
+        <div
+          v-if="nativeManualTriggered && (nativeLoading || nativeError || nativeSearchedQuery)"
+          class="bg-base-200/30 border-base-content/10 mt-1 flex flex-col gap-2 rounded-xl border p-3"
+        >
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="badge badge-info badge-soft badge-xs font-medium">115 原生搜索兜底</span>
+              <span v-if="!nativeLoading && !nativeError" class="text-base-content/60 text-[11px] tabular-nums">
+                匹配 {{ nativeTotal }} 条{{ nativeResults.length < nativeTotal ? `（显示前 ${nativeResults.length} 条）` : '' }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="nativeLoading" class="text-base-content/60 flex items-center gap-2 py-2 text-xs">
+            <span class="loading loading-spinner loading-xs text-info" />
+            <span>正在调用 115 原生搜索「{{ query.trim() }}」…</span>
+          </div>
+
+          <div v-else-if="nativeError" class="alert alert-warning py-2 text-xs">
+            <span>{{ nativeError }}</span>
+          </div>
+
+          <div v-else-if="nativeResults.length === 0" class="text-base-content/50 py-2 text-center text-xs">
+            115 原生搜索未找到更多结果
+          </div>
+
+          <div v-else class="flex flex-col gap-1.5">
+            <div
+              v-for="item in nativeResults"
+              :key="`manual-${item.fc === 1 ? item.fid : item.cid}`"
+              class="bg-base-100/50 hover:bg-base-200/70 border-base-content/8 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors"
+            >
+              <div class="min-w-0 flex-1 space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="badge badge-xs shrink-0"
+                    :class="item.fc === 0 ? 'badge-warning badge-soft' : item.iv === 1 ? 'badge-primary badge-soft' : 'badge-ghost'"
+                  >
+                    {{ item.fc === 0 ? '目录' : item.iv === 1 ? '视频' : '文件' }}
+                  </span>
+                  <span class="text-base-content truncate text-sm font-medium" :title="item.n">
+                    {{ item.n }}
+                  </span>
+                </div>
+                <div class="text-base-content/55 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums">
+                  <span v-if="item.fc === 1 && Number(item.s) > 0">{{ formatSize(Number(item.s)) }}</span>
+                  <span v-if="item.fc === 1 && Number(item.play_long) > 0">{{ formatDuration(Number(item.play_long)) }}</span>
+                  <span v-if="Number(item.tu || item.t) > 0">{{ format.dateTime(Number(item.tu || item.t)) }}</span>
+                </div>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button
+                  v-if="item.fc === 1 && item.iv === 1 && item.pc"
+                  type="button"
+                  class="btn btn-xs btn-primary rounded-lg"
+                  title="使用 MASTER 播放器播放"
+                  @click="playNativeItem(item.pc)"
+                >
+                  <Icon :name="I.PLAY" class="text-xs" />
+                  <span>播放</span>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost rounded-lg"
+                  title="打开所在网盘目录"
+                  @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
+                >
+                  <Icon :name="I.NEW_FOLDER" class="text-xs" />
+                  <span>{{ item.fc === 0 ? '打开' : '目录' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Share } from '@115master/drive115'
 import type { JavInfo } from '@/utils/jav/jav'
 import type {
   ActorFetchProgress,
@@ -409,6 +582,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import { MASTER_BASE_URL } from '@/constants'
 import { I, Icon } from '@/icons'
 import { actressFaceDB } from '@/utils/actressFaceDB'
+import { drive115 } from '@/utils/drive115Instance'
 import { goToPlayer } from '@/utils/route'
 import {
   fetchActorWorks,
@@ -448,6 +622,15 @@ const actorFromCache = ref(false)
 const actorError = ref('')
 let actorAbortController: AbortController | null = null
 let actorRequestId = 0
+
+const nativeResults = shallowRef<Share.Entity.FilesItem[]>([])
+const nativeLoading = ref(false)
+const nativeError = ref('')
+const nativeSearchedQuery = ref('')
+const nativeTotal = ref(0)
+const nativeManualTriggered = ref(false)
+let nativeController: AbortController | null = null
+let nativeTimer: ReturnType<typeof setTimeout> | null = null
 
 const avCount = computed(() =>
   snapshot.value?.items.filter(item => Boolean(item.avNumber)).length ?? 0,
@@ -534,7 +717,98 @@ watch(query, (nextQuery) => {
   activeSuggestionIndex.value = -1
   if (!matchesActiveActor(nextQuery))
     clearActorState()
+
+  if (nativeTimer) {
+    clearTimeout(nativeTimer)
+    nativeTimer = null
+  }
+  nativeController?.abort()
+  nativeController = null
+  nativeLoading.value = false
+  nativeResults.value = []
+  nativeError.value = ''
+  nativeSearchedQuery.value = ''
+  nativeTotal.value = 0
+  nativeManualTriggered.value = false
 })
+
+async function runNativeFallbackSearch(rawKeyword: string, manual = false) {
+  const trimmed = rawKeyword.trim()
+  if (!trimmed)
+    return
+
+  if (nativeTimer) {
+    clearTimeout(nativeTimer)
+    nativeTimer = null
+  }
+  nativeController?.abort()
+  const controller = new AbortController()
+  nativeController = controller
+
+  if (manual)
+    nativeManualTriggered.value = true
+  nativeLoading.value = true
+  nativeError.value = ''
+
+  try {
+    const res = await drive115.file.searchFiles({
+      aid: 1,
+      cid: '0',
+      search_value: trimmed,
+      show_dir: 1,
+      offset: 0,
+      limit: 50,
+      format: 'json',
+    }, controller.signal)
+
+    if (controller.signal.aborted)
+      return
+
+    if (!res.state) {
+      nativeError.value = res.error || '115 原生搜索失败'
+      nativeResults.value = []
+      nativeTotal.value = 0
+    }
+    else {
+      const items = res.data ?? []
+      nativeResults.value = items
+      nativeTotal.value = Number(res.count) || items.length
+      nativeSearchedQuery.value = trimmed
+    }
+  }
+  catch (error) {
+    if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError'))
+      return
+    nativeError.value = error instanceof Error ? error.message : '115 原生搜索请求异常'
+    nativeResults.value = []
+    nativeTotal.value = 0
+  }
+  finally {
+    if (nativeController === controller) {
+      nativeLoading.value = false
+      nativeController = null
+    }
+  }
+}
+
+watch(
+  [() => query.value.trim(), () => results.value.length, actorLoading],
+  ([trimmed, localCount, isActorLoading]) => {
+    if (nativeTimer) {
+      clearTimeout(nativeTimer)
+      nativeTimer = null
+    }
+    if (!trimmed || trimmed.length < 2 || localCount > 0 || isActorLoading)
+      return
+    if (nativeSearchedQuery.value === trimmed && !nativeError.value)
+      return
+
+    nativeTimer = setTimeout(() => {
+      nativeTimer = null
+      void runNativeFallbackSearch(trimmed, false)
+    }, 450)
+  },
+)
 
 function onInputFocus() {
   inputFocused.value = true
@@ -765,12 +1039,21 @@ async function playVideo(video: IndexedVideo) {
   emit('close')
 }
 
-async function openFolder(video: IndexedVideo) {
+async function playNativeItem(pickCode: string) {
+  await goToPlayer({ pickCode }, !isMasterApp())
+  emit('close')
+}
+
+function openFolderByCid(cid: string) {
   const url = !isMasterApp() && window.location.pathname.startsWith('/storage/')
-    ? `https://115.com/storage/allfiles?cid=${encodeURIComponent(video.cid)}`
-    : `https://115.com/?cid=${encodeURIComponent(video.cid)}&offset=0&mode=wangpan`
+    ? `https://115.com/storage/allfiles?cid=${encodeURIComponent(cid || '0')}`
+    : `https://115.com/?cid=${encodeURIComponent(cid || '0')}&offset=0&mode=wangpan`
   GM_openInTab(url, { active: true })
   emit('close')
+}
+
+async function openFolder(video: IndexedVideo) {
+  openFolderByCid(video.cid)
 }
 
 onMounted(async () => {
@@ -788,5 +1071,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   abortController?.abort()
   actorAbortController?.abort()
+  nativeController?.abort()
+  if (nativeTimer)
+    clearTimeout(nativeTimer)
 })
 </script>
