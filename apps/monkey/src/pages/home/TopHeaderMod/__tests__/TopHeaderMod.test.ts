@@ -94,14 +94,18 @@ describe('topHeaderMod', () => {
     expect(listHeader.lastElementChild).toBe(cluster)
 
     const buttons = cluster.querySelectorAll('a.master-topbar-btn')
-    expect(buttons).toHaveLength(5)
+    expect(buttons).toHaveLength(6)
     expect(Array.from(buttons).map(btn => btn.textContent?.trim())).toEqual([
       '搜索',
       '截图',
       '介绍',
       '头像',
       '设置',
+      '影视库',
     ])
+    const libraryBtn = cluster.querySelector<HTMLAnchorElement>('a.master-library-btn')
+    expect(libraryBtn?.getAttribute('href')).toBe('https://115.com/web/lixian/master/#/library')
+    expect(libraryBtn?.getAttribute('target')).toBe('_top')
 
     // 卸载时清理按钮组与宿主标记
     mod.destroy()

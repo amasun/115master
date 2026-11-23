@@ -2,6 +2,7 @@ import type { TopRootSearchParams } from '@/pages/home/global'
 import { unsafeWindow } from '$'
 import { showPreferencesDialog } from '@/components/Preferences'
 import { registerSuperSearchShortcut, showSuperSearchDialog } from '@/components/SuperSearch'
+import { MASTER_BASE_URL } from '@/constants'
 import { I } from '@/icons'
 import { BaseMod } from '@/pages/home/BaseMod'
 import { appLogger } from '@/utils/logger'
@@ -102,6 +103,7 @@ export class TopHeaderMod extends BaseMod {
       this.createAvInfoSwitchButton(),
       this.createActressFacesSwitchButton(),
       this.createSettingsButton(),
+      this.createLibraryButton(),
     )
 
     const listHeader = this.listTopHeaderNode
@@ -262,6 +264,21 @@ export class TopHeaderMod extends BaseMod {
     button.onclick = () => {
       showPreferencesDialog()
     }
+    return button
+  }
+
+  /** 创建影视库入口按钮 */
+  private createLibraryButton() {
+    const button = document.createElement('a')
+    button.classList.add('master-topbar-btn', 'master-control-btn', 'master-library-btn')
+    button.href = `${MASTER_BASE_URL}/#/library`
+    button.target = '_top'
+    button.title = '打开 115Master 影视库'
+    button.setAttribute('aria-label', '打开 115Master 影视库')
+    button.innerHTML = `
+      <iconify-icon icon="${I.LIBRARY}" noobserver></iconify-icon>
+      <span>影视库</span>
+    `
     return button
   }
 

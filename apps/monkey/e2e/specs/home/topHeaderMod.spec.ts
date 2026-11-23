@@ -23,7 +23,10 @@ test.describe('TopHeaderMod', () => {
     await expect(page.locator('#js_top_panel_box .master-topbar-cluster')).toHaveCount(0)
     const cluster = page.locator('.list-topheader > .master-topbar-cluster')
     await expect(cluster).toBeAttached()
-    await expect(cluster.locator('a.master-topbar-btn')).toHaveCount(5)
+    await expect(cluster.locator('a.master-topbar-btn')).toHaveCount(6)
+    const libraryBtn = cluster.locator('a.master-library-btn')
+    await expect(libraryBtn).toHaveAttribute('href', 'https://115.com/web/lixian/master/#/library')
+    await expect(libraryBtn).toHaveAttribute('target', '_top')
 
     /** 预览开关：默认 enableFilelistPreview=true → active */
     const preview = cluster.locator('a.master-preview-switch-btn')
