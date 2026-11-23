@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { MarkerItem } from '@/components/XPlayer/types'
+import type { MarkerItem, MarkerStorageMode } from '@/components/XPlayer/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 import MarkersButton from '../MarkersButton.vue'
@@ -30,6 +30,7 @@ const state = vi.hoisted(() => {
 
 const durationRef = ref(100)
 const markersListRef = ref<MarkerItem[]>([])
+const storageModeRef = ref<MarkerStorageMode>('local')
 const canplayRef = ref(true)
 const progressBarWrapperRef = ref<HTMLDivElement | null>(null)
 
@@ -66,6 +67,7 @@ vi.mock('@/components/XPlayer/hooks/usePlayerProvide', () => ({
     }),
     markers: {
       list: markersListRef,
+      storageMode: storageModeRef,
       addAtCurrentTime: state.mockAddAtCurrentTime,
       seekTo: state.mockSeekTo,
       seekPrev: state.mockSeekPrev,
@@ -316,5 +318,27 @@ describe('markersButton 控制栏按钮及弹层列表', () => {
 
     // 确认 @keydown.stop 已阻止冒泡
     expect(stopSpy).toHaveBeenCalled()
+  })
+
+  it('根据 storageMode 展示本地保存或 115 备注保存标签', async () => {
+    storageModeRef.value = 'local'
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(MarkersButton)
+    app.mount(host)
+    apps.push(app)
+    await nextTick()
+
+    host.querySelector('button')!.click()
+    await nextTick()
+    expect(document.body.textContent).toContain('本地保存')
+
+    storageModeRef.value = 'file_desc'
+    await nextTick()
+    expect(document.body.textContent).toContain('115 备注保存')
+
+    storageModeRef.value = 'local_truncated'
+    await nextTick()
+    expect(document.body.textContent).toContain('本地保存（备注已满）')
   })
 })

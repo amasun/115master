@@ -121,6 +121,7 @@ const props = withDefaults(defineProps<XPlayerProps>(), {
   highSpeedSeekSeconds: HIGH_FAST_JUMP_OFFSET,
   percentageSeek: 10,
   markers: () => [],
+  markerStorageMode: 'local',
 })
 
 /** 事件 */

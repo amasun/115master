@@ -16,8 +16,18 @@
     placement="top"
   >
     <div :class="styles.popup.container">
-      <!-- 顶部添加打点按钮 -->
+      <!-- 顶部添加打点按钮与保存方式提示 -->
       <div :class="styles.popup.header">
+        <div :class="styles.popup.storageRow">
+          <span class="text-base-content/55">保存方式</span>
+          <span
+            class="badge badge-xs rounded-full font-normal"
+            :class="storageBadge.badgeClass"
+            :title="storageBadge.title"
+          >
+            {{ storageBadge.label }}
+          </span>
+        </div>
         <Button
           variant="solid"
           color="primary"
@@ -129,7 +139,8 @@ const styles = clsx({
   btnText: controlStyles.btnText,
   popup: {
     container: 'text-base-content flex max-h-80 w-72 flex-col gap-2 p-2',
-    header: 'shrink-0',
+    header: 'flex shrink-0 flex-col gap-1.5',
+    storageRow: 'flex items-center justify-between px-0.5 text-[11px]',
     empty: 'text-base-content/50 py-6 text-center text-sm',
     list: [
       'flex max-h-60 flex-col gap-1 overflow-y-auto',
@@ -158,6 +169,29 @@ const editingId = shallowRef<string | null>(null)
 const editingLabel = ref('')
 
 const markerList = computed(() => markers.list.value)
+
+const storageBadge = computed(() => {
+  const mode = markers.storageMode?.value ?? 'local'
+  if (mode === 'file_desc') {
+    return {
+      label: '115 备注保存',
+      badgeClass: 'badge-success badge-soft',
+      title: '打点会自动同步保存到 115 文件备注，同时保留本地缓存',
+    }
+  }
+  if (mode === 'local_truncated') {
+    return {
+      label: '本地保存（备注已满）',
+      badgeClass: 'badge-warning badge-soft',
+      title: '115 文件备注长度已达上限，超出的打点仅保存在本地',
+    }
+  }
+  return {
+    label: '本地保存',
+    badgeClass: 'badge-neutral badge-soft',
+    title: '当前仅保存在本地浏览器，可在偏好设置中开启「同步打点到 115 文件备注」',
+  }
+})
 
 const markerTip = computed(() => {
   const tip = shortcuts.getShortcutsTip('addMarker')

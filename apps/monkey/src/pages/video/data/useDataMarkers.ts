@@ -1,4 +1,5 @@
 import type { ComputedRef, MaybeRef, Ref } from 'vue'
+import type { MarkerStorageMode } from '@/components/XPlayer/types'
 import type {
   CreateDocMeta,
   Marker,
@@ -33,6 +34,8 @@ export type MarkerFileInfoSource
 export interface UseDataMarkersReturn {
   /** 当前可见打点列表 */
   markers: ComputedRef<Marker[]>
+  /** 当前打点保存方式 */
+  storageMode: ComputedRef<MarkerStorageMode>
   /** 当前打点文档 */
   currentDoc: Ref<MarkerDoc | null>
   /** 是否正在加载 */
@@ -90,6 +93,7 @@ export function useDataMarkers(
 ): UseDataMarkersReturn {
   const currentDoc = shallowRef<MarkerDoc | null>(null)
   const loading = shallowRef(false)
+  const descTruncated = shallowRef(false)
   let loadSequence = 0
   let currentLoadPromise: Promise<void> | null = null
   let loadFailed = false
@@ -97,6 +101,15 @@ export function useDataMarkers(
   /** 可见打点列表 */
   const markers = computed(() => {
     return currentDoc.value ? visibleMarkers(currentDoc.value) : []
+  })
+
+  /** 当前打点保存方式 */
+  const storageMode = computed<MarkerStorageMode>(() => {
+    if (!userSettings.value.syncMarkersToFileDesc)
+      return 'local'
+    if (descTruncated.value)
+      return 'local_truncated'
+    return 'file_desc'
   })
 
   /** 加载打点文档（带序列号防竞态） */
@@ -125,6 +138,7 @@ export function useDataMarkers(
     descPushTimer = globalThis.setTimeout(() => {
       descPushTimer = undefined
       void pushMarkersToFileDesc(fileId, doc).then((res) => {
+        descTruncated.value = Boolean(res.truncated)
         if (!res.truncated)
           return
         try {
@@ -160,6 +174,7 @@ export function useDataMarkers(
     // 切换开始时立即把 currentDoc 置空（界面不再显示上一个视频的刻度）
     currentDoc.value = null
     loadFailed = false
+    descTruncated.value = false
     clearDescPushTimer()
 
     if (!code) {
@@ -375,6 +390,7 @@ export function useDataMarkers(
 
   return {
     markers,
+    storageMode,
     currentDoc,
     loading,
     add,

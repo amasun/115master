@@ -165,6 +165,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const customCoverVersions = shallowRef<Record<string, number>>({})
   const customAvatarUrls = shallowRef<Record<string, string>>({})
   const imagePickerTarget = shallowRef<MediaImagePickerTarget | null>(null)
+  const playerOverlayPickCode = shallowRef<string | null>(null)
   const scrapingKeys = shallowRef<Set<string>>(new Set())
   const viewportScrapingKeys = shallowRef<Set<string>>(new Set())
   const missedScrapeKeys = shallowRef<Set<string>>(new Set())
@@ -978,6 +979,15 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     imagePickerTarget.value = null
   }
 
+  function openPlayerOverlay(pickCode: string) {
+    if (pickCode)
+      playerOverlayPickCode.value = pickCode
+  }
+
+  function closePlayerOverlay() {
+    playerOverlayPickCode.value = null
+  }
+
   function bumpCustomCoverVersion(mediaKey: string) {
     customCoverVersions.value = {
       ...customCoverVersions.value,
@@ -1099,6 +1109,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     customCoverVersions,
     customAvatarUrls,
     imagePickerTarget,
+    playerOverlayPickCode,
     scrapingKeys,
     scrapingCount,
     missedScrapeCount,
@@ -1151,6 +1162,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     openCoverPicker,
     openAvatarPicker,
     closeImagePicker,
+    openPlayerOverlay,
+    closePlayerOverlay,
     applyCustomCover,
     resetCustomCover,
     applyCustomAvatar,

@@ -4,6 +4,7 @@
     :data-theatre="preferences.theatre"
     :class="[
       styles.container.main,
+      props.overlay && 'min-h-0',
       preferences.theatre && styles.container.mainTheatre,
     ]"
   >
@@ -11,6 +12,7 @@
     <div
       :class="[
         styles.container.pageMain,
+        props.overlay && 'min-h-0 py-4 sm:py-5',
         preferences.theatre && styles.container.pageMainTheatre,
       ]"
     >
@@ -62,6 +64,7 @@
           :on-canplay="handleStartAutoBuffer"
           :on-ended="handleVideoEnded"
           :markers="DataMarkers.markers.value"
+          :marker-storage-mode="DataMarkers.storageMode.value"
           @play-previous="playPrevious"
           @play-next="playNext"
           @marker-add="DataMarkers.add"
@@ -122,6 +125,35 @@
                 >
                   <Icon
                     :name="I.PLAYLIST"
+                    :class="styles.controls.btn.icon"
+                  />
+                </Button>
+              </PlayerControlSurface>
+
+              <PlayerControlSurface v-if="props.overlay">
+                <!-- 独立页打开 -->
+                <Button
+                  variant="ghost"
+                  shape="circle"
+                  aria-label="独立页打开"
+                  title="在独立播放页打开"
+                  @click="openStandalonePlayer"
+                >
+                  <Icon
+                    :name="I.EXPORT"
+                    :class="styles.controls.btn.icon"
+                  />
+                </Button>
+                <!-- 关闭浮窗播放器 -->
+                <Button
+                  variant="ghost"
+                  shape="circle"
+                  aria-label="关闭播放器"
+                  title="关闭并返回影院 (Esc)"
+                  @click="emit('close')"
+                >
+                  <Icon
+                    :name="I.CLOSE"
                     :class="styles.controls.btn.icon"
                   />
                 </Button>
@@ -209,6 +241,16 @@ import { useDataSubtitles } from './data/useSubtitlesData'
 import { useDataThumbnails } from './data/useThumbnails'
 import { useDataVideoSources } from './data/useVideoSource'
 
+const props = defineProps<{
+  pickCode?: string
+  overlay?: boolean
+}>()
+
+const emit = defineEmits<{
+  close: []
+  selectPickCode: [pickCode: string]
+}>()
+
 const styles = clsx({
   // 容器样式
   container: {
@@ -257,7 +299,7 @@ const preferences = usePreferences()
 const showMovieInfo = useUserSetting('enablePlayerMovieInfo')
 /** 参数 */
 const route = useRoute()
-const params = useParamsVideoPage()
+const params = useParamsVideoPage(() => props.pickCode)
 /** 视频源 */
 const DataVideoSources = useDataVideoSources()
 /** 缩略图 */
@@ -511,10 +553,22 @@ async function handleLocalPlay(player: LocalPlayer) {
 }
 
 async function changeVideo(item: Share.Entity.FilesItem) {
+  if (props.overlay) {
+    emit('selectPickCode', item.pc)
+    return
+  }
   changeing.value = true
   goToPlayer({
     pickCode: item.pc,
   })
+}
+
+function openStandalonePlayer() {
+  const code = params.pickCode.value
+  emit('close')
+  if (code) {
+    goToPlayer({ pickCode: code })
+  }
 }
 
 /** 播放器列表切换 */
@@ -611,7 +665,8 @@ async function loadData(isFirst = true) {
       params.cid.value = res.parent_id
 
       // 设置标题
-      useTitle(DataFileInfo.state.file_name || '')
+      if (!props.overlay)
+        useTitle(DataFileInfo.state.file_name || '')
       // 加载番号信息
       syncMovieInfo(avNumber)
       // 加载字幕

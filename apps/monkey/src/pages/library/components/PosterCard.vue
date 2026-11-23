@@ -260,9 +260,6 @@ function openDetail() {
 function playPrimary() {
   if (!primaryFile.value)
     return
-  void router.push({
-    name: 'video',
-    params: { pickCode: primaryFile.value.pickCode },
-  })
+  store.openPlayerOverlay(primaryFile.value.pickCode)
 }
 </script>

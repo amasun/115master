@@ -128,6 +128,8 @@ export interface MarkerItem {
 /**
  * 播放器属性
  */
+export type MarkerStorageMode = 'local' | 'file_desc' | 'local_truncated'
+
 export interface XPlayerProps {
   /** 视频源 */
   sources: Ref<VideoSource[]>
@@ -177,6 +179,8 @@ export interface XPlayerProps {
   shortcutsExt?: ShortcutsExt
   /** 打点列表 */
   markers?: MarkerItem[]
+  /** 打点保存方式 */
+  markerStorageMode?: MarkerStorageMode
   /** hls 配置 */
   hlsConfig?: Partial<HlsConfig>
   /** avPlayer 配置 */

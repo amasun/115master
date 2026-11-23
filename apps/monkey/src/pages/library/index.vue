@@ -21,6 +21,7 @@
       </Main>
     </Layout>
     <MediaImagePickerDialog />
+    <LibraryVideoOverlay />
   </div>
 </template>
 
@@ -35,6 +36,7 @@ import FilterBar from './components/FilterBar.vue'
 import LibraryHeader from './components/LibraryHeader.vue'
 import LibrarySider from './components/LibrarySider.vue'
 import LibraryTagRail from './components/LibraryTagRail.vue'
+import LibraryVideoOverlay from './components/LibraryVideoOverlay.vue'
 import MediaImagePickerDialog from './components/MediaImagePickerDialog.vue'
 
 setThemeOverride('dark')

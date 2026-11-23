@@ -1,6 +1,6 @@
 import type { ComputedRef } from 'vue'
 import type { PlayerContext } from './usePlayerProvide'
-import type { MarkerItem } from '@/components/XPlayer/types'
+import type { MarkerItem, MarkerStorageMode } from '@/components/XPlayer/types'
 import { computed } from 'vue'
 import { I } from '@/icons'
 import { findNextMarker, findPrevMarker, formatMarkerTime } from '@/utils/markers'
@@ -11,6 +11,8 @@ import { findNextMarker, findPrevMarker, formatMarkerTime } from '@/utils/marker
 export interface UseMarkersReturn {
   /** 当前打点列表（按时间排序） */
   list: ComputedRef<MarkerItem[]>
+  /** 当前打点保存方式 */
+  storageMode: ComputedRef<MarkerStorageMode>
   /** 在当前播放位置打点 */
   addAtCurrentTime: () => void
   /** 跳转到指定打点 */
@@ -40,6 +42,9 @@ export function useMarkers(ctx: PlayerContext): UseMarkersReturn {
       return a.id.localeCompare(b.id)
     })
   })
+
+  /** 当前打点保存方式 */
+  const storageMode = computed<MarkerStorageMode>(() => ctx.rootProps.markerStorageMode ?? 'local')
 
   /** 跳转到指定打点 */
   function seekTo(marker: MarkerItem): void {
@@ -103,6 +108,7 @@ export function useMarkers(ctx: PlayerContext): UseMarkersReturn {
 
   return {
     list,
+    storageMode,
     addAtCurrentTime,
     seekTo,
     seekPrev,

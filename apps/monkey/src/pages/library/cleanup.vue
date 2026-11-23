@@ -1151,7 +1151,7 @@ onUnmounted(() => {
 
 /** === 通用跳转与批量清理 === */
 function playVideo(pickCode: string) {
-  void router.push({ name: 'video', params: { pickCode } })
+  store.openPlayerOverlay(pickCode)
 }
 
 function openMediaDetail(mediaKey: string) {
