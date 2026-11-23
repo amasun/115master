@@ -1,3 +1,4 @@
+import type { AdVideoDetectOptions } from './junkScanner'
 import type {
   ActorFacetStat,
   DriveLabelFacetCount,
@@ -13,10 +14,17 @@ import type { MarkerDoc } from '@/utils/markers/types'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
+import { isAdLibraryEntry } from './junkScanner'
 
 export interface YearFacetCount {
   year: number
   count: number
+}
+
+export interface LibraryQueryOptions {
+  excludeKeys?: ReadonlySet<string>
+  hideAdVideos?: boolean
+  adFilterOptions?: AdVideoDetectOptions
 }
 
 export interface LibraryIndex {
@@ -33,7 +41,7 @@ export interface LibraryIndex {
   years: YearFacetCount[]
   directors: FacetCount[]
   driveLabels: DriveLabelFacetCount[]
-  query: (filter: LibraryFilterState) => LibraryEntry[]
+  query: (filter: LibraryFilterState, options?: LibraryQueryOptions) => LibraryEntry[]
 }
 
 function addToIndex<K>(map: Map<K, Set<string>>, key: K, mediaKey: string) {
@@ -493,7 +501,7 @@ export function buildLibraryIndex(
     })
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))
 
-  function query(filter: LibraryFilterState): LibraryEntry[] {
+  function query(filter: LibraryFilterState, options?: LibraryQueryOptions): LibraryEntry[] {
     const facetSets: Array<Set<string> | undefined> = []
     if (filter.actor)
       facetSets.push(byActor.get(filter.actor) ?? byActorKey.get(resolveActorKey(filter.actor)))
@@ -514,6 +522,10 @@ export function buildLibraryIndex(
     const keyword = filter.keyword.trim().toLowerCase()
     const normalizedKeyword = normalizeActressName(filter.keyword)
     const filtered = candidates.filter((entry) => {
+      if (options?.excludeKeys?.has(entry.mediaKey))
+        return false
+      if (options?.hideAdVideos && isAdLibraryEntry(entry, options.adFilterOptions))
+        return false
       if ((filter.view === 'starred' || filter.onlyStarred) && !entry.starred)
         return false
       if ((filter.view === 'marked' || filter.onlyMarked) && entry.markerCount <= 0)

@@ -116,6 +116,31 @@
         <span>仅看有打点</span>
       </button>
 
+      <!-- 隐藏疑似广告视频与共用阈值入口 -->
+      <div class="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
+          :class="store.hideAdVideos ? 'btn-primary' : 'btn-ghost'"
+          :aria-pressed="store.hideAdVideos"
+          @click="store.hideAdVideos = !store.hideAdVideos"
+        >
+          <Icon :name="store.hideAdVideos ? I.PREVIEW_OFF : I.VIEW" class="text-sm" />
+          <span>隐藏疑似广告视频</span>
+          <span v-if="store.adEntryCount > 0" class="tabular-nums opacity-75">
+            ({{ store.adEntryCount }})
+          </span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs text-base-content/55 hover:text-base-content shrink-0 rounded-full font-normal whitespace-nowrap tabular-nums"
+          title="前往「去重与清理」调整广告识别阈值（与展示墙共用）"
+          @click="router.push({ name: 'library-cleanup', query: { tab: 'junk' } })"
+        >
+          ≤{{ store.adFilterOptions.maxDurationSec }}s / {{ store.adFilterOptions.maxSizeMB }}MB
+        </button>
+      </div>
+
       <!-- 移动端补充排序切换 -->
       <label class="flex shrink-0 items-center gap-1.5 md:hidden">
         <span class="text-base-content/55 shrink-0 whitespace-nowrap">排序</span>
@@ -136,6 +161,7 @@
 
 <script setup lang="ts">
 import type { LibraryScrapeFilter } from '@/utils/mediaIndex'
+import { useRouter } from 'vue-router'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 
@@ -143,6 +169,7 @@ defineProps<{
   visible: boolean
 }>()
 
+const router = useRouter()
 const store = useMediaLibraryStore()
 
 const scrapeOptions: Array<{ value: LibraryScrapeFilter, label: string }> = [

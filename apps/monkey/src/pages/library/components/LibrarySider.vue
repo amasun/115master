@@ -39,7 +39,7 @@
             <Icon :name="I.LIBRARY" :filled="isAllWorksActive" class="text-lg" />
             <span>全部作品</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.entries.length }}</span>
+          <span class="text-base-content/45 text-xs tabular-nums">{{ store.visibleEntryCount }}</span>
         </button>
       </li>
       <li>
@@ -170,8 +170,12 @@
             <span v-if="store.indexing" class="text-primary tabular-nums">
               同步 {{ store.indexProgress.fetched }}/{{ store.indexProgress.total || '...' }}
             </span>
-            <span v-else class="tabular-nums">
-              {{ store.entries.length }} 部
+            <span
+              v-else
+              class="tabular-nums"
+              :title="store.hideAdVideos && store.adEntryCount > 0 ? `共索引 ${store.entries.length} 部，已隐藏 ${store.adEntryCount} 部疑似广告` : undefined"
+            >
+              {{ store.visibleEntryCount }} 部
             </span>
           </div>
 
@@ -226,9 +230,9 @@
         <div class="flex flex-col gap-1">
           <div
             class="text-base-content/60 flex items-center justify-between px-1 text-[11px]"
-            :title="`已刮削 ${store.scrapedCount} / ${store.entries.length}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
+            :title="`已刮削 ${store.scrapedCount} / ${store.visibleEntryCount}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
           >
-            <span class="tabular-nums">已刮削 {{ store.scrapedCount }} / {{ store.entries.length }}</span>
+            <span class="tabular-nums">已刮削 {{ store.scrapedCount }} / {{ store.visibleEntryCount }}</span>
             <span v-if="store.bgScrapeState === 'circuit_open'" class="text-warning">
               已熔断暂停
             </span>

@@ -371,12 +371,12 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-xs btn-ghost rounded-lg"
-                  title="打开所在网盘目录"
+                  class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+                  :title="folderPaths.getNativeItemDisplay(item).tooltip"
                   @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
                 >
-                  <Icon :name="I.NEW_FOLDER" class="text-xs" />
-                  <span>{{ item.fc === 0 ? '打开' : '目录' }}</span>
+                  <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+                  <span class="min-w-0 truncate">{{ folderPaths.getNativeItemDisplay(item).label }}</span>
                 </button>
               </div>
             </div>
@@ -473,12 +473,12 @@
             </button>
             <button
               type="button"
-              class="btn btn-xs btn-ghost rounded-lg"
-              title="打开视频所在网盘目录"
+              class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+              :title="folderPaths.getTooltip(item.video.cid, '打开视频所在网盘目录')"
               @click="openFolder(item.video)"
             >
-              <Icon :name="I.NEW_FOLDER" class="text-xs" />
-              <span>目录</span>
+              <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+              <span class="min-w-0 truncate">{{ folderPaths.getLabel(item.video.cid) }}</span>
             </button>
           </div>
         </div>
@@ -548,12 +548,12 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-xs btn-ghost rounded-lg"
-                  title="打开所在网盘目录"
+                  class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+                  :title="folderPaths.getNativeItemDisplay(item).tooltip"
                   @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
                 >
-                  <Icon :name="I.NEW_FOLDER" class="text-xs" />
-                  <span>{{ item.fc === 0 ? '打开' : '目录' }}</span>
+                  <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+                  <span class="min-w-0 truncate">{{ folderPaths.getNativeItemDisplay(item).label }}</span>
                 </button>
               </div>
             </div>
@@ -583,6 +583,7 @@ import { MASTER_BASE_URL } from '@/constants'
 import { I, Icon } from '@/icons'
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { drive115 } from '@/utils/drive115Instance'
+import { useFolderPathLabels } from '@/utils/driveFolderPath'
 import { goToPlayer } from '@/utils/route'
 import {
   fetchActorWorks,
@@ -600,6 +601,7 @@ const emit = defineEmits<{
 
 const MAX_VISIBLE = 100
 
+const folderPaths = useFolderPathLabels()
 const inputRef = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const snapshot = shallowRef<VideoIndexSnapshot | null>(null)
@@ -676,6 +678,17 @@ const actorReverseHitCount = computed(() =>
 )
 
 const visibleResults = computed(() => results.value.slice(0, MAX_VISIBLE))
+
+watch(
+  [visibleResults, nativeResults],
+  ([localItems, nativeItems]) => {
+    folderPaths.prefetch([
+      ...localItems.map(item => item.video.cid),
+      ...nativeItems.map(item => item.pid ?? ''),
+    ])
+  },
+  { immediate: true },
+)
 
 function formatSize(bytes: number): string {
   return format.fileSize(bytes)

@@ -18,6 +18,14 @@ vi.mock('@/utils/request/gmRequest', () => ({
 vi.mock('@/utils/cache/javCache', () => ({
   javCache: { get: vi.fn(), set: vi.fn() },
 }))
+vi.mock('@/utils/drive115Instance', () => ({
+  drive115: {
+    file: {
+      getFilesWithFallback: vi.fn(),
+      searchFiles: vi.fn(),
+    },
+  },
+}))
 
 const { aggregateLibraryEntries, buildLibraryIndex } = await import('../libraryAggregator')
 
@@ -405,5 +413,77 @@ describe('libraryAggregator', () => {
       { name: '三上悠亚', count: 1 },
     ])
     expect(index.actorStats[0].name).toBe('三上悠亚')
+  })
+
+  it('支持通过 excludeKeys 与 hideAdVideos 过滤纯广告条目并保留星标或混合正片条目', () => {
+    const entries = aggregateLibraryEntries(
+      [
+        {
+          fid: 'ad-1',
+          cid: 'c1',
+          pickCode: 'pc-ad',
+          name: '片头预览.mp4',
+          size: 10 * 1024 * 1024,
+          duration: 30,
+          mtime: 300,
+          avNumber: null,
+        },
+        {
+          fid: 'star-ad',
+          cid: 'c1',
+          pickCode: 'pc-star',
+          name: '短片收藏.mp4',
+          size: 5 * 1024 * 1024,
+          duration: 20,
+          mtime: 250,
+          avNumber: null,
+          starred: true,
+        },
+        {
+          fid: 'mixed-ad',
+          cid: 'c1',
+          pickCode: 'pc-mix-1',
+          name: 'SSIS-777-宣传.mp4',
+          size: 8 * 1024 * 1024,
+          duration: 25,
+          mtime: 200,
+          avNumber: 'SSIS-777',
+        },
+        {
+          fid: 'mixed-main',
+          cid: 'c1',
+          pickCode: 'pc-mix-2',
+          name: 'SSIS-777.mp4',
+          size: 2 * 1024 ** 3,
+          duration: 7200,
+          mtime: 210,
+          avNumber: 'SSIS-777',
+        },
+      ],
+      new Map(),
+      {},
+    )
+
+    const index = buildLibraryIndex(entries)
+
+    expect(
+      index.query(createFilter(), {
+        hideAdVideos: true,
+        adFilterOptions: { maxDurationSec: 90, maxSizeMB: 50, excludeStarred: true },
+      }).map(item => item.mediaKey),
+    ).toEqual(['file:star-ad', 'jav:SSIS777'])
+
+    expect(
+      index.query(createFilter(), {
+        hideAdVideos: true,
+        adFilterOptions: { maxDurationSec: 20, maxSizeMB: 50, excludeStarred: true },
+      }).map(item => item.mediaKey),
+    ).toEqual(['file:ad-1', 'file:star-ad', 'jav:SSIS777'])
+
+    expect(
+      index.query(createFilter(), {
+        excludeKeys: new Set(['file:ad-1']),
+      }).map(item => item.mediaKey),
+    ).toEqual(['file:star-ad', 'jav:SSIS777'])
   })
 })

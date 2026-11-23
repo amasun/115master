@@ -427,6 +427,16 @@
               </div>
               <div class="flex shrink-0 items-center gap-1.5">
                 <Button
+                  variant="ghost"
+                  size="sm"
+                  class="max-w-52 gap-1 rounded-full px-2.5 text-xs sm:max-w-64"
+                  :title="folderPaths.getTooltip(file.cid)"
+                  @click.stop="fileActions.openNativeFolder(file.cid)"
+                >
+                  <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-sm" />
+                  <span class="min-w-0 truncate">{{ folderPaths.getLabel(file.cid) }}</span>
+                </Button>
+                <Button
                   color="primary"
                   variant="soft"
                   size="sm"
@@ -636,6 +646,7 @@ import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { markerStore } from '@/utils/cache/markerStore'
 import { drive115 } from '@/utils/drive115Instance'
+import { useFolderPathLabels } from '@/utils/driveFolderPath'
 import { errorFeedback } from '@/utils/errorFeedback'
 import { createGMImageFallbackLoader } from '@/utils/imageLoader'
 import { syncMarkersFromFileDesc } from '@/utils/markers'
@@ -656,10 +667,20 @@ const store = useMediaLibraryStore()
 const dialog = useAppDialog()
 const toast = useToast()
 const fileActions = useLibraryFileActions()
+const folderPaths = useFolderPathLabels()
 const previewCountSetting = useUserSetting('filelistPreviewCount')
 
 const mediaKey = computed(() => String(route.params.mediaKey ?? ''))
 const entry = computed(() => store.getEntry(mediaKey.value))
+
+watch(
+  () => entry.value?.files,
+  (files) => {
+    if (files?.length)
+      folderPaths.prefetch(files.map(file => file.cid))
+  },
+  { immediate: true },
+)
 
 const activeFileIndex = shallowRef(0)
 const activeFile = computed(() => entry.value?.files[activeFileIndex.value] ?? entry.value?.files[0])

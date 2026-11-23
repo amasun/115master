@@ -1,7 +1,15 @@
-import type { IndexedVideo } from './types'
+import type { IndexedVideo, LibraryEntry } from './types'
 import { drive115 } from '@/utils/drive115Instance'
 
 export type JunkCategory = 'web' | 'textMagnet' | 'executable' | 'adVideo'
+
+export interface AdVideoDetectOptions {
+  maxDurationSec?: number
+  maxSizeMB?: number
+  excludeStarred?: boolean
+}
+
+export type AdVideoCandidate = Pick<IndexedVideo, 'name' | 'size' | 'duration' | 'starred'>
 
 export interface JunkFileItem {
   fid: string
@@ -23,12 +31,84 @@ export const JUNK_EXTENSION_GROUPS = {
   executable: ['apk', 'exe', 'bat', 'cmd'],
 } as const
 
+export const DEFAULT_LIBRARY_AD_MAX_DURATION_SEC = 90
+export const DEFAULT_LIBRARY_AD_MAX_SIZE_MB = 50
+export const AD_DURATION_MIN_SEC = 10
+export const AD_DURATION_MAX_SEC = 600
+export const AD_SIZE_MIN_MB = 1
+export const AD_SIZE_MAX_MB = 500
+
 export type JunkScannerDriveApi = Pick<typeof drive115.file, 'getFilesWithFallback' | 'searchFiles'>
 
 const PAGE_LIMIT = 200
 const DEFAULT_MAX_AD_DURATION_SEC = 60
 const DEFAULT_MAX_AD_SIZE_MB = 50
 const AD_KEYWORD_RE = /宣传|广告|推广|澳门|赌场|葡京|最新地址|永久地址|防走丢|app下载|扫码|网址|导航/i
+
+function clampThreshold(value: unknown, min: number, max: number, fallback: number): number {
+  if (value === null || value === undefined || typeof value === 'boolean')
+    return fallback
+  if (typeof value === 'string' && value.trim() === '')
+    return fallback
+
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num))
+    return fallback
+
+  return Math.min(max, Math.max(min, Math.round(num)))
+}
+
+/** 规范化广告短视频时长上限（秒） */
+export function clampAdMaxDurationSec(
+  value: unknown,
+  fallback = DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
+): number {
+  return clampThreshold(value, AD_DURATION_MIN_SEC, AD_DURATION_MAX_SEC, fallback)
+}
+
+/** 规范化广告短视频体积上限（MB） */
+export function clampAdMaxSizeMB(
+  value: unknown,
+  fallback = DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
+): number {
+  return clampThreshold(value, AD_SIZE_MIN_MB, AD_SIZE_MAX_MB, fallback)
+}
+
+/** 判断单个视频是否为疑似广告/推广短视频 */
+export function isAdVideo(
+  video: AdVideoCandidate,
+  options?: AdVideoDetectOptions,
+): boolean {
+  const maxDurationSec = typeof options?.maxDurationSec === 'number' && Number.isFinite(options.maxDurationSec) && options.maxDurationSec > 0
+    ? options.maxDurationSec
+    : DEFAULT_MAX_AD_DURATION_SEC
+  const maxSizeMB = typeof options?.maxSizeMB === 'number' && Number.isFinite(options.maxSizeMB) && options.maxSizeMB > 0
+    ? options.maxSizeMB
+    : DEFAULT_MAX_AD_SIZE_MB
+  const maxSizeBytes = maxSizeMB * 1024 * 1024
+  const excludeStarred = options?.excludeStarred ?? true
+
+  if (excludeStarred && video.starred)
+    return false
+
+  const isShortAndSmall = video.duration > 0
+    && video.duration <= maxDurationSec
+    && video.size > 0
+    && video.size <= maxSizeBytes
+
+  if (isShortAndSmall)
+    return true
+
+  return AD_KEYWORD_RE.test(video.name) && video.size <= maxSizeBytes
+}
+
+/** 判断整条影视库条目是否全部由疑似广告视频构成 */
+export function isAdLibraryEntry(
+  entry: Pick<LibraryEntry, 'files'>,
+  options?: AdVideoDetectOptions,
+): boolean {
+  return entry.files.length > 0 && entry.files.every(file => isAdVideo(file, options))
+}
 
 function extractExtension(name: string): string {
   const dot = name.lastIndexOf('.')
@@ -80,31 +160,10 @@ function delayWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
  */
 export function detectAdVideos(
   videos: IndexedVideo[],
-  options?: {
-    maxDurationSec?: number
-    maxSizeMB?: number
-    excludeStarred?: boolean
-  },
+  options?: AdVideoDetectOptions,
 ): JunkFileItem[] {
-  const maxDurationSec = options?.maxDurationSec ?? DEFAULT_MAX_AD_DURATION_SEC
-  const maxSizeBytes = (options?.maxSizeMB ?? DEFAULT_MAX_AD_SIZE_MB) * 1024 * 1024
-  const excludeStarred = options?.excludeStarred ?? true
-
   return videos
-    .filter((video) => {
-      if (excludeStarred && video.starred)
-        return false
-
-      const isShortAndSmall = video.duration > 0
-        && video.duration <= maxDurationSec
-        && video.size > 0
-        && video.size <= maxSizeBytes
-
-      if (isShortAndSmall)
-        return true
-
-      return AD_KEYWORD_RE.test(video.name) && video.size <= maxSizeBytes
-    })
+    .filter(video => isAdVideo(video, options))
     .map((video): JunkFileItem => {
       const hasAdKeyword = AD_KEYWORD_RE.test(video.name)
       const sizeMB = (video.size / (1024 * 1024)).toFixed(1)

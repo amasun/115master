@@ -33,18 +33,29 @@
       class="flex min-h-[50vh] flex-col items-center justify-center gap-3"
     >
       <Empty
-        :description="store.entries.length > 0 ? '没有符合当前筛选条件的作品' : '暂未索引到网盘视频'"
+        :description="emptyDescription"
         size="lg"
       />
-      <Button
-        v-if="store.entries.length > 0"
-        variant="soft"
-        size="sm"
-        class="rounded-full"
-        @click="store.resetFilters()"
-      >
-        清除筛选条件
-      </Button>
+      <div v-if="store.entries.length > 0" class="flex flex-wrap items-center justify-center gap-2">
+        <Button
+          v-if="store.visibleEntryCount > 0"
+          variant="soft"
+          size="sm"
+          class="rounded-full"
+          @click="store.resetFilters()"
+        >
+          清除筛选条件
+        </Button>
+        <Button
+          v-if="store.hideAdVideos && store.adEntryCount > 0"
+          :variant="store.visibleEntryCount === 0 ? 'soft' : 'ghost'"
+          size="sm"
+          class="rounded-full"
+          @click="store.hideAdVideos = false"
+        >
+          显示疑似广告视频
+        </Button>
+      </div>
       <Button
         v-else
         color="primary"
@@ -103,6 +114,14 @@ const containerWidth = shallowRef(960)
 const scrollMargin = shallowRef(0)
 
 const entries = computed(() => store.filteredEntries)
+
+const emptyDescription = computed(() => {
+  if (store.entries.length === 0)
+    return '暂未索引到网盘视频'
+  if (store.visibleEntryCount === 0 && store.hideAdVideos)
+    return '当前索引中的视频均被判定为疑似广告并已隐藏'
+  return '没有符合当前筛选条件的作品'
+})
 
 const gap = computed(() => {
   if (store.density === 'compact')

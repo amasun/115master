@@ -12,7 +12,11 @@ vi.mock('@/utils/drive115Instance', () => ({
 }))
 
 const {
+  clampAdMaxDurationSec,
+  clampAdMaxSizeMB,
   detectAdVideos,
+  isAdLibraryEntry,
+  isAdVideo,
   JUNK_EXTENSION_GROUPS,
   scanDriveJunkFiles,
 } = await import('../junkScanner')
@@ -54,6 +58,38 @@ describe('junkScanner', () => {
 
       const includingStarred = detectAdVideos(videos, { excludeStarred: false })
       expect(includingStarred.map(item => item.fid)).toEqual(['ad1', 'ad2', 'starred'])
+    })
+
+    it('supports single-video and library-entry ad predicates with mixed-file safety', () => {
+      const adFile = makeVideo({ fid: 'ad', name: 'trailer.mp4', duration: 75, size: 15 * 1024 * 1024 })
+      const realFile = makeVideo({ fid: 'real', name: 'SSIS-001.mp4', duration: 7200, size: 4 * 1024 ** 3 })
+      const starredAd = makeVideo({ fid: 'star', name: 'promo.mp4', duration: 20, size: 5 * 1024 * 1024, starred: true })
+
+      expect(isAdVideo(adFile, { maxDurationSec: 60, maxSizeMB: 50 })).toBe(false)
+      expect(isAdVideo(adFile, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(true)
+      expect(isAdVideo(starredAd, { maxDurationSec: 90, maxSizeMB: 50, excludeStarred: true })).toBe(false)
+
+      expect(isAdLibraryEntry({ files: [adFile] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(true)
+      expect(isAdLibraryEntry({ files: [adFile, realFile] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
+      expect(isAdLibraryEntry({ files: [adFile, starredAd] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
+      expect(isAdLibraryEntry({ files: [] }, { maxDurationSec: 90, maxSizeMB: 50 })).toBe(false)
+    })
+
+    it('clamps ad duration and size thresholds while rejecting invalid inputs', () => {
+      expect(clampAdMaxDurationSec(undefined)).toBe(90)
+      expect(clampAdMaxDurationSec('')).toBe(90)
+      expect(clampAdMaxDurationSec('   ')).toBe(90)
+      expect(clampAdMaxDurationSec(Number.NaN)).toBe(90)
+      expect(clampAdMaxDurationSec(3)).toBe(10)
+      expect(clampAdMaxDurationSec(9999)).toBe(600)
+      expect(clampAdMaxDurationSec(45.6)).toBe(46)
+
+      expect(clampAdMaxSizeMB(null)).toBe(50)
+      expect(clampAdMaxSizeMB('')).toBe(50)
+      expect(clampAdMaxSizeMB(Number.POSITIVE_INFINITY)).toBe(50)
+      expect(clampAdMaxSizeMB(0)).toBe(1)
+      expect(clampAdMaxSizeMB(800)).toBe(500)
+      expect(clampAdMaxSizeMB(120.4)).toBe(120)
     })
   })
 

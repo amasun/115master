@@ -1,6 +1,7 @@
 import type { MarkerDoc } from '@/utils/markers/types'
 import type {
   ActorFacetStat,
+  AdVideoDetectOptions,
   DuplicateGroup,
   IndexedVideo,
   IndexedVideoLabel,
@@ -25,10 +26,15 @@ import {
   aggregateLibraryEntries,
   analyzeDuplicateGroupsAsync,
   buildLibraryIndex,
+  clampAdMaxDurationSec,
+  clampAdMaxSizeMB,
   clearAllScrapeMissed,
   clearScrapeMissed,
   compressCustomAvatar,
   compressCustomCover,
+  DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
+  DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
+  isAdLibraryEntry,
   loadVideoIndexSnapshot,
   markScrapeMissed,
   readActiveScrapeMissKeys,
@@ -131,6 +137,16 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   const aspectMode = useStorage<'landscape' | 'portrait'>('115Master_library_aspect', 'landscape')
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
+  const hideAdVideos = useStorage<boolean>('115Master_library_hide_ad_videos', true)
+  const adMaxDurationSec = useStorage<number>('115Master_library_ad_max_duration_sec', DEFAULT_LIBRARY_AD_MAX_DURATION_SEC)
+  const adMaxSizeMB = useStorage<number>('115Master_library_ad_max_size_mb', DEFAULT_LIBRARY_AD_MAX_SIZE_MB)
+  const initialAdDuration = clampAdMaxDurationSec(adMaxDurationSec.value)
+  if (adMaxDurationSec.value !== initialAdDuration)
+    adMaxDurationSec.value = initialAdDuration
+  const initialAdSize = clampAdMaxSizeMB(adMaxSizeMB.value)
+  if (adMaxSizeMB.value !== initialAdSize)
+    adMaxSizeMB.value = initialAdSize
+
   const hiddenActorKeys = useStorage<string[]>('115Master_library_hidden_actors', [])
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
   const favoriteActorKeys = useStorage<string[]>('115Master_library_favorite_actors', [])
@@ -537,8 +553,42 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     }
   }
 
+  const adFilterOptions = computed<Required<AdVideoDetectOptions>>(() => ({
+    maxDurationSec: clampAdMaxDurationSec(adMaxDurationSec.value),
+    maxSizeMB: clampAdMaxSizeMB(adMaxSizeMB.value),
+    excludeStarred: true,
+  }))
+  const adEntryKeySet = computed(() =>
+    new Set(
+      entries.value
+        .filter(entry => isAdLibraryEntry(entry, adFilterOptions.value))
+        .map(entry => entry.mediaKey),
+    ),
+  )
+  const adEntryCount = computed(() => adEntryKeySet.value.size)
+  const visibleEntries = computed(() =>
+    hideAdVideos.value
+      ? entries.value.filter(entry => !adEntryKeySet.value.has(entry.mediaKey))
+      : entries.value,
+  )
+  const visibleEntryCount = computed(() => visibleEntries.value.length)
+
+  function commitAdThresholds(next?: { maxDurationSec?: unknown, maxSizeMB?: unknown }) {
+    const duration = clampAdMaxDurationSec(
+      next && 'maxDurationSec' in next ? next.maxDurationSec : adMaxDurationSec.value,
+    )
+    if (adMaxDurationSec.value !== duration)
+      adMaxDurationSec.value = duration
+
+    const size = clampAdMaxSizeMB(
+      next && 'maxSizeMB' in next ? next.maxSizeMB : adMaxSizeMB.value,
+    )
+    if (adMaxSizeMB.value !== size)
+      adMaxSizeMB.value = size
+  }
+
   function getNextBackgroundCandidate(): LibraryEntry | undefined {
-    return entries.value.find(entry =>
+    return visibleEntries.value.find(entry =>
       entry.kind === 'jav'
       && Boolean(entry.externalId)
       && entry.meta === null
@@ -977,14 +1027,19 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     customAvatarUrls.value = next
   }
 
-  const filteredEntries = computed(() => libraryIndex.value.query(filter))
-  const scrapedCount = computed(() => entries.value.filter(item => item.meta !== null).length)
-  const starredCount = computed(() => entries.value.filter(item => item.starred).length)
-  const markedCount = computed(() => entries.value.filter(item => item.markerCount > 0).length)
+  const filteredEntries = computed(() =>
+    libraryIndex.value.query(
+      filter,
+      hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : undefined,
+    ),
+  )
+  const scrapedCount = computed(() => visibleEntries.value.filter(item => item.meta !== null).length)
+  const starredCount = computed(() => visibleEntries.value.filter(item => item.starred).length)
+  const markedCount = computed(() => visibleEntries.value.filter(item => item.markerCount > 0).length)
   const scrapingCount = computed(() => scrapingKeys.value.size)
   const missedScrapeCount = computed(() => missedScrapeKeys.value.size)
   const bgScrapePendingCount = computed(() =>
-    entries.value.filter(entry =>
+    visibleEntries.value.filter(entry =>
       entry.kind === 'jav'
       && Boolean(entry.externalId)
       && entry.meta === null
@@ -1015,6 +1070,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter,
     aspectMode,
     density,
+    hideAdVideos,
+    adMaxDurationSec,
+    adMaxSizeMB,
+    adFilterOptions,
+    adEntryCount,
+    visibleEntryCount,
+    commitAdThresholds,
     hiddenActorKeys,
     hiddenActorKeySet,
     favoriteActorKeys,

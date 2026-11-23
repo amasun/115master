@@ -265,12 +265,12 @@
                 <Button
                   size="xs"
                   variant="ghost"
-                  class="rounded-full"
-                  title="在原生 115 打开所在目录"
+                  class="max-w-52 rounded-full sm:max-w-64"
+                  :title="folderPaths.getTooltip(candidate.cid)"
                   @click="openNativeFolder(candidate.cid)"
                 >
-                  <Icon :name="I.FOLDER_OPEN" class="text-xs" />
-                  <span>目录</span>
+                  <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+                  <span class="min-w-0 truncate">{{ folderPaths.getLabel(candidate.cid) }}</span>
                 </Button>
               </div>
             </div>
@@ -349,25 +349,37 @@
           <label class="flex items-center gap-1.5">
             <span>时长上限 (秒)</span>
             <input
-              v-model.number="adMaxDurationSec"
+              v-model.number="adDurationDraft"
               type="number"
-              min="10"
-              max="600"
+              :min="AD_DURATION_MIN_SEC"
+              :max="AD_DURATION_MAX_SEC"
               class="input input-xs input-bordered bg-base-100/70 w-20 rounded-full text-center tabular-nums"
+              @change="commitDurationDraft"
+              @blur="commitDurationDraft"
             >
           </label>
           <label class="flex items-center gap-1.5">
             <span>体积上限 (MB)</span>
             <input
-              v-model.number="adMaxSizeMB"
+              v-model.number="adSizeDraft"
               type="number"
-              min="1"
-              max="500"
+              :min="AD_SIZE_MIN_MB"
+              :max="AD_SIZE_MAX_MB"
               class="input input-xs input-bordered bg-base-100/70 w-20 rounded-full text-center tabular-nums"
+              @change="commitSizeDraft"
+              @blur="commitSizeDraft"
             >
           </label>
+          <label class="flex cursor-pointer items-center gap-1.5">
+            <input
+              v-model="store.hideAdVideos"
+              type="checkbox"
+              class="checkbox checkbox-xs checkbox-primary"
+            >
+            <span>在影视库展示墙隐藏</span>
+          </label>
           <span class="text-base-content/50">
-            {{ adScanning ? '正在分析广告短视频...' : `本地索引检出 ${adVideoItems.length} 个疑似广告短视频（已排除星标）` }}
+            {{ adScanning ? '正在分析广告短视频...' : `本地索引检出 ${adVideoItems.length} 个疑似广告短视频（已排除星标 · 与展示墙共用阈值）` }}
           </span>
         </div>
 
@@ -484,11 +496,12 @@
             <Button
               size="xs"
               variant="ghost"
-              class="rounded-full"
+              class="max-w-52 rounded-full sm:max-w-64"
+              :title="folderPaths.getTooltip(item.cid)"
               @click="openNativeFolder(item.cid)"
             >
-              <Icon :name="I.FOLDER_OPEN" class="text-xs" />
-              <span>目录</span>
+              <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+              <span class="min-w-0 truncate">{{ folderPaths.getLabel(item.cid) }}</span>
             </Button>
           </div>
         </div>
@@ -550,14 +563,21 @@ import { Button, Empty, Progress } from '@115master/ui'
 import { format } from '@115master/utils'
 import { useIntersectionObserver, useTitle } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
 import { useToast } from '@/components'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
 import { openNativeFolder } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { useFolderPathLabels } from '@/utils/driveFolderPath'
 import {
+  AD_DURATION_MAX_SEC,
+  AD_DURATION_MIN_SEC,
+  AD_SIZE_MAX_MB,
+  AD_SIZE_MIN_MB,
+  clampAdMaxDurationSec,
+  clampAdMaxSizeMB,
   detectAdVideos,
   JUNK_EXTENSION_GROUPS,
   safeDeleteFiles,
@@ -569,12 +589,14 @@ useTitle('去重与清理 · 影视库 · 115Master Fusion')
 const DUP_PAGE_SIZE = 30
 const JUNK_PAGE_SIZE = 50
 
+const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
 const dialog = useAppDialog()
 const toast = useToast()
+const folderPaths = useFolderPathLabels()
 
-const activeTab = ref<'duplicates' | 'junk'>('duplicates')
+const activeTab = ref<'duplicates' | 'junk'>(route.query.tab === 'junk' ? 'junk' : 'duplicates')
 const dupFilterKind = ref<'all' | DuplicateKind>('all')
 const hideMultiPartGroups = ref(false)
 const dupDisplayLimit = ref(DUP_PAGE_SIZE)
@@ -691,8 +713,8 @@ const scanCategories = reactive({
   executable: true,
   adVideo: true,
 })
-const adMaxDurationSec = ref(90)
-const adMaxSizeMB = ref(50)
+const adDurationDraft = ref<number | string>(store.adFilterOptions.maxDurationSec)
+const adSizeDraft = ref<number | string>(store.adFilterOptions.maxSizeMB)
 const adVideoItems = shallowRef<JunkFileItem[]>([])
 const adScanning = shallowRef(false)
 const junkInitialized = shallowRef(false)
@@ -712,6 +734,45 @@ const selectedJunkFids = ref(new Set<string>())
 let junkController: AbortController | null = null
 let adScanTimer: ReturnType<typeof setTimeout> | null = null
 
+watch(adDurationDraft, (val) => {
+  if (typeof val === 'number' && Number.isFinite(val) && val >= AD_DURATION_MIN_SEC && val <= AD_DURATION_MAX_SEC)
+    store.adMaxDurationSec = Math.round(val)
+})
+
+watch(adSizeDraft, (val) => {
+  if (typeof val === 'number' && Number.isFinite(val) && val >= AD_SIZE_MIN_MB && val <= AD_SIZE_MAX_MB)
+    store.adMaxSizeMB = Math.round(val)
+})
+
+watch(() => store.adMaxDurationSec, (val) => {
+  const clamped = clampAdMaxDurationSec(val)
+  if (adDurationDraft.value !== clamped)
+    adDurationDraft.value = clamped
+})
+
+watch(() => store.adMaxSizeMB, (val) => {
+  const clamped = clampAdMaxSizeMB(val)
+  if (adSizeDraft.value !== clamped)
+    adSizeDraft.value = clamped
+})
+
+function commitDurationDraft() {
+  const next = clampAdMaxDurationSec(adDurationDraft.value, store.adFilterOptions.maxDurationSec)
+  store.commitAdThresholds({ maxDurationSec: next })
+  adDurationDraft.value = next
+}
+
+function commitSizeDraft() {
+  const next = clampAdMaxSizeMB(adSizeDraft.value, store.adFilterOptions.maxSizeMB)
+  store.commitAdThresholds({ maxSizeMB: next })
+  adSizeDraft.value = next
+}
+
+watch(() => route.query.tab, (tab) => {
+  if (tab === 'junk' || tab === 'duplicates')
+    activeTab.value = tab
+})
+
 function refreshAdVideosAsync() {
   if (adScanTimer)
     clearTimeout(adScanTimer)
@@ -723,11 +784,7 @@ function refreshAdVideosAsync() {
   adScanning.value = true
   adScanTimer = setTimeout(() => {
     adScanTimer = null
-    adVideoItems.value = detectAdVideos(store.videos, {
-      maxDurationSec: adMaxDurationSec.value,
-      maxSizeMB: adMaxSizeMB.value,
-      excludeStarred: true,
-    })
+    adVideoItems.value = detectAdVideos(store.videos, store.adFilterOptions)
     adScanning.value = false
     junkInitialized.value = true
   }, 0)
@@ -736,10 +793,10 @@ function refreshAdVideosAsync() {
 watch(activeTab, (tab) => {
   if (tab === 'junk' && !junkInitialized.value)
     refreshAdVideosAsync()
-})
+}, { immediate: true })
 
 watch(
-  [() => scanCategories.adVideo, adMaxDurationSec, adMaxSizeMB, () => store.videos],
+  [() => scanCategories.adVideo, () => store.adFilterOptions, () => store.videos],
   () => {
     if (activeTab.value === 'junk' || junkInitialized.value)
       refreshAdVideosAsync()
@@ -788,6 +845,18 @@ useIntersectionObserver(junkLoadMoreRef, ([entry]) => {
   if (entry?.isIntersecting && renderedJunkItems.value.length < visibleJunkItems.value.length)
     junkDisplayLimit.value += JUNK_PAGE_SIZE
 })
+
+watch(
+  [activeTab, renderedDuplicateGroups, renderedJunkItems],
+  ([tab, groups, junkItems]) => {
+    if (tab === 'duplicates') {
+      folderPaths.prefetch(groups.flatMap(group => group.files.map(file => file.cid)))
+      return
+    }
+    folderPaths.prefetch(junkItems.map(item => item.cid))
+  },
+  { immediate: true },
+)
 
 function junkCategoryLabel(cat: JunkCategory): string {
   if (cat === 'adVideo')

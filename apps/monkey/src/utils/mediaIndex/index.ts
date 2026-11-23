@@ -17,17 +17,29 @@ export type {
   DuplicateKind,
 } from './deduplicator'
 export {
+  AD_DURATION_MAX_SEC,
+  AD_DURATION_MIN_SEC,
+  AD_SIZE_MAX_MB,
+  AD_SIZE_MIN_MB,
+  clampAdMaxDurationSec,
+  clampAdMaxSizeMB,
+  DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
+  DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
   detectAdVideos,
+  isAdLibraryEntry,
+  isAdVideo,
   JUNK_EXTENSION_GROUPS,
   scanDriveJunkFiles,
 } from './junkScanner'
 export type {
+  AdVideoCandidate,
+  AdVideoDetectOptions,
   JunkCategory,
   JunkFileItem,
   JunkScannerDriveApi,
 } from './junkScanner'
 export { aggregateLibraryEntries, buildLibraryIndex } from './libraryAggregator'
-export type { LibraryIndex, YearFacetCount } from './libraryAggregator'
+export type { LibraryIndex, LibraryQueryOptions, YearFacetCount } from './libraryAggregator'
 export {
   collectLocalAvatarCandidates,
   collectLocalCoverCandidates,

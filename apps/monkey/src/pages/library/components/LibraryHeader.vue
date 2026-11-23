@@ -83,10 +83,26 @@
           variant="glass-floating"
           shape="circle"
           size="sm"
+          aria-label="多维筛选"
           :class="!isActors && (showFilters || subFilterCount > 0) ? 'ring-primary/50 text-primary ring-1' : ''"
           @click="$emit('toggleFilters')"
         >
           <Icon :name="I.FILTER" :filled="!isActors && (showFilters || subFilterCount > 0)" class="text-base" />
+        </Button>
+      </Tooltip>
+
+      <!-- 隐藏疑似广告视频 -->
+      <Tooltip v-if="!isActors && !isCleanup" :content="hideAdTooltip">
+        <Button
+          variant="glass-floating"
+          shape="circle"
+          size="sm"
+          aria-label="隐藏疑似广告视频"
+          :aria-pressed="store.hideAdVideos"
+          :class="store.hideAdVideos ? 'ring-primary/50 text-primary ring-1' : ''"
+          @click="store.hideAdVideos = !store.hideAdVideos"
+        >
+          <Icon :name="store.hideAdVideos ? I.PREVIEW_OFF : I.VIEW" class="text-base" />
         </Button>
       </Tooltip>
 
@@ -340,6 +356,14 @@ const hasActiveFilter = computed(() =>
     || subFilterCount.value > 0,
   ),
 )
+
+const hideAdTooltip = computed(() => {
+  const rule = `≤${store.adFilterOptions.maxDurationSec}秒 且 ≤${store.adFilterOptions.maxSizeMB}MB 或含广告词`
+  const countText = store.adEntryCount > 0 ? `，当前命中 ${store.adEntryCount} 条` : ''
+  return store.hideAdVideos
+    ? `已隐藏疑似广告视频（${rule}${countText}），点击显示全部`
+    : `显示全部视频（点击隐藏疑似广告：${rule}${countText}）`
+})
 
 const densityLabel = computed(() => {
   if (store.density === 'compact')

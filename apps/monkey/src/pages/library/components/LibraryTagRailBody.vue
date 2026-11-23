@@ -151,7 +151,7 @@
             <span class="truncate">全部作品</span>
           </span>
           <span class="text-base-content/45 shrink-0 text-[11px] tabular-nums">
-            {{ store.entries.length }}
+            {{ store.visibleEntryCount }}
           </span>
         </button>
 
