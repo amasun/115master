@@ -679,7 +679,7 @@ function smartSelectRedundant() {
   )
 }
 
-// === Tab 2: 垃圾文件清理（惰性异步计算，进入 Tab 2 时才扫描广告视频） ===
+/** === Tab 2: 垃圾文件清理（惰性异步计算，进入 Tab 2 时才扫描广告视频） === */
 const scanCategories = reactive({
   web: true,
   textMagnet: true,
@@ -880,7 +880,7 @@ onUnmounted(() => {
   junkController?.abort()
 })
 
-// === 通用跳转与批量清理 ===
+/** === 通用跳转与批量清理 === */
 function playVideo(pickCode: string) {
   void router.push({ name: 'video', params: { pickCode } })
 }
