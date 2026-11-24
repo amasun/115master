@@ -392,6 +392,13 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
     version.value += 1
   }
 
+  function reloadFromStorage() {
+    cache.clear()
+    failedAt.clear()
+    hydrate()
+    version.value += 1
+  }
+
   return {
     version,
     getCached,
@@ -399,6 +406,7 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
     cancelScope,
     invalidate,
     clear,
+    reloadFromStorage,
     flushPersist,
   }
 }

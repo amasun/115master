@@ -1,11 +1,20 @@
 import type { PropType } from 'vue'
 import type { IconValue } from '@/icons'
 import { GM_info } from '$'
-import { defineComponent } from 'vue'
+import { format } from '@115master/utils'
+import { defineComponent, ref, shallowRef } from 'vue'
 import PKG from '@/../package.json'
 import ThemeToggle from '@/components/ThemeToggle'
 import { useDriveListMode } from '@/hooks/useDriveListMode'
 import { I, Icon } from '@/icons'
+import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import {
+  downloadCacheBackupFile,
+  exportCacheBackup,
+  importCacheBackup,
+  parseCacheBackup,
+  summarizeCacheBackup,
+} from '@/utils/cacheBackup'
 import { useUserSetting } from '@/utils/userSettings'
 import AccountPreferences from './AccountPreferences'
 
@@ -161,6 +170,75 @@ const PreferencesContent = defineComponent({
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
     const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
+    const backupBusy = shallowRef(false)
+    const backupStatus = shallowRef<{ kind: 'success' | 'error', text: string } | null>(null)
+    const backupFileInputRef = ref<HTMLInputElement | null>(null)
+
+    const handleExportBackup = async () => {
+      if (backupBusy.value)
+        return
+      backupBusy.value = true
+      backupStatus.value = null
+      try {
+        const { payload, stats } = await exportCacheBackup()
+        const { sizeBytes } = downloadCacheBackupFile(payload)
+        backupStatus.value = {
+          kind: 'success',
+          text: `已导出：视频 ${stats.videoCount} · 刮削 ${stats.javMetaCount} · 打点 ${stats.markerDocCount} · 目录 ${stats.folderPathCount} (${format.fileSize(sizeBytes)})`,
+        }
+      }
+      catch (error) {
+        backupStatus.value = {
+          kind: 'error',
+          text: `导出失败：${error instanceof Error ? error.message : '未知错误'}`,
+        }
+      }
+      finally {
+        backupBusy.value = false
+      }
+    }
+
+    const handleImportBackup = async (event: Event) => {
+      const input = event.target as HTMLInputElement
+      const file = input.files?.[0]
+      input.value = ''
+      if (!file || backupBusy.value)
+        return
+
+      backupBusy.value = true
+      backupStatus.value = null
+      try {
+        const text = await file.text()
+        const payload = parseCacheBackup(text)
+        const preview = summarizeCacheBackup(payload)
+        const confirmed = window.confirm(
+          `确认将备份数据合并导入当前设备吗？\n\n包含：视频索引 ${preview.videoCount} 条、刮削资料 ${preview.javMetaCount} 条、演员资料 ${preview.actorProfileCount} 条、播放打点 ${preview.markerDocCount} 个、目录缓存 ${preview.folderPathCount} 条。\n（将保留较新记录，不会清空现有数据）`,
+        )
+        if (!confirmed)
+          return
+
+        const stats = await importCacheBackup(payload, { mode: 'merge' })
+        try {
+          await useMediaLibraryStore().reloadFromCache()
+        }
+        catch {
+          // 非 Pinia 挂载上下文中忽略即时 store 刷新
+        }
+        backupStatus.value = {
+          kind: 'success',
+          text: `导入完成：视频 ${stats.videoCount} · 刮削 ${stats.javMetaCount} · 打点 ${stats.markerDocCount} · 目录 ${stats.folderPathCount}`,
+        }
+      }
+      catch (error) {
+        backupStatus.value = {
+          kind: 'error',
+          text: `导入失败：${error instanceof Error ? error.message : '文件解析失败'}`,
+        }
+      }
+      finally {
+        backupBusy.value = false
+      }
+    }
 
     const layoutOption = (compact: boolean, label: string, text: string) => {
       const active = compactAvInfo.value === compact
@@ -327,6 +405,46 @@ const PreferencesContent = defineComponent({
                 </select>
               </label>
             </div>
+          </Card>
+
+          <Card title="缓存与数据同步" hint="跨设备导出/导入刮削资料、网盘索引与打点" icon={I.SORT_DATABASE}>
+            <input
+              ref={backupFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              class="hidden"
+              onChange={handleImportBackup}
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn btn-sm btn-soft btn-primary flex-1 gap-1.5 rounded-xl"
+                disabled={backupBusy.value}
+                onClick={handleExportBackup}
+              >
+                <Icon name={I.EXPORT} size="sm" />
+                <span>{backupBusy.value ? '处理中...' : '导出备份'}</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-soft flex-1 gap-1.5 rounded-xl"
+                disabled={backupBusy.value}
+                onClick={() => backupFileInputRef.value?.click()}
+              >
+                <Icon name={I.IMPORT} size="sm" />
+                <span>导入备份</span>
+              </button>
+            </div>
+            {backupStatus.value && (
+              <p
+                class={[
+                  'text-[11px] leading-4',
+                  backupStatus.value.kind === 'error' ? 'text-error' : 'text-success',
+                ]}
+              >
+                {backupStatus.value.text}
+              </p>
+            )}
           </Card>
 
           <Card

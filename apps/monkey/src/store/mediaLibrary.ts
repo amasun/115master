@@ -446,6 +446,29 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       rebuildEntries()
   }
 
+  async function reloadFromCache() {
+    const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
+      loadVideoIndexSnapshot(),
+      readAllCachedJavMeta(),
+      getAllCachedActorWorks(),
+      markerStore.getAllDocs(),
+    ])
+    if (snapshot) {
+      videos.value = snapshot.items
+      lastIndexedAt.value = snapshot.lastSyncAt
+      snapshotMeta.value = {
+        rootCids: snapshot.rootCids,
+        lastFullSyncAt: snapshot.lastFullSyncAt,
+        lastSyncAt: snapshot.lastSyncAt,
+      }
+    }
+    metaMap.value = cachedMeta
+    actorWorks.value = cachedActorWorks
+    markerDocs.value = markers
+    if (videos.value.length > 0)
+      rebuildEntries()
+  }
+
   async function init() {
     if (initialized.value) {
       void refreshLocalContext()
@@ -1211,6 +1234,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     syncIndex,
     scheduleOfflineIncrementalSync,
     refreshLocalContext,
+    reloadFromCache,
     runDuplicateAnalysis,
     enqueueScrape,
     cancelScrape,
