@@ -4,7 +4,7 @@
   "version": "2.7.37",
   "private": true,
   "packageManager": "pnpm@9.15.9",
-  "description": "115网盘多媒体功能增强 | 真影视库模式",
+  "description": "115网盘多媒体功能增强 | 真影视库模式（番号专线功能）",
   "author": "cbingb666, daoran9, artgineer",
   "license": "MIT",
   "funding": "https://afdian.com/a/115Master",

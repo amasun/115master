@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
-import { Layout, Main, Sider } from '@/components'
+import { Layout, Main, Sider, useToast } from '@/components'
 import { useCloudDownloadAction } from '@/hooks/useDriveAction/useCloudDownloadAction'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { setThemeOverride } from '@/utils/theme'
@@ -45,6 +45,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
 const cloudAction = useCloudDownloadAction()
+const toast = useToast()
 const showFilters = shallowRef(false)
 const isWall = computed(() => route.name === 'library')
 const isTags = computed(() => route.name === 'library-tags')
@@ -68,7 +69,19 @@ async function consumeOfflineUrl() {
   const nextQuery = { ...route.query }
   delete nextQuery.offline_url
   void router.replace({ query: nextQuery })
-  await cloudAction.cloudDownload('', [], offlineUrl)
+  const ok = await cloudAction.cloudDownload('', [], offlineUrl)
+  if (!ok)
+    return
+  toast.info('离线任务已提交，稍后将自动增量同步并刮削新入库作品')
+  store.scheduleOfflineIncrementalSync({
+    onSynced: ({ addedCount, queuedScrapeCount }) => {
+      toast.success(
+        queuedScrapeCount > 0
+          ? `已增量入库 ${addedCount} 部新作品，正在自动刮削 ${queuedScrapeCount} 部`
+          : `已增量入库 ${addedCount} 部新作品`,
+      )
+    },
+  })
 }
 
 watch(

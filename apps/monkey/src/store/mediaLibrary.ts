@@ -192,6 +192,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   let bgScrapeController: AbortController | null = null
   let dupController: AbortController | null = null
   let dupIdleTimer: ReturnType<typeof setTimeout> | null = null
+  let offlineSyncTimer: ReturnType<typeof setTimeout> | null = null
+  let offlineSyncToken = 0
   let avatarTaskRunning = false
 
   function updateScrapingKeys(mediaKey: string, active: boolean) {
@@ -376,6 +378,54 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       if (syncController === controller)
         indexing.value = false
     }
+  }
+
+  function scheduleOfflineIncrementalSync(options: {
+    initialDelayMs?: number
+    retryDelayMs?: number
+    onSynced?: (result: { addedCount: number, queuedScrapeCount: number }) => void
+  } = {}) {
+    if (offlineSyncTimer) {
+      clearTimeout(offlineSyncTimer)
+      offlineSyncTimer = null
+    }
+    const token = ++offlineSyncToken
+    const beforeKeys = new Set(entries.value.map(entry => entry.mediaKey))
+    const initialDelayMs = options.initialDelayMs ?? 3000
+    const retryDelayMs = options.retryDelayMs ?? 10_000
+
+    const runAttempt = async (allowRetry: boolean) => {
+      if (token !== offlineSyncToken)
+        return
+      await syncIndex('incremental')
+      if (token !== offlineSyncToken || indexError.value)
+        return
+
+      const added = entries.value.filter(entry => !beforeKeys.has(entry.mediaKey))
+      if (added.length > 0) {
+        let queuedScrapeCount = 0
+        for (const entry of added) {
+          if (entry.meta === null && entry.kind === 'jav') {
+            enqueueScrape(entry.mediaKey)
+            queuedScrapeCount += 1
+          }
+        }
+        options.onSynced?.({ addedCount: added.length, queuedScrapeCount })
+        return
+      }
+
+      if (allowRetry) {
+        offlineSyncTimer = setTimeout(() => {
+          offlineSyncTimer = null
+          void runAttempt(false)
+        }, retryDelayMs)
+      }
+    }
+
+    offlineSyncTimer = setTimeout(() => {
+      offlineSyncTimer = null
+      void runAttempt(true)
+    }, initialDelayMs)
   }
 
   async function refreshLocalContext() {
@@ -1159,6 +1209,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     markedCount,
     init,
     syncIndex,
+    scheduleOfflineIncrementalSync,
     refreshLocalContext,
     runDuplicateAnalysis,
     enqueueScrape,

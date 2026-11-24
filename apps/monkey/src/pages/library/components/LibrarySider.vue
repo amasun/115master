@@ -335,6 +335,11 @@
           :value="spacePercent"
         />
       </div>
+
+      <!-- 版本号 -->
+      <div class="text-base-content/40 flex shrink-0 justify-end px-1 text-[10px] tabular-nums select-none">
+        <span>v{{ appVersion }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -346,6 +351,7 @@ import { format } from '@115master/utils'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import LogoWordmark from '@/assets/logo-wordmark-inline.svg?component'
+import { useToast } from '@/components'
 import { useCloudDownloadAction } from '@/hooks/useDriveAction/useCloudDownloadAction'
 import { I, Icon } from '@/icons'
 import { useDriveSpaceInfoStore } from '@/store/driveSpaceInfo'
@@ -358,6 +364,8 @@ const store = useMediaLibraryStore()
 const tagStore = useTagStore()
 const spaceInfo = useDriveSpaceInfoStore()
 const cloudAction = useCloudDownloadAction()
+const toast = useToast()
+const appVersion = __115MASTER_VERSION__
 
 const spacePercent = computed(() => {
   const allUse = spaceInfo?.state?.data?.space_info?.all_use?.size ?? 0
@@ -423,6 +431,18 @@ function toggleTagRail() {
 }
 
 async function openCloudDownload() {
-  await cloudAction.cloudDownload()
+  const ok = await cloudAction.cloudDownload()
+  if (!ok)
+    return
+  toast.info('离线任务已提交，稍后将自动增量同步并刮削新入库作品')
+  store.scheduleOfflineIncrementalSync({
+    onSynced: ({ addedCount, queuedScrapeCount }) => {
+      toast.success(
+        queuedScrapeCount > 0
+          ? `已增量入库 ${addedCount} 部新作品，正在自动刮削 ${queuedScrapeCount} 部`
+          : `已增量入库 ${addedCount} 部新作品`,
+      )
+    },
+  })
 }
 </script>

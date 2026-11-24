@@ -168,14 +168,17 @@ export async function syncDriveVideoIndex(
   const canIncremental = options.mode === 'incremental' && Boolean(existing && existing.items.length > 0)
   const mode: 'full' | 'incremental' = canIncremental ? 'incremental' : 'full'
   const lastSyncSec = canIncremental && existing ? Math.floor(existing.lastSyncAt / 1000) : 0
+  const cutoffSec = lastSyncSec > 0 ? Math.max(0, lastSyncSec - 300) : 0
   const delayMs = options.pageDelayMs ?? DEFAULT_PAGE_DELAY_MS
 
   logger.info('开始同步网盘视频索引', { mode, rootCids })
 
   const byFid = new Map<string, IndexedVideo>()
+  const existingFids = new Set<string>()
   if (mode === 'incremental' && existing) {
     for (const item of existing.items) {
       byFid.set(item.fid, item)
+      existingFids.add(item.fid)
     }
   }
 
@@ -218,18 +221,25 @@ export async function syncDriveVideoIndex(
         total += dirTotal > 0 ? dirTotal : list.length
       }
 
-      let hitOlder = false
+      let lastValidRecord: IndexedVideo | null = null
       for (const raw of list) {
         const record = toIndexedVideo(raw)
         if (!record)
           continue
-        if (mode === 'incremental' && lastSyncSec > 0 && record.mtime > 0 && record.mtime < lastSyncSec) {
-          hitOlder = true
-          break
-        }
         byFid.set(record.fid, record)
+        lastValidRecord = record
         fetched += 1
       }
+
+      const isTimeDesc = (!res.order || res.order === 'user_ptime' || res.order === 'user_utime')
+        && Number(res.is_asc) !== 1
+      const hitOlder = mode === 'incremental'
+        && cutoffSec > 0
+        && isTimeDesc
+        && lastValidRecord !== null
+        && existingFids.has(lastValidRecord.fid)
+        && lastValidRecord.mtime > 0
+        && lastValidRecord.mtime < cutoffSec
 
       options.onProgress?.({
         pages,

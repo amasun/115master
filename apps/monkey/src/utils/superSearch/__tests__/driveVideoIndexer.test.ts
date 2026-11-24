@@ -117,6 +117,79 @@ describe('syncDriveVideoIndex', () => {
     expect(snap.items.map(i => i.fid)).toEqual(['new-1', 'old-1'])
   })
 
+  it('增量同步不因页内乱序或 5 分钟窗口内的新文件提前中断，且非时间降序回退时继续翻页', async () => {
+    storedSnapshot.current = {
+      schemaVersion: 1,
+      rootCids: ['0'],
+      lastFullSyncAt: 1_000_000,
+      lastSyncAt: 2_000_000,
+      items: [
+        {
+          fid: 'old-1',
+          cid: '10',
+          pickCode: 'pc_old-1',
+          name: 'OLD-001.mp4',
+          avNumber: 'OLD-001',
+          size: 1024,
+          duration: 3600,
+          mtime: 1500,
+        },
+      ],
+    }
+
+    getFilesWithFallbackMock.mockResolvedValueOnce({
+      state: true,
+      count: 2,
+      data: [
+        makeFile('old-1', 'OLD-001.mp4', 1500, '10'),
+        makeFile('new-skew', 'NEW-SKEW.mp4', 1800, '20'),
+      ],
+    })
+
+    const snap1 = await syncDriveVideoIndex({ mode: 'incremental', pageDelayMs: 0 })
+    expect(snap1.items.map(i => i.fid)).toContain('new-skew')
+
+    storedSnapshot.current = {
+      schemaVersion: 1,
+      rootCids: ['0'],
+      lastFullSyncAt: 1_000_000,
+      lastSyncAt: 2_000_000,
+      items: [
+        {
+          fid: 'old-1',
+          cid: '10',
+          pickCode: 'pc_old-1',
+          name: 'OLD-001.mp4',
+          avNumber: 'OLD-001',
+          size: 1024,
+          duration: 3600,
+          mtime: 1500,
+        },
+      ],
+    }
+
+    getFilesWithFallbackMock.mockReset()
+    getFilesWithFallbackMock
+      .mockResolvedValueOnce({
+        state: true,
+        order: 'file_name',
+        is_asc: 1,
+        count: 2,
+        data: [makeFile('old-1', 'OLD-001.mp4', 1500, '10')],
+      })
+      .mockResolvedValueOnce({
+        state: true,
+        order: 'file_name',
+        is_asc: 1,
+        count: 2,
+        data: [makeFile('new-2', 'NEW-200.mp4', 2600, '20')],
+      })
+
+    const snap2 = await syncDriveVideoIndex({ mode: 'incremental', pageDelayMs: 0 })
+    expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(2)
+    expect(snap2.items.map(i => i.fid)).toEqual(['new-2', 'old-1'])
+  })
+
   it('单页条数小于 1150 但未达 count 时继续按实际长度递增 offset 翻页，并在空页时停止', async () => {
     getFilesWithFallbackMock
       .mockResolvedValueOnce({
