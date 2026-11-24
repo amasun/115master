@@ -95,6 +95,32 @@
           </div>
         </div>
 
+        <!-- 收藏与隐藏快捷操作 -->
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            class="btn btn-xs gap-1.5 rounded-xl font-medium"
+            :class="isFavorite
+              ? 'btn-error btn-soft'
+              : 'btn-ghost bg-base-100/50 border-base-content/8 text-base-content/75 hover:text-error border'"
+            @click="handleToggleFavorite"
+          >
+            <Icon :name="isFavorite ? I.HEART_FILL : I.HEART" class="text-xs" />
+            <span>{{ isFavorite ? '已收藏' : '收藏演员' }}</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs gap-1.5 rounded-xl font-medium"
+            :class="isHidden
+              ? 'btn-warning btn-soft'
+              : 'btn-ghost bg-base-100/50 border-base-content/8 text-base-content/75 hover:text-warning border'"
+            @click="handleToggleHidden"
+          >
+            <Icon :name="isHidden ? I.VIEW : I.PREVIEW_OFF" class="text-xs" />
+            <span>{{ isHidden ? '已隐藏' : '隐藏演员' }}</span>
+          </button>
+        </div>
+
         <!-- 本库统计 2 格卡片 -->
         <div class="bg-base-100/45 border-base-content/6 divide-base-content/8 grid grid-cols-2 divide-x rounded-2xl border py-2.5 text-center">
           <div class="flex flex-col gap-0.5 px-1">
@@ -213,6 +239,7 @@ import { Api } from '@115master/drive115'
 import { Button } from '@115master/ui'
 import { format } from '@115master/utils'
 import { computed, onUnmounted, shallowRef, watch } from 'vue'
+import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
@@ -228,6 +255,7 @@ const { LabelColor } = Api.TagApi.Req
 
 const store = useMediaLibraryStore()
 const tagStore = useTagStore()
+const toast = useToast()
 const profile = shallowRef<ActorProfile | null>(null)
 const profileSourceLabel = computed(() => {
   switch (profile.value?.source) {
@@ -255,6 +283,24 @@ const actorStat = computed(() =>
 )
 
 const displayName = computed(() => actorStat.value?.name || profile.value?.name || props.actorName)
+const actorKey = computed(() => actorStat.value?.key ?? normalizedName.value)
+const isFavorite = computed(() => store.isActorFavorite(actorKey.value))
+const isHidden = computed(() => store.isActorHidden(actorKey.value))
+
+function handleToggleFavorite() {
+  const favorited = store.toggleFavoriteActor(actorKey.value)
+  toast.success(favorited ? `已收藏「${displayName.value}」` : `已取消收藏「${displayName.value}」`)
+}
+
+function handleToggleHidden() {
+  if (store.isActorHidden(actorKey.value)) {
+    store.unhideActor(actorKey.value)
+    toast.success(`已取消隐藏「${displayName.value}」`)
+    return
+  }
+  store.hideActor(actorKey.value)
+  toast.success(`已隐藏「${displayName.value}」，可在演员页「隐藏」标签查看`)
+}
 
 const actorEntries = computed(() => {
   const keys = store.libraryIndex.byActor.get(displayName.value)

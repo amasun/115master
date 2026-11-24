@@ -287,8 +287,9 @@
             <div
               v-for="actor in entry.meta.actors"
               :key="actor.name"
-              class="group bg-base-200/60 hover:bg-base-200 border-base-content/6 inline-flex items-center gap-1 rounded-full border py-1.5 pr-2.5 pl-1.5 transition-colors"
-              @contextmenu.prevent="store.openAvatarPicker({ name: actor.name, avatarUrl: actor.avatarUrl })"
+              class="group bg-base-200/60 hover:bg-base-200 inline-flex items-center gap-1 rounded-full border py-1.5 pr-2.5 pl-1.5 transition-colors"
+              :class="isActorHidden(actor.name) ? 'border-warning/35 opacity-65' : 'border-base-content/6'"
+              @contextmenu.prevent="openActorMenu($event, actor)"
             >
               <button
                 type="button"
@@ -310,6 +311,30 @@
                   {{ actor.name.slice(0, 1) }}
                 </span>
                 <span class="pr-1 text-sm font-medium">{{ actor.name }}</span>
+              </button>
+              <button
+                type="button"
+                :title="isActorFavorite(actor.name) ? '取消收藏演员' : '收藏演员'"
+                :aria-label="isActorFavorite(actor.name) ? '取消收藏演员' : '收藏演员'"
+                class="btn btn-ghost btn-circle btn-xs transition-opacity"
+                :class="isActorFavorite(actor.name)
+                  ? 'text-error opacity-100'
+                  : 'text-base-content/50 hover:text-error opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'"
+                @click.stop="handleToggleActorFavorite(actor.name)"
+              >
+                <Icon :name="isActorFavorite(actor.name) ? I.HEART_FILL : I.HEART" class="text-xs" />
+              </button>
+              <button
+                type="button"
+                :title="isActorHidden(actor.name) ? '取消隐藏演员' : '隐藏演员'"
+                :aria-label="isActorHidden(actor.name) ? '取消隐藏演员' : '隐藏演员'"
+                class="btn btn-ghost btn-circle btn-xs transition-opacity"
+                :class="isActorHidden(actor.name)
+                  ? 'text-warning opacity-100'
+                  : 'text-base-content/50 hover:text-warning opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'"
+                @click.stop="handleToggleActorHidden(actor.name)"
+              >
+                <Icon :name="isActorHidden(actor.name) ? I.VIEW : I.PREVIEW_OFF" class="text-xs" />
               </button>
               <button
                 type="button"
@@ -621,10 +646,18 @@
       :position="fileMenuPosition"
       @update:open="fileMenuOpen = $event"
     />
+    <ActionMenu
+      aria-label="演员操作"
+      :groups="actorMenuGroups"
+      :open="actorMenuOpen"
+      :position="actorMenuPosition"
+      @update:open="actorMenuOpen = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { ActionMenuGroup } from '@115master/ui'
 import type { VideoCover } from '@/hooks/useVideoCover'
 import type { Marker } from '@/utils/markers/types'
 import type { LibraryFileItem, MediaActor, MediaPreview, PosterThumbResource } from '@/utils/mediaIndex'
@@ -644,6 +677,7 @@ import { calculateVideoCoverTimes, getVideoCover } from '@/hooks/useVideoCover'
 import { I, Icon } from '@/icons'
 import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
 import { drive115 } from '@/utils/drive115Instance'
 import { useFolderPathLabels } from '@/utils/driveFolderPath'
@@ -916,6 +950,93 @@ function getActorAvatar(actor: MediaActor): string {
 function markActorAvatarFailed(name: string) {
   failedActorAvatars.value = new Set([...failedActorAvatars.value, name])
 }
+
+function resolveActorKey(actorName: string): string {
+  const normalized = normalizeActressName(actorName) || actorName.trim().toLowerCase()
+  const stat = store.libraryIndex.actorStats.find(item =>
+    item.name === actorName
+    || item.key === normalized
+    || item.aliases.includes(actorName),
+  )
+  return stat?.key ?? normalized
+}
+
+function isActorFavorite(actorName: string): boolean {
+  return store.isActorFavorite(resolveActorKey(actorName))
+}
+
+function isActorHidden(actorName: string): boolean {
+  return store.isActorHidden(resolveActorKey(actorName))
+}
+
+function handleToggleActorFavorite(actorName: string) {
+  const favorited = store.toggleFavoriteActor(resolveActorKey(actorName))
+  toast.success(favorited ? `已收藏「${actorName}」` : `已取消收藏「${actorName}」`)
+}
+
+function handleToggleActorHidden(actorName: string) {
+  const key = resolveActorKey(actorName)
+  if (store.isActorHidden(key)) {
+    store.unhideActor(key)
+    toast.success(`已取消隐藏「${actorName}」`)
+    return
+  }
+  store.hideActor(key)
+  toast.success(`已隐藏「${actorName}」，可在演员页「隐藏」标签查看`)
+}
+
+const actorMenuOpen = shallowRef(false)
+const actorMenuTarget = shallowRef<MediaActor | null>(null)
+const actorMenuPosition = shallowRef({ x: 0, y: 0 })
+
+function openActorMenu(event: MouseEvent, actor: MediaActor) {
+  actorMenuTarget.value = actor
+  actorMenuPosition.value = { x: event.clientX, y: event.clientY }
+  actorMenuOpen.value = true
+}
+
+function actorActionIcon(name: (typeof I)[keyof typeof I]) {
+  return () => h(Icon, { name, class: 'text-base' })
+}
+
+const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
+  const target = actorMenuTarget.value
+  if (!target)
+    return []
+  const favorited = isActorFavorite(target.name)
+  const hidden = isActorHidden(target.name)
+
+  return [
+    [
+      {
+        id: 'open-actor-works',
+        label: '查看名下作品',
+        leading: actorActionIcon(I.LIBRARY),
+        onSelect: () => openActorInLibrary(target.name),
+      },
+      {
+        id: 'toggle-actor-favorite',
+        label: favorited ? '取消收藏' : '收藏演员',
+        leading: actorActionIcon(favorited ? I.HEART_FILL : I.HEART),
+        onSelect: () => handleToggleActorFavorite(target.name),
+      },
+      {
+        id: 'change-actor-avatar',
+        label: '更换头像',
+        leading: actorActionIcon(I.RENAME),
+        onSelect: () => store.openAvatarPicker({ name: target.name, avatarUrl: target.avatarUrl }),
+      },
+    ],
+    [
+      {
+        id: 'toggle-actor-hidden',
+        label: hidden ? '取消隐藏' : '隐藏演员',
+        leading: actorActionIcon(hidden ? I.VIEW : I.PREVIEW_OFF),
+        onSelect: () => handleToggleActorHidden(target.name),
+      },
+    ],
+  ]
+})
 
 function getPreviewUrls(item: MediaPreview): string[] {
   return Array.from(new Set([item.raw, item.thumbnail].filter((url): url is string => Boolean(url))))
