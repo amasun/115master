@@ -189,14 +189,18 @@ function extractApiErrorMessage(res: unknown): string {
   return typeof raw === 'string' && raw.trim() ? raw.trim() : '115 接口返回失败'
 }
 
+export const DEFAULT_DELETE_BATCH_SIZE = 200
+
 /**
  * 安全删除指定文件（移入回收站），并在开启 deleteEmptyParent 时安全清理空父目录
+ * @description 优先按跨目录合批（pid: '0'）提交，若接口拒绝跨目录则自动降级为按父目录逐组删除。
  */
 export async function safeDeleteFiles(
   files: SafeDeleteFileInput[],
   options: {
     deleteEmptyParent: boolean
     allIndexedVideos: IndexedVideo[]
+    batchSize?: number
     driveApi?: SafeDeleteDriveApi
     signal?: AbortSignal
     onProgress?: (progress: SafeDeleteProgress) => void
@@ -204,6 +208,7 @@ export async function safeDeleteFiles(
   },
 ): Promise<SafeDeleteResult> {
   const api = options.driveApi ?? drive115.file
+  const batchSize = Math.max(1, Math.floor(options.batchSize ?? DEFAULT_DELETE_BATCH_SIZE))
   const deletedFileIds: string[] = []
   const failedFileIds: string[] = []
   const deletedFolders: ParentFolderDecision[] = []
@@ -215,17 +220,13 @@ export async function safeDeleteFiles(
     return { deletedFileIds, failedFileIds, deletedFolders, skippedFolders }
   }
 
-  const byCid = new Map<string, SafeDeleteFileInput[]>()
-  for (const file of files) {
-    const group = byCid.get(file.cid)
-    if (group)
-      group.push(file)
-    else
-      byCid.set(file.cid, [file])
-  }
+  const remainingCountByCid = new Map<string, number>()
+  for (const file of files)
+    remainingCountByCid.set(file.cid, (remainingCountByCid.get(file.cid) ?? 0) + 1)
 
   const totalFiles = files.length
-  const totalDirs = byCid.size
+  const totalDirs = remainingCountByCid.size
+  const affectedCids = new Set<string>()
   let completedFiles = 0
   let completedDirs = 0
   let checkedFolders = 0
@@ -246,16 +247,17 @@ export async function safeDeleteFiles(
     })
   }
 
-  emitProgress('files')
-
-  const affectedCids = new Set<string>()
-
-  for (const [cid, group] of byCid.entries()) {
-    if (options.signal?.aborted) {
-      aborted = true
-      break
+  const markProcessedFiles = (processedFiles: SafeDeleteFileInput[]) => {
+    completedFiles += processedFiles.length
+    for (const file of processedFiles) {
+      const next = (remainingCountByCid.get(file.cid) ?? 0) - 1
+      remainingCountByCid.set(file.cid, next)
+      if (next === 0)
+        completedDirs += 1
     }
+  }
 
+  const deleteBySingleCid = async (group: SafeDeleteFileInput[], cid: string) => {
     const fids = group.map(item => item.fid)
     try {
       const res = await api.deleteFiles(buildDeletePayload(fids, cid))
@@ -274,9 +276,85 @@ export async function safeDeleteFiles(
       lastError = error instanceof Error ? error.message : String(error)
     }
 
-    completedDirs += 1
-    completedFiles += fids.length
+    markProcessedFiles(group)
     emitProgress('files')
+  }
+
+  const deleteChunkByCid = async (chunk: SafeDeleteFileInput[]) => {
+    const byCid = new Map<string, SafeDeleteFileInput[]>()
+    for (const file of chunk) {
+      const group = byCid.get(file.cid)
+      if (group)
+        group.push(file)
+      else
+        byCid.set(file.cid, [file])
+    }
+
+    for (const [cid, group] of byCid.entries()) {
+      if (options.signal?.aborted) {
+        aborted = true
+        break
+      }
+      await deleteBySingleCid(group, cid)
+    }
+  }
+
+  emitProgress('files')
+
+  let crossDirSupported = true
+
+  for (let offset = 0; offset < files.length; offset += batchSize) {
+    if (options.signal?.aborted) {
+      aborted = true
+      break
+    }
+
+    const chunk = files.slice(offset, offset + batchSize)
+    const chunkCids = new Set(chunk.map(item => item.cid))
+
+    // 同目录文件直接带真实 pid 提交
+    if (chunkCids.size === 1) {
+      const singleCid = chunk[0]!.cid
+      await deleteBySingleCid(chunk, singleCid)
+      continue
+    }
+
+    // 跨目录合批优先使用 pid: '0'；若被 115 拒绝则自动降级为按目录逐组重试
+    if (crossDirSupported) {
+      const fids = chunk.map(item => item.fid)
+      let batchSucceeded = false
+      try {
+        const res = await api.deleteFiles(buildDeletePayload(fids, '0'))
+        if (res.state) {
+          deletedFileIds.push(...fids)
+          for (const cid of chunkCids)
+            affectedCids.add(cid)
+          await options.onBatchDeleted?.(fids)
+          markProcessedFiles(chunk)
+          emitProgress('files')
+          batchSucceeded = true
+        }
+        else {
+          lastError = extractApiErrorMessage(res)
+        }
+      }
+      catch (error) {
+        lastError = error instanceof Error ? error.message : String(error)
+      }
+
+      if (batchSucceeded)
+        continue
+
+      crossDirSupported = false
+      if (options.signal?.aborted) {
+        aborted = true
+        break
+      }
+    }
+
+    await deleteChunkByCid(chunk)
+    if (aborted)
+      break
   }
 
   if (aborted || !options.deleteEmptyParent || affectedCids.size === 0) {
