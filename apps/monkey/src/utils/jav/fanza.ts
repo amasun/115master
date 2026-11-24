@@ -245,7 +245,7 @@ export class Fanza extends Jav {
         const thumb = toAbsUrl(img.getAttribute('src'), DMM_DETAIL_BASE)
         if (!thumb)
           return null
-        // DMM 缩略图 `-1.jpg` -> 大图 `jp-1.jpg`
+        /** DMM 缩略图 `-1.jpg` -> 大图 `jp-1.jpg` */
         const raw = thumb.replace(/-(\d+)\.jpg$/i, 'jp-$1.jpg')
         return {
           raw,

@@ -86,7 +86,7 @@ export class Jav321 extends Jav {
     this.fields.clear()
     this.starScores = []
 
-    // 从 og:url / canonical 补全实际详情页 URL
+    /** 从 og:url / canonical 补全实际详情页 URL */
     const canonical = dom.querySelector('link[rel="canonical"]')?.getAttribute('href')
       || dom.querySelector('meta[property="og:url"]')?.getAttribute('content')
     const absCanonical = toAbsUrl(canonical, this.baseUrl)
@@ -280,7 +280,7 @@ export class Jav321 extends Jav {
     if (items.length)
       return items
 
-    // 兜底：若页面无 /snapshot/ 链接，则跳过首张大图，收集其余预览图
+    /** 兜底：若页面无 /snapshot/ 链接，则跳过首张大图，收集其余预览图 */
     const allImgs = Array.from(dom.querySelectorAll('.col-xs-12.col-md-12 img.img-responsive'))
     const rest = allImgs.slice(1)
       .map((img) => {

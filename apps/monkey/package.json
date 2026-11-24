@@ -4,7 +4,7 @@
   "version": "2.7.41",
   "private": true,
   "packageManager": "pnpm@9.15.9",
-  "description": "115网盘多媒体功能增强 | 真影视库模式（番号专线功能）",
+  "description": "115网盘多媒体功能增强 | 真影视库模式（番号专线）：海报墙与演员档案、多源自动刮削兜底、跨目录超级搜索、去重与广告垃圾清理、浮窗播放与打点云同步、跨设备缓存导入导出",
   "author": "cbingb666, daoran9, artgineer",
   "license": "MIT",
   "funding": "https://afdian.com/a/115Master",

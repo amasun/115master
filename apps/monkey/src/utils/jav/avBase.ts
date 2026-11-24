@@ -111,7 +111,7 @@ export class AvBase extends Jav {
     const upperCode = avNumber.trim().toUpperCase()
     this.searchUrl = `${this.baseUrl}/works?q=${encodeURIComponent(upperCode)}`
 
-    // 1) 优先直达标准作品详情页
+    /** 1) 优先直达标准作品详情页 */
     const directUrl = `${this.baseUrl}/works/${encodeURIComponent(upperCode)}`
     const directRes = await this.request.get(directUrl, {
       headers: { Referer: `${this.baseUrl}/` },
@@ -130,7 +130,7 @@ export class AvBase extends Jav {
       throw new Jav.PageError()
     }
 
-    // 2) 直达未命中时回退关键词检索
+    /** 2) 直达未命中时回退关键词检索 */
     const searchRes = await this.request.get(this.searchUrl, {
       headers: { Referer: `${this.baseUrl}/` },
     })
