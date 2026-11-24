@@ -1,7 +1,7 @@
 {
   "name": "@115master/monkey",
   "type": "module",
-  "version": "2.7.39",
+  "version": "2.7.40",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "description": "115网盘多媒体功能增强 | 真影视库模式（番号专线功能）",
