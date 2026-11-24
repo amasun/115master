@@ -29,6 +29,18 @@ export interface NativeFolderItemShape {
   n: string
 }
 
+export interface FolderSyncProgress {
+  resolved: number
+  total: number
+  cached: number
+  failed: number
+}
+
+export interface SyncFolderPathsOptions {
+  signal?: AbortSignal
+  onProgress?: (progress: FolderSyncProgress) => void
+}
+
 export const ROOT_FOLDER_PATH: FolderPathInfo = {
   cid: '0',
   name: '根目录',
@@ -39,7 +51,7 @@ export const ROOT_FOLDER_PATH: FolderPathInfo = {
 
 const DEFAULT_STORAGE_KEY = '115Master_folder_path_cache_v1'
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000
-const DEFAULT_MAX_ENTRIES = 2000
+const DEFAULT_MAX_ENTRIES = 5000
 const DEFAULT_MAX_CONCURRENT = 1
 const DEFAULT_DELAY_MS = 400
 const DEFAULT_GLOBAL_BACKOFF_MS = 30_000
@@ -56,10 +68,24 @@ function normalizeCid(raw: string | number | null | undefined): string {
   return String(raw).trim()
 }
 
-function sleep(ms: number): Promise<void> {
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0)
     return Promise.resolve()
-  return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('目录索引已取消', 'AbortError'))
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    function onAbort() {
+      clearTimeout(timer)
+      reject(signal?.reason ?? new DOMException('目录索引已取消', 'AbortError'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 function isValidStoredEntry(raw: unknown): raw is FolderPathInfo {
@@ -399,10 +425,131 @@ export function createFolderPathResolver(options: FolderPathResolverOptions = {}
     version.value += 1
   }
 
+  function getAllCached(): Map<string, FolderPathInfo> {
+    void version.value
+    const now = Date.now()
+    const result = new Map<string, FolderPathInfo>()
+    for (const [cid, entry] of cache.entries()) {
+      if (!isExpired(entry, now))
+        result.set(cid, entry)
+    }
+    return result
+  }
+
+  async function syncCids(
+    rawCids: Iterable<string>,
+    syncOptions: SyncFolderPathsOptions = {},
+  ): Promise<FolderSyncProgress> {
+    const uniqueCids: string[] = []
+    const seen = new Set<string>()
+    for (const rawCid of rawCids) {
+      const cid = normalizeCid(rawCid)
+      if (!cid || cid === '0' || seen.has(cid))
+        continue
+      seen.add(cid)
+      uniqueCids.push(cid)
+    }
+
+    const total = uniqueCids.length
+    let cached = 0
+    const pending: string[] = []
+    const startNow = Date.now()
+    for (const cid of uniqueCids) {
+      if (isValidCached(cid, startNow))
+        cached += 1
+      else
+        pending.push(cid)
+    }
+
+    let resolved = cached
+    let failed = 0
+    let mutated = false
+    syncOptions.onProgress?.({ resolved, total, cached, failed })
+
+    try {
+      for (const cid of pending) {
+        if (syncOptions.signal?.aborted)
+          throw syncOptions.signal.reason ?? new DOMException('目录索引已取消', 'AbortError')
+
+        // 前序子目录解析到的祖先链可能已覆盖当前 cid，直接复用缓存跳过请求
+        if (isValidCached(cid)) {
+          cached += 1
+          resolved += 1
+          syncOptions.onProgress?.({ resolved, total, cached, failed })
+          continue
+        }
+
+        const now = Date.now()
+        if (now < globalBackoffUntil)
+          await sleep(globalBackoffUntil - now, syncOptions.signal)
+
+        if (delayMs > 0 && hasFetchedOnce)
+          await sleep(delayMs, syncOptions.signal)
+        hasFetchedOnce = true
+
+        try {
+          const res = await resolveDriveApi().getFilesWithFallback(
+            {
+              aid: 1,
+              cid,
+              offset: 0,
+              limit: 1,
+              show_dir: 1,
+              cur: 1,
+              format: 'json',
+            },
+            syncOptions.signal,
+          )
+
+          const rawPath = Array.isArray(res.path)
+            ? res.path as Array<{ cid?: string | number, name?: string }>
+            : []
+          const trail = buildFolderPathsFromTrail(rawPath, cid, Date.now())
+
+          if (res.state && trail.length > 0) {
+            const resolvedCids = new Set<string>()
+            for (const info of trail) {
+              upsertEntry(info)
+              failedAt.delete(info.cid)
+              resolvedCids.add(info.cid)
+            }
+            removeQueuedByCids(resolvedCids)
+            version.value += 1
+            mutated = true
+            resolved += 1
+          }
+          else {
+            failedAt.set(cid, Date.now())
+            failed += 1
+          }
+        }
+        catch (error) {
+          if (syncOptions.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError'))
+            throw error
+          const errNow = Date.now()
+          failedAt.set(cid, errNow)
+          failed += 1
+          if (globalBackoffMs > 0 && isRateLimitOrNonJsonError(error))
+            globalBackoffUntil = errNow + globalBackoffMs
+        }
+
+        syncOptions.onProgress?.({ resolved, total, cached, failed })
+      }
+    }
+    finally {
+      if (mutated)
+        flushPersist()
+    }
+
+    return { resolved, total, cached, failed }
+  }
+
   return {
     version,
     getCached,
+    getAllCached,
     prefetch,
+    syncCids,
     cancelScope,
     invalidate,
     clear,
@@ -429,6 +576,14 @@ export function useFolderPathLabels(resolver = folderPathResolver) {
 
   function getInfo(cid?: string | null): FolderPathInfo | null {
     return resolver.getCached(cid ?? '')
+  }
+
+  function getAllCached(): Map<string, FolderPathInfo> {
+    return resolver.getAllCached()
+  }
+
+  function syncCids(cids: Iterable<string>, options?: SyncFolderPathsOptions): Promise<FolderSyncProgress> {
+    return resolver.syncCids(cids, options)
   }
 
   function getLabel(cid?: string | null, fallback = '目录'): string {
@@ -474,6 +629,8 @@ export function useFolderPathLabels(resolver = folderPathResolver) {
   return {
     prefetch,
     getInfo,
+    getAllCached,
+    syncCids,
     getLabel,
     getTooltip,
     getNativeItemDisplay,

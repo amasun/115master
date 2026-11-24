@@ -1,8 +1,9 @@
 import type { Share } from '@115master/drive115'
 import type { IndexedVideo, IndexedVideoLabel, IndexProgress, VideoIndexSnapshot } from './types'
 import { drive115 } from '@/utils/drive115Instance'
-import { getAvNumber } from '@/utils/getNumber'
+import { folderPathResolver } from '@/utils/driveFolderPath'
 import { appLogger } from '@/utils/logger'
+import { parseMediaIdentity } from '@/utils/mediaIdentity'
 import { loadVideoIndexSnapshot, saveVideoIndexSnapshot } from './videoIndexStore'
 
 const logger = appLogger.sub('DriveVideoIndexer')
@@ -128,7 +129,9 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
   if (!raw.fid || !raw.pc || !raw.n)
     return null
 
-  const avNumber = getAvNumber(raw.n) || null
+  const cid = String(raw.pid || raw.cid || '0')
+  const folder = cid !== '0' ? folderPathResolver.getCached(cid) : null
+  const identity = parseMediaIdentity(raw.n, folder)
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
   /** tp(user_ptime) / t 为文件自身的入库/创建时间，不受移动目录影响，与同步排序字段 o: 'user_ptime' 保持一致；te / tu 仅作缺失兜底 */
   const mtime = parseDriveTimestamp(raw.tp)
@@ -141,11 +144,13 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
 
   return {
     fid: String(raw.fid),
-    cid: String(raw.pid || raw.cid || '0'),
+    cid,
     pickCode: String(raw.pc),
     ...(sha1 ? { sha1 } : {}),
     name: raw.n,
-    avNumber,
+    avNumber: identity.avNumber,
+    ...(identity.platform !== 'unknown' ? { platform: identity.platform } : {}),
+    ...(identity.creator ? { creator: identity.creator } : {}),
     size,
     duration: Number(raw.play_long) || 0,
     mtime,

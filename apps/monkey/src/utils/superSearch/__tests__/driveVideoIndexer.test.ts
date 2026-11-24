@@ -258,6 +258,7 @@ describe('toIndexedVideo', () => {
       pickCode: 'pc1',
       name: 'ABW-123.mp4',
       avNumber: 'ABW-123',
+      platform: 'jav',
       size: 2048,
       duration: 3600,
       mtime: 1700000100,
@@ -343,6 +344,22 @@ describe('toIndexedVideo', () => {
     })
     expect(unstarred).not.toHaveProperty('starred')
     expect(unstarred).not.toHaveProperty('labels')
+
+    const onlyFansVideo = toIndexedVideo({
+      fc: 1,
+      fid: 'f-of',
+      pid: 'cid-of',
+      pc: 'pc-of',
+      n: 'OnlyFans - @luna_2024 - bedroom.mp4',
+      s: 1024,
+      t: 1700000400,
+    })
+    expect(onlyFansVideo).toMatchObject({
+      fid: 'f-of',
+      avNumber: null,
+      platform: 'onlyfans',
+      creator: { handle: 'luna_2024' },
+    })
 
     const numericUnstarred = toIndexedVideo({
       fc: 1,

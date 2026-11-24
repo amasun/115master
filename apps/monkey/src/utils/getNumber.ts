@@ -166,6 +166,42 @@ function findAvNumberMatch(cleanName: string): AvNumberMatch | undefined {
   return bestMatch
 }
 
+/** 统一兼容字符、移除零宽字符并规范化连字符 */
+export function normalizeFilenameForIdentity(filename: string): string {
+  return filename
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+}
+
+/** 清理用于创作者平台判定的前导站点域名、BBCode 与扩展名 */
+export function stripLeadingSiteTags(normalizedName: string): string {
+  return normalizedName
+    .replace(/\[\/?url(?:=[^\]]+)?\]/gi, '')
+    .replace(/\.\w+$/, '')
+    .replace(/^\[?(?:[\w-]+\.)+[a-z]{2,}\]?@?/i, '')
+    .replace(/@\w+@/g, '')
+    .trim()
+}
+
+/** 判断规范化文件名是否包含显式 MyFans 平台或账号特征 */
+export function isExplicitMyFansFilename(normalizedName: string): boolean {
+  return /myfans(?:\.jp)?|マイファン[ズス]/i.test(normalizedName)
+    || /\(@?[a-z][a-z0-9.]*_[\w.-]+\)/i.test(normalizedName)
+    || /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}][^()]{0,32}\([a-z][a-z0-9.]{2,}\)/u.test(normalizedName)
+}
+
+/** 判断规范化文件名是否包含显式 OnlyFans 平台或 @handle 特征 */
+export function isExplicitOnlyFansFilename(normalizedName: string): boolean {
+  const cleaned = stripLeadingSiteTags(normalizedName)
+  if (!cleaned)
+    return false
+  return /(?<![a-z0-9])only\s*fans(?:\.com)?(?![a-z0-9])/i.test(cleaned)
+    || /(?:^|[\s._-])[[【(（]\s*OF\s*[\]】)）]/i.test(cleaned)
+    || /(?:^|[\s._-])OF[-_](?=[a-z0-9@])/i.test(cleaned)
+    || /(?:^|[\s([【（])@[a-z][\w.]{2,29}(?=$|[\s)\]】）])/i.test(cleaned)
+}
+
 /**
  * 提取番号
  * @param filename 文件名
@@ -185,18 +221,19 @@ export function getAvNumber(filename: string): string | null {
   logger.info('开始提取番号', filename)
 
   /** 1.1 统一兼容字符并移除会切断番号的零宽字符。 */
-  const normalizedName = filename
-    .normalize('NFKC')
-    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
-    .replace(/[\u2010-\u2015\u2212]/g, '-')
+  const normalizedName = normalizeFilenameForIdentity(filename)
 
-  /** 1.2 已停用的 MyFans 来源不再生成详情键，也不能误走普通番号来源。 */
-  if (
-    /myfans(?:\.jp)?|マイファン[ズス]/i.test(normalizedName)
-    || /\(@?[a-z][a-z0-9.]*_[\w.-]+\)/i.test(normalizedName)
-    || /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}][^()]{0,32}\([a-z][a-z0-9.]{2,}\)/u.test(normalizedName)
-  ) {
-    logger.info('番号格式匹配完成，忽略 MyFans 文件')
+  /** 1.1.5 显式 FC2-PPV 番号优先识别，避免被后续创作者规则拦截。 */
+  const fc2Match = normalizedName.match(/(?<![a-z0-9])fc2(?:[\s._-]*ppv)?[\s._-]*(\d{5,8})(?!\d)/i)
+  if (fc2Match) {
+    const result = `FC2-PPV-${fc2Match[1]}`
+    logger.info('番号格式匹配完成', result)
+    return result
+  }
+
+  /** 1.2 MyFans 与 OnlyFans 来源不生成番号，避免误走普通番号来源。 */
+  if (isExplicitMyFansFilename(normalizedName) || isExplicitOnlyFansFilename(normalizedName)) {
+    logger.info('番号格式匹配完成，忽略创作者平台文件')
     return null
   }
   /** 1.3 清理文件名中的干扰字符，并用分隔符保留文字两侧边界，防止跨词拼接成假番号。 */

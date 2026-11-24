@@ -22,8 +22,8 @@ export {
 export { syncDriveVideoIndex, toIndexedVideo } from './driveVideoIndexer'
 export type { SyncVideoIndexOptions } from './driveVideoIndexer'
 export { loadAllCachedJavInfo } from './javCacheReader'
-export { searchIndexedVideos } from './matcher'
-export type { SearchIndexedVideosOptions } from './matcher'
+export { resolveVideoIdentity, searchIndexedVideos } from './matcher'
+export type { PlatformFilter, SearchIndexedVideosOptions } from './matcher'
 export type {
   ActorFetchProgress,
   ActorReverseMatch,

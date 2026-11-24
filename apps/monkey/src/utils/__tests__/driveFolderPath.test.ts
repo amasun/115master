@@ -311,5 +311,61 @@ describe('driveFolderPath', () => {
       expect(getFilesWithFallback).toHaveBeenCalledTimes(1)
       resolver.clear()
     })
+
+    it('syncCids deduplicates ancestor paths, tracks progress, and exposes getAllCached', async () => {
+      const getFilesWithFallback = vi.fn().mockResolvedValueOnce({
+        state: true,
+        path: [
+          { cid: '0', name: '根目录' },
+          { cid: '10', name: 'OnlyFans' },
+          { cid: '20', name: 'luna_2024' },
+        ],
+      })
+
+      const resolver = createFolderPathResolver({
+        driveApi: { getFilesWithFallback } as unknown as FolderPathDriveApi,
+        storageKey: null,
+        delayMs: 0,
+      })
+
+      const progresses: Array<{ resolved: number, total: number }> = []
+      const summary = await resolver.syncCids(['0', '20', '10', '20'], {
+        onProgress: p => progresses.push({ resolved: p.resolved, total: p.total }),
+      })
+
+      // 子目录 20 返回的 path 已经包含祖先 10，因此只需请求 1 次
+      expect(getFilesWithFallback).toHaveBeenCalledTimes(1)
+      expect(summary).toEqual({ resolved: 2, total: 2, cached: 1, failed: 0 })
+      expect(progresses[progresses.length - 1]).toEqual({ resolved: 2, total: 2 })
+
+      const all = resolver.getAllCached()
+      expect(all.get('10')?.fullPath).toBe('根目录 / OnlyFans')
+      expect(all.get('20')?.fullPath).toBe('根目录 / OnlyFans / luna_2024')
+    })
+
+    it('syncCids aborts cleanly when signal is triggered', async () => {
+      const controller = new AbortController()
+      const getFilesWithFallback = vi.fn().mockImplementation(async () => {
+        controller.abort()
+        return {
+          state: true,
+          path: [
+            { cid: '0', name: '根目录' },
+            { cid: '30', name: 'Dir30' },
+          ],
+        }
+      })
+
+      const resolver = createFolderPathResolver({
+        driveApi: { getFilesWithFallback } as unknown as FolderPathDriveApi,
+        storageKey: null,
+        delayMs: 0,
+      })
+
+      await expect(
+        resolver.syncCids(['30', '31'], { signal: controller.signal }),
+      ).rejects.toThrow()
+      expect(getFilesWithFallback).toHaveBeenCalledTimes(1)
+    })
   })
 })

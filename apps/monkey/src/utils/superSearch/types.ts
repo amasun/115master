@@ -1,4 +1,5 @@
 import type { JavInfo } from '@/utils/jav/jav'
+import type { MediaCreator, MediaPlatform } from '@/utils/mediaIdentity'
 
 /** 115 网盘文件文字标签 */
 export interface IndexedVideoLabel {
@@ -21,6 +22,10 @@ export interface IndexedVideo {
   name: string
   /** 标准化番号（如 SSIS-001），无法识别时为 null */
   avNumber: string | null
+  /** 媒体归属平台（jav / fc2 / myfans / onlyfans），未识别时省略 */
+  platform?: Exclude<MediaPlatform, 'unknown'>
+  /** 创作者信息（MyFans / OnlyFans 提取） */
+  creator?: MediaCreator
   /** 文件大小（字节） */
   size: number
   /** 视频时长（秒） */
@@ -62,7 +67,19 @@ export interface IndexProgress {
 }
 
 /** 命中原因来源 */
-export type SuperSearchMatchKind = 'avNumber' | 'actorReverse' | 'actor' | 'genre' | 'director' | 'title' | 'year' | 'driveLabel' | 'filename'
+export type SuperSearchMatchKind
+  = | 'avNumber'
+    | 'actorReverse'
+    | 'actor'
+    | 'creator'
+    | 'platform'
+    | 'folderPath'
+    | 'genre'
+    | 'director'
+    | 'title'
+    | 'year'
+    | 'driveLabel'
+    | 'filename'
 
 /** 单条命中说明 */
 export interface SuperSearchMatchReason {
@@ -79,6 +96,12 @@ export interface SuperSearchResult {
   reasons: SuperSearchMatchReason[]
   /** 相关度排序分值（越高越靠前） */
   score: number
+  /** 结合目录上下文解析后的归属平台 */
+  platform?: MediaPlatform
+  /** 结合目录上下文解析后的创作者信息 */
+  creator?: MediaCreator
+  /** 结合目录上下文解析后的番号（目录已归类为 OnlyFans/MyFans 时为 null） */
+  avNumber?: string | null
 }
 
 /** 演员作品反查数据源 */

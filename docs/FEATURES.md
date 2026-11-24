@@ -51,7 +51,8 @@
 - **跨目录全盘视频索引**：递归/批量拉取 115 全盘视频文件并在本地 IndexedDB 构建扁平化视频索引，摆脱逐级翻找目录的限制。
 - **全量同步与安全增量同步**：支持全量重建与基于时间窗口回溯的安全增量同步；通过影视库发起离线下载后自动触发后台增量同步与新片刮削。
 - **多维联合检索与原生兜底**：支持按番号、片名、文件名为线索极速检索，内置中日文演员姓名/曾用名别名映射匹配，并在本地未命中时支持 115 原生搜索兜底，提供 U1/U2/U3 三端快捷搜索入口。
-- **关键代码**：`apps/monkey/src/utils/superSearch`、`apps/monkey/src/components/SuperSearch`
+- **创作者平台识别防冲突与父目录索引**：内置 `OnlyFans` / `MyFans` 显式特征与目录辅助识别，彻底阻断与常规 AV 番号的误提取和子串误命中；支持按安全节流一键索引父目录路径（祖先链消重、断点续传），提供来源平台筛选胶囊以及 `@账号`、`of:`、`mf:`、`dir:` 等快捷查询前缀。
+- **关键代码**：`apps/monkey/src/utils/superSearch`、`apps/monkey/src/components/SuperSearch`、`apps/monkey/src/utils/mediaIdentity.ts`、`apps/monkey/src/utils/driveFolderPath.ts`
 
 ### 2.2 真影视库模式（Media Library / 番号专线）
 - **影院级海报墙主界面**：以沉浸式深色海报墙影视库替代原 Fusion 默认入口（支持从 115 旧版快捷栏一键直达），并在侧边栏右下角常驻展示当前插件版本号。

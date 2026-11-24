@@ -103,6 +103,14 @@ describe('getNumber', () => {
     console.info('[test] MyFans 文件隔离验证完成')
   })
 
+  it('隔离 OnlyFans 文件，避免抽取假番号', () => {
+    expect(getAvNumber('OnlyFans - luna_2024 - bedroom.mp4')).toBeNull()
+    expect(getAvNumber('[OF] mia_102.mp4')).toBeNull()
+    expect(getAvNumber('OF_sora_999.mp4')).toBeNull()
+    expect(getAvNumber('@luna_2024 daily vlog.mp4')).toBeNull()
+    expect(getAvNumber('[activehlj.com]@SONE-263_[4K]')).toBe('SONE-263')
+  })
+
   it('保留完整前缀和数字，不从番号中间截断', () => {
     expect(getAvNumber('SORA-636ch.mp4')).toBe('SORA-636')
     expect(getAvNumber('YMDD-502.mp4')).toBe('YMDD-502')

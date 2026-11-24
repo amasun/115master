@@ -11,7 +11,7 @@
           ref="inputRef"
           v-model="query"
           type="text"
-          placeholder="输入演员名、番号、标签、导演、年份或文件名关键词…"
+          placeholder="输入演员、创作者(@账号)、番号、目录路径、标签或关键词…"
           class="input input-bordered bg-base-200/50 focus:bg-base-100 w-full rounded-xl pr-9 pl-10 text-sm"
           @focus="onInputFocus"
           @blur="onInputBlur"
@@ -100,6 +100,15 @@
           <span class="text-base-content/55">
             本地元数据 <strong class="text-base-content/80 tabular-nums">{{ javMap.size }}</strong> 部
           </span>
+          <span v-if="totalFolderCount > 0" class="text-base-content/55">
+            目录 <strong class="text-base-content/80 tabular-nums">{{ indexedFolderCount }}/{{ totalFolderCount }}</strong>
+          </span>
+          <span v-if="folderSyncing" class="text-secondary flex items-center gap-1">
+            <span class="loading loading-spinner loading-xs" />
+            <span>
+              正在索引目录 {{ folderProgress?.resolved ?? indexedFolderCount }} / {{ folderProgress?.total ?? totalFolderCount }}
+            </span>
+          </span>
           <span class="text-base-content/45">
             更新于 {{ lastSyncLabel }}
           </span>
@@ -121,6 +130,24 @@
         </template>
         <template v-else>
           <button
+            v-if="folderSyncing"
+            type="button"
+            class="btn btn-xs btn-outline btn-error rounded-lg"
+            @click="cancelFolderSync"
+          >
+            取消目录索引
+          </button>
+          <button
+            v-else-if="snapshot && indexedFolderCount < totalFolderCount"
+            type="button"
+            class="btn btn-xs btn-secondary btn-soft rounded-lg"
+            title="按安全节流速度解析父目录路径，支持按目录搜索与自动识别 OnlyFans / MyFans 目录，可随时取消并断点续传"
+            @click="startFolderSync"
+          >
+            <Icon :name="I.FOLDER_OPEN" class="text-xs" />
+            <span>索引目录</span>
+          </button>
+          <button
             type="button"
             class="btn btn-xs btn-primary rounded-lg"
             @click="startSync(snapshot ? 'incremental' : 'full')"
@@ -139,6 +166,24 @@
           </button>
         </template>
       </div>
+    </div>
+
+    <!-- 来源平台筛选栏 -->
+    <div
+      v-if="snapshot && platformTabs.length > 1"
+      class="flex flex-wrap items-center gap-1.5 px-0.5 text-xs"
+    >
+      <button
+        v-for="tab in platformTabs"
+        :key="tab.key"
+        type="button"
+        class="btn btn-xs rounded-lg transition-colors"
+        :class="platformFilter === tab.key ? 'btn-primary' : 'btn-ghost bg-base-200/50 text-base-content/75'"
+        @click="platformFilter = tab.key"
+      >
+        <span>{{ tab.label }}</span>
+        <span class="tabular-nums opacity-65">{{ tab.count }}</span>
+      </button>
     </div>
 
     <!-- 通道 A：在线演员反查状态条 -->
@@ -252,14 +297,14 @@
         </button>
       </div>
 
-      <!-- 已建索引但未输入关键词 -->
+      <!-- 已建索引但未输入关键词且未筛选平台 -->
       <div
-        v-else-if="!query.trim()"
+        v-else-if="!query.trim() && platformFilter === 'all'"
         class="text-base-content/55 flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-center text-xs"
       >
-        <p>输入关键词开始本地毫秒级检索</p>
+        <p>输入关键词开始本地毫秒级检索，或点击上方来源标签浏览</p>
         <p class="text-base-content/45">
-          快捷键 <kbd class="kbd kbd-xs">Alt</kbd> + <kbd class="kbd kbd-xs">K</kbd> 随时唤起 · 输入演员名后按回车或点击「反查演员」可全盘反查
+          支持 <code class="kbd kbd-xs">@账号</code>、<code class="kbd kbd-xs">of:</code>、<code class="kbd kbd-xs">mf:</code>、<code class="kbd kbd-xs">dir:</code> 前缀 · 快捷键 <kbd class="kbd kbd-xs">Alt</kbd> + <kbd class="kbd kbd-xs">K</kbd> 随时唤起
         </p>
       </div>
 
@@ -409,10 +454,34 @@
           <div class="min-w-0 flex-1 space-y-1">
             <div class="flex flex-wrap items-center gap-1.5">
               <span
-                v-if="item.video.avNumber"
+                v-if="item.platform === 'onlyfans'"
+                class="badge badge-info badge-soft badge-xs font-medium"
+              >
+                OnlyFans
+              </span>
+              <span
+                v-else-if="item.platform === 'myfans'"
+                class="badge badge-accent badge-soft badge-xs font-medium"
+              >
+                MyFans
+              </span>
+              <span
+                v-else-if="item.platform === 'fc2' && !(item.avNumber ?? item.video.avNumber)"
+                class="badge badge-secondary badge-soft badge-xs font-medium"
+              >
+                FC2
+              </span>
+              <span
+                v-if="item.avNumber !== undefined ? item.avNumber : item.video.avNumber"
                 class="badge badge-primary badge-soft badge-xs font-mono font-semibold"
               >
-                {{ item.video.avNumber }}
+                {{ item.avNumber !== undefined ? item.avNumber : item.video.avNumber }}
+              </span>
+              <span
+                v-if="item.creator"
+                class="badge badge-outline badge-xs text-[11px]"
+              >
+                {{ item.creator.name ? (item.creator.handle && item.creator.name.toLowerCase() !== item.creator.handle.toLowerCase() ? `${item.creator.name} (@${item.creator.handle})` : item.creator.name) : `@${item.creator.handle}` }}
               </span>
               <span
                 v-if="item.video.starred"
@@ -435,7 +504,11 @@
                 v-for="reason in item.reasons"
                 :key="`${reason.kind}-${reason.label}`"
                 class="badge badge-xs text-[11px]"
-                :class="reason.kind === 'actorReverse' ? 'badge-secondary badge-soft font-medium' : 'badge-ghost'"
+                :class="reason.kind === 'actorReverse' || reason.kind === 'creator'
+                  ? 'badge-secondary badge-soft font-medium'
+                  : reason.kind === 'folderPath'
+                    ? 'badge-info badge-soft'
+                    : 'badge-ghost'"
               >
                 {{ reason.label }}
               </span>
@@ -566,6 +639,7 @@
 
 <script setup lang="ts">
 import type { Share } from '@115master/drive115'
+import type { FolderSyncProgress } from '@/utils/driveFolderPath'
 import type { JavInfo } from '@/utils/jav/jav'
 import type {
   ActorFetchProgress,
@@ -574,6 +648,7 @@ import type {
   ActorWorksCacheEntry,
   IndexedVideo,
   IndexProgress,
+  PlatformFilter,
   VideoIndexSnapshot,
 } from '@/utils/superSearch'
 import { GM_openInTab } from '$'
@@ -591,6 +666,7 @@ import {
   loadAllCachedJavInfo,
   loadVideoIndexSnapshot,
   normalizeActorKey,
+  resolveVideoIdentity,
   searchIndexedVideos,
   syncDriveVideoIndex,
 } from '@/utils/superSearch'
@@ -610,6 +686,11 @@ const syncing = ref(false)
 const progress = ref<IndexProgress | null>(null)
 const errorMessage = ref('')
 let abortController: AbortController | null = null
+
+const folderSyncing = ref(false)
+const folderProgress = ref<FolderSyncProgress | null>(null)
+let folderAbortController: AbortController | null = null
+const platformFilter = ref<PlatformFilter>('all')
 
 const actressDbReady = ref(false)
 const inputFocused = ref(false)
@@ -634,8 +715,67 @@ const nativeManualTriggered = ref(false)
 let nativeController: AbortController | null = null
 let nativeTimer: ReturnType<typeof setTimeout> | null = null
 
+const folderMap = computed(() => folderPaths.getAllCached())
+
+const uniqueFolderCids = computed(() => {
+  if (!snapshot.value)
+    return []
+  const seen = new Set<string>()
+  for (const item of snapshot.value.items) {
+    if (item.cid && item.cid !== '0')
+      seen.add(item.cid)
+  }
+  return Array.from(seen)
+})
+
+const totalFolderCount = computed(() => uniqueFolderCids.value.length)
+
+const indexedFolderCount = computed(() => {
+  let count = 0
+  for (const cid of uniqueFolderCids.value) {
+    if (folderMap.value.has(cid))
+      count += 1
+  }
+  return count
+})
+
+const platformCounts = computed(() => {
+  const counts: Record<PlatformFilter, number> = {
+    all: 0,
+    jav: 0,
+    fc2: 0,
+    onlyfans: 0,
+    myfans: 0,
+    unknown: 0,
+  }
+  if (!snapshot.value)
+    return counts
+
+  counts.all = snapshot.value.items.length
+  for (const item of snapshot.value.items) {
+    const folder = item.cid && item.cid !== '0' ? folderMap.value.get(item.cid) : undefined
+    const identity = resolveVideoIdentity(item, folder)
+    counts[identity.platform] += 1
+  }
+  return counts
+})
+
+const platformTabs = computed(() => {
+  const defs: Array<{ key: PlatformFilter, label: string }> = [
+    { key: 'all', label: '全部' },
+    { key: 'jav', label: '正规 AV' },
+    { key: 'fc2', label: 'FC2' },
+    { key: 'onlyfans', label: 'OnlyFans' },
+    { key: 'myfans', label: 'MyFans' },
+    { key: 'unknown', label: '其他' },
+  ]
+  return defs
+    .map(def => ({ ...def, count: platformCounts.value[def.key] }))
+    .filter(tab => tab.key === 'all' || tab.count > 0 || platformFilter.value === tab.key)
+})
+
 const avCount = computed(() =>
-  snapshot.value?.items.filter(item => Boolean(item.avNumber)).length ?? 0,
+  platformCounts.value.jav + platformCounts.value.fc2,
 )
 
 const lastSyncLabel = computed(() => {
@@ -666,10 +806,14 @@ const actorReverse = computed<ActorReverseMatch | null>(() => {
 })
 
 const results = computed(() => {
-  if (!snapshot.value || !query.value.trim())
+  if (!snapshot.value)
+    return []
+  if (!query.value.trim() && platformFilter.value === 'all')
     return []
   return searchIndexedVideos(query.value, snapshot.value.items, javMap.value, {
     actorReverse: actorReverse.value,
+    folderMap: folderMap.value,
+    platformFilter: platformFilter.value,
   })
 })
 
@@ -813,6 +957,8 @@ watch(
     }
     if (!trimmed || trimmed.length < 2 || localCount > 0 || isActorLoading)
       return
+    if (/^(?:of|onlyfans|mf|myfans|fc2|jav|av|dir|folder):$/i.test(trimmed))
+      return
     if (nativeSearchedQuery.value === trimmed && !nativeError.value)
       return
 
@@ -852,6 +998,19 @@ function selectSuggestion(item: ActorSuggestion) {
   void triggerActorLookup(item.name)
 }
 
+function isNonJavLookupQuery(raw: string): boolean {
+  const trimmed = raw.trim()
+  if (!trimmed)
+    return true
+  if (trimmed.startsWith('@'))
+    return true
+  if (/^(?:of|onlyfans|mf|myfans|fc2|dir|folder):/i.test(trimmed))
+    return true
+  if (/^(?:only\s*fans|myfans|マイファン[ズス])$/i.test(trimmed))
+    return true
+  return platformFilter.value === 'onlyfans' || platformFilter.value === 'myfans'
+}
+
 function handleInputKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowDown' && dropdownVisible.value) {
     event.preventDefault()
@@ -888,7 +1047,8 @@ function handleInputKeydown(event: KeyboardEvent) {
     if (snapshot.value && query.value.trim()) {
       event.preventDefault()
       dropdownDismissed.value = true
-      void triggerActorLookup(query.value)
+      if (!isNonJavLookupQuery(query.value))
+        void triggerActorLookup(query.value)
     }
   }
 }
@@ -1043,6 +1203,40 @@ function cancelSync() {
   abortController?.abort()
 }
 
+async function startFolderSync() {
+  if (folderSyncing.value || uniqueFolderCids.value.length === 0)
+    return
+  errorMessage.value = ''
+  folderSyncing.value = true
+  folderProgress.value = {
+    resolved: indexedFolderCount.value,
+    total: totalFolderCount.value,
+    cached: indexedFolderCount.value,
+    failed: 0,
+  }
+  folderAbortController = new AbortController()
+  try {
+    await folderPaths.syncCids(uniqueFolderCids.value, {
+      signal: folderAbortController.signal,
+      onProgress: (nextProgress) => {
+        folderProgress.value = nextProgress
+      },
+    })
+  }
+  catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError'))
+      errorMessage.value = error instanceof Error ? error.message : '目录索引失败'
+  }
+  finally {
+    folderSyncing.value = false
+    folderAbortController = null
+  }
+}
+
+function cancelFolderSync() {
+  folderAbortController?.abort()
+}
+
 function isMasterApp(): boolean {
   return window.location.pathname.startsWith(new URL(MASTER_BASE_URL).pathname)
 }
@@ -1083,6 +1277,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   abortController?.abort()
+  folderAbortController?.abort()
   actorAbortController?.abort()
   nativeController?.abort()
   if (nativeTimer)
