@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-[60vh] w-full px-(--main-content-gutter) pb-24">
+  <div class="relative min-h-[60vh] w-full px-(--main-content-gutter) pb-36">
     <!-- 顶部模块切换 -->
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
       <div
@@ -302,7 +302,7 @@
           </div>
         </article>
 
-        <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs">
+        <div class="ui-glass-panel sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-xs shadow-lg">
           <div class="flex flex-wrap items-center gap-3">
             <span class="text-base-content/60 tabular-nums">
               共 {{ visibleDuplicateGroups.length }} 组 · 当前第 {{ dupPageStart + 1 }}–{{ Math.min(dupPageStart + dupPageSize, visibleDuplicateGroups.length) }} 组
@@ -661,7 +661,7 @@
           </div>
         </div>
 
-        <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs">
+        <div class="ui-glass-panel sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-xs shadow-lg">
           <div class="flex flex-wrap items-center gap-3">
             <span class="text-base-content/60 tabular-nums">
               共 {{ visibleJunkItems.length }} 项 · 当前第 {{ junkPageStart + 1 }}–{{ Math.min(junkPageStart + junkPageSize, visibleJunkItems.length) }} 项
@@ -746,10 +746,46 @@
 
     <!-- 底部悬浮批量清理操作栏 -->
     <div
-      v-if="activeSelectedCount > 0"
-      class="ui-z-elevated pointer-events-none fixed right-0 bottom-5 left-[calc(var(--sider-width)+var(--rail2-width,0px))] flex justify-center px-4"
+      v-if="deleting || activeSelectedCount > 0"
+      class="ui-z-elevated pointer-events-none fixed right-0 bottom-16 left-[calc(var(--sider-width)+var(--rail2-width,0px))] flex justify-center px-4"
     >
-      <div class="ui-glass-panel pointer-events-auto flex flex-wrap items-center gap-4 rounded-full px-5 py-2.5 shadow-xl">
+      <div
+        v-if="deleting"
+        class="ui-glass-panel pointer-events-auto flex w-full max-w-2xl flex-col gap-2 rounded-2xl px-4 py-3 shadow-xl"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="font-medium tabular-nums">
+              {{
+                deleteProgress.phase === 'folders'
+                  ? `正在检查空目录：${deleteProgress.checkedFolders} / ${deleteProgress.totalFolders}（已清理 ${deleteProgress.deletedFolders} 个）`
+                  : `正在移入回收站：${deleteProgress.completedFiles} / ${deleteProgress.totalFiles} 个文件（成功 ${deleteProgress.deletedFiles} · 失败 ${deleteProgress.failedFiles}）· 目录 ${deleteProgress.completedDirs}/${deleteProgress.totalDirs}`
+              }}
+            </span>
+            <span class="text-base-content/55 text-[11px]">
+              每完成一个目录会立即同步本地库与列表，请勿刷新或关闭页面（可点右侧停止）
+            </span>
+          </div>
+          <Button
+            size="xs"
+            variant="soft"
+            color="error"
+            class="shrink-0 rounded-full"
+            @click="abortBatchCleanup"
+          >
+            停止清理
+          </Button>
+        </div>
+        <Progress :active="true" />
+        <p v-if="deleteProgress.lastError" class="text-warning text-[11px]">
+          最近异常：{{ deleteProgress.lastError }}
+        </p>
+      </div>
+
+      <div
+        v-else
+        class="ui-glass-panel pointer-events-auto flex flex-wrap items-center gap-4 rounded-full px-5 py-2.5 shadow-xl"
+      >
         <div class="text-xs">
           已选 <strong class="text-error tabular-nums">{{ activeSelectedCount }}</strong> 项
           <span class="text-base-content/60 ml-1 tabular-nums">({{ format.fileSize(activeSelectedSize) }})</span>
@@ -768,10 +804,9 @@
           size="sm"
           color="error"
           class="rounded-full"
-          :disabled="deleting"
           @click="executeBatchCleanup"
         >
-          {{ deleting ? '清理中...' : `移入回收站 (${activeSelectedCount})` }}
+          {{ `移入回收站 (${activeSelectedCount})` }}
         </Button>
       </div>
     </div>
@@ -779,10 +814,10 @@
 </template>
 
 <script setup lang="ts">
-import type { DuplicateKind, JunkCategory, JunkFileItem } from '@/utils/mediaIndex'
+import type { DuplicateKind, JunkCategory, JunkFileItem, SafeDeleteProgress } from '@/utils/mediaIndex'
 import { Button, Empty, Progress } from '@115master/ui'
 import { format } from '@115master/utils'
-import { useStorage, useTitle } from '@vueuse/core'
+import { useEventListener, useStorage, useTitle } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
@@ -1326,6 +1361,48 @@ const activeSelectedSize = computed(() =>
   activeSelectedFiles.value.reduce((sum, item) => sum + item.size, 0),
 )
 
+const deleteProgress = reactive<SafeDeleteProgress>({
+  phase: 'files',
+  completedFiles: 0,
+  totalFiles: 0,
+  deletedFiles: 0,
+  failedFiles: 0,
+  completedDirs: 0,
+  totalDirs: 0,
+  checkedFolders: 0,
+  totalFolders: 0,
+  deletedFolders: 0,
+  lastError: undefined,
+})
+let deleteController: AbortController | null = null
+
+useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
+  if (!deleting.value)
+    return
+  event.preventDefault()
+  event.returnValue = ''
+})
+
+function abortBatchCleanup() {
+  deleteController?.abort()
+  toast.info('正在停止剩余清理任务...')
+}
+
+async function applyDeletedBatch(fids: string[]) {
+  if (fids.length === 0)
+    return
+  await store.applyFilesDelete(fids)
+  const deletedSet = new Set(fids)
+  scannedDriveJunk.value = scannedDriveJunk.value.filter(item => !deletedSet.has(item.fid))
+  adVideoItems.value = adVideoItems.value.filter(item => !deletedSet.has(item.fid))
+  selectedDupFids.value = new Set(
+    Array.from(selectedDupFids.value).filter(fid => !deletedSet.has(fid)),
+  )
+  selectedJunkFids.value = new Set(
+    Array.from(selectedJunkFids.value).filter(fid => !deletedSet.has(fid)),
+  )
+}
+
 async function executeBatchCleanup() {
   const targets = activeSelectedFiles.value
   if (targets.length === 0 || deleting.value)
@@ -1342,26 +1419,35 @@ async function executeBatchCleanup() {
   if (!confirmed)
     return
 
+  deleteController?.abort()
+  const controller = new AbortController()
+  deleteController = controller
+
+  Object.assign(deleteProgress, {
+    phase: 'files',
+    completedFiles: 0,
+    totalFiles: targets.length,
+    deletedFiles: 0,
+    failedFiles: 0,
+    completedDirs: 0,
+    totalDirs: 0,
+    checkedFolders: 0,
+    totalFolders: 0,
+    deletedFolders: 0,
+    lastError: undefined,
+  })
+
   deleting.value = true
   try {
     const res = await safeDeleteFiles(targets, {
       deleteEmptyParent: deleteEmptyParent.value,
       allIndexedVideos: store.videos,
+      signal: controller.signal,
+      onProgress: (progress) => {
+        Object.assign(deleteProgress, progress)
+      },
+      onBatchDeleted: applyDeletedBatch,
     })
-
-    if (res.deletedFileIds.length > 0) {
-      await store.applyFilesDelete(res.deletedFileIds)
-      const deletedSet = new Set(res.deletedFileIds)
-
-      scannedDriveJunk.value = scannedDriveJunk.value.filter(item => !deletedSet.has(item.fid))
-      adVideoItems.value = adVideoItems.value.filter(item => !deletedSet.has(item.fid))
-      selectedDupFids.value = new Set(
-        Array.from(selectedDupFids.value).filter(fid => !deletedSet.has(fid)),
-      )
-      selectedJunkFids.value = new Set(
-        Array.from(selectedJunkFids.value).filter(fid => !deletedSet.has(fid)),
-      )
-    }
 
     const parts = [`已将 ${res.deletedFileIds.length} 个文件移入回收站`]
     if (res.deletedFolders.length > 0)
@@ -1370,13 +1456,22 @@ async function executeBatchCleanup() {
       parts.push(`保留 ${res.skippedFolders.length} 个非空或受保护父目录`)
     if (res.failedFileIds.length > 0)
       parts.push(`${res.failedFileIds.length} 个删除失败`)
+    if (res.aborted)
+      parts.push('已停止剩余清理')
 
-    if (res.deletedFileIds.length > 0)
-      toast.success(parts.join('，'))
-    else
-      toast.error('清理失败，未成功删除任何文件')
+    if (res.deletedFileIds.length > 0) {
+      toast.success(res.lastError ? `${parts.join('，')}（${res.lastError}）` : parts.join('，'))
+    }
+    else if (res.aborted) {
+      toast.info('已取消批量清理')
+    }
+    else {
+      toast.error(res.lastError ? `清理失败：${res.lastError}` : '清理失败，未成功删除任何文件')
+    }
   }
   finally {
+    if (deleteController === controller)
+      deleteController = null
     deleting.value = false
   }
 }

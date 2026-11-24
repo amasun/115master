@@ -67,6 +67,7 @@ export type {
   ParentFolderDecision,
   SafeDeleteDriveApi,
   SafeDeleteFileInput,
+  SafeDeleteProgress,
   SafeDeleteResult,
 } from './safeDelete'
 export {

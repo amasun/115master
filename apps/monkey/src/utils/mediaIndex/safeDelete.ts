@@ -14,11 +14,27 @@ export interface ParentFolderDecision {
   reason: string
 }
 
+export interface SafeDeleteProgress {
+  phase: 'files' | 'folders'
+  completedFiles: number
+  totalFiles: number
+  deletedFiles: number
+  failedFiles: number
+  completedDirs: number
+  totalDirs: number
+  checkedFolders: number
+  totalFolders: number
+  deletedFolders: number
+  lastError?: string
+}
+
 export interface SafeDeleteResult {
   deletedFileIds: string[]
   failedFileIds: string[]
   deletedFolders: ParentFolderDecision[]
   skippedFolders: ParentFolderDecision[]
+  aborted?: boolean
+  lastError?: string
 }
 
 export type SafeDeleteDriveApi = Pick<typeof drive115.file, 'getFilesWithFallback' | 'deleteFiles'>
@@ -165,6 +181,14 @@ function buildDeletePayload(fids: string[], pid: string) {
   return payload
 }
 
+function extractApiErrorMessage(res: unknown): string {
+  if (!res || typeof res !== 'object')
+    return '115 接口返回失败'
+  const record = res as { error?: unknown, error_msg?: unknown, message?: unknown }
+  const raw = record.error || record.error_msg || record.message
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : '115 接口返回失败'
+}
+
 /**
  * 安全删除指定文件（移入回收站），并在开启 deleteEmptyParent 时安全清理空父目录
  */
@@ -174,6 +198,9 @@ export async function safeDeleteFiles(
     deleteEmptyParent: boolean
     allIndexedVideos: IndexedVideo[]
     driveApi?: SafeDeleteDriveApi
+    signal?: AbortSignal
+    onProgress?: (progress: SafeDeleteProgress) => void
+    onBatchDeleted?: (deletedFids: string[]) => void | Promise<void>
   },
 ): Promise<SafeDeleteResult> {
   const api = options.driveApi ?? drive115.file
@@ -181,6 +208,8 @@ export async function safeDeleteFiles(
   const failedFileIds: string[] = []
   const deletedFolders: ParentFolderDecision[] = []
   const skippedFolders: ParentFolderDecision[] = []
+  let aborted = false
+  let lastError: string | undefined
 
   if (files.length === 0) {
     return { deletedFileIds, failedFileIds, deletedFolders, skippedFolders }
@@ -195,34 +224,86 @@ export async function safeDeleteFiles(
       byCid.set(file.cid, [file])
   }
 
+  const totalFiles = files.length
+  const totalDirs = byCid.size
+  let completedFiles = 0
+  let completedDirs = 0
+  let checkedFolders = 0
+
+  const emitProgress = (phase: SafeDeleteProgress['phase'], totalFolders = 0) => {
+    options.onProgress?.({
+      phase,
+      completedFiles,
+      totalFiles,
+      deletedFiles: deletedFileIds.length,
+      failedFiles: failedFileIds.length,
+      completedDirs,
+      totalDirs,
+      checkedFolders,
+      totalFolders,
+      deletedFolders: deletedFolders.length,
+      ...(lastError ? { lastError } : {}),
+    })
+  }
+
+  emitProgress('files')
+
   const affectedCids = new Set<string>()
 
   for (const [cid, group] of byCid.entries()) {
+    if (options.signal?.aborted) {
+      aborted = true
+      break
+    }
+
     const fids = group.map(item => item.fid)
     try {
       const res = await api.deleteFiles(buildDeletePayload(fids, cid))
       if (res.state) {
         deletedFileIds.push(...fids)
         affectedCids.add(cid)
+        await options.onBatchDeleted?.(fids)
       }
       else {
         failedFileIds.push(...fids)
+        lastError = extractApiErrorMessage(res)
       }
     }
-    catch {
+    catch (error) {
       failedFileIds.push(...fids)
+      lastError = error instanceof Error ? error.message : String(error)
     }
+
+    completedDirs += 1
+    completedFiles += fids.length
+    emitProgress('files')
   }
 
-  if (!options.deleteEmptyParent || affectedCids.size === 0) {
-    return { deletedFileIds, failedFileIds, deletedFolders, skippedFolders }
+  if (aborted || !options.deleteEmptyParent || affectedCids.size === 0) {
+    return {
+      deletedFileIds,
+      failedFileIds,
+      deletedFolders,
+      skippedFolders,
+      ...(aborted ? { aborted: true } : {}),
+      ...(lastError ? { lastError } : {}),
+    }
   }
 
   const deletedFidSet = new Set(deletedFileIds)
+  const totalFolders = affectedCids.size
+  emitProgress('folders', totalFolders)
 
   for (const cid of affectedCids) {
+    if (options.signal?.aborted) {
+      aborted = true
+      break
+    }
+
     if (!cid || cid === '0') {
       skippedFolders.push({ cid, deleted: false, reason: '根目录不可删除' })
+      checkedFolders += 1
+      emitProgress('folders', totalFolders)
       continue
     }
 
@@ -242,6 +323,8 @@ export async function safeDeleteFiles(
 
       if (!listing.state) {
         skippedFolders.push({ cid, deleted: false, reason: '无法读取目录内容' })
+        checkedFolders += 1
+        emitProgress('folders', totalFolders)
         continue
       }
 
@@ -267,11 +350,15 @@ export async function safeDeleteFiles(
 
       if (!decision.safe) {
         skippedFolders.push({ cid, name: folderName, deleted: false, reason: decision.reason })
+        checkedFolders += 1
+        emitProgress('folders', totalFolders)
         continue
       }
 
       if (!grandParentCid) {
         skippedFolders.push({ cid, name: folderName, deleted: false, reason: '无法获取上级目录ID' })
+        checkedFolders += 1
+        emitProgress('folders', totalFolders)
         continue
       }
 
@@ -281,10 +368,21 @@ export async function safeDeleteFiles(
       else
         skippedFolders.push({ cid, name: folderName, deleted: false, reason: '删除父目录请求失败' })
     }
-    catch {
+    catch (error) {
+      lastError = error instanceof Error ? error.message : String(error)
       skippedFolders.push({ cid, deleted: false, reason: '检查或删除父目录时发生异常' })
     }
+
+    checkedFolders += 1
+    emitProgress('folders', totalFolders)
   }
 
-  return { deletedFileIds, failedFileIds, deletedFolders, skippedFolders }
+  return {
+    deletedFileIds,
+    failedFileIds,
+    deletedFolders,
+    skippedFolders,
+    ...(aborted ? { aborted: true } : {}),
+    ...(lastError ? { lastError } : {}),
+  }
 }

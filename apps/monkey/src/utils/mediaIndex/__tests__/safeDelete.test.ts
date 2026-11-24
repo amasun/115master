@@ -166,5 +166,48 @@ describe('safeDelete', () => {
       expect(result.failedFileIds).toEqual(['f1'])
       expect(getFilesWithFallback).not.toHaveBeenCalled()
     })
+
+    it('emits progress, invokes onBatchDeleted per directory, captures lastError, and supports AbortSignal', async () => {
+      const controller = new AbortController()
+      const deleteFiles = vi.fn()
+        .mockResolvedValueOnce({ state: true, errno: '' })
+        .mockImplementationOnce(async () => {
+          controller.abort()
+          return { state: false, error: '请求过于频繁' }
+        })
+        .mockResolvedValueOnce({ state: true, errno: '' })
+
+      const driveApi = { deleteFiles, getFilesWithFallback: vi.fn() } as unknown as SafeDeleteDriveApi
+      const batches: string[][] = []
+      const progressEvents: number[] = []
+
+      const result = await safeDeleteFiles(
+        [
+          { fid: 'f1', cid: 'c1' },
+          { fid: 'f2', cid: 'c2' },
+          { fid: 'f3', cid: 'c3' },
+        ],
+        {
+          deleteEmptyParent: false,
+          allIndexedVideos: [],
+          driveApi,
+          signal: controller.signal,
+          onBatchDeleted: (fids) => {
+            batches.push(fids)
+          },
+          onProgress: (p) => {
+            progressEvents.push(p.completedFiles)
+          },
+        },
+      )
+
+      expect(batches).toEqual([['f1']])
+      expect(result.deletedFileIds).toEqual(['f1'])
+      expect(result.failedFileIds).toEqual(['f2'])
+      expect(result.aborted).toBe(true)
+      expect(result.lastError).toBe('请求过于频繁')
+      expect(progressEvents).toEqual([0, 1, 2])
+      expect(deleteFiles).toHaveBeenCalledTimes(2)
+    })
   })
 })
