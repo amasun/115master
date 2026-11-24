@@ -1,7 +1,9 @@
 export {
   actorProfileCache,
   fetchActorProfile,
+  parseAvBaseActorProfile,
   parseJavBusActorProfile,
+  parseMinnanoActorProfile,
 } from './actorProfileFetcher'
 export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
 export {

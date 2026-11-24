@@ -18,6 +18,13 @@ vi.mock('@/utils/logger', () => {
 vi.mock('@/utils/request/gmRequest', () => ({
   GMRequest: class {},
 }))
+vi.mock('@/utils/userSettings', () => ({
+  userSettings: {
+    value: {
+      enableFanzaSource: false,
+    },
+  },
+}))
 vi.mock('@/utils/cache/javCache', () => ({
   javCache: {
     get: vi.fn(),

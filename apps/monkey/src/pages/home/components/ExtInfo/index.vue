@@ -334,6 +334,7 @@ const styles = clsx({
   },
 })
 
+const enableFanzaSource = useUserSetting('enableFanzaSource')
 let updateUpgrade: ((info: JavInfo) => void) | undefined
 const extInfo = useAsyncState(
   async () => {
@@ -343,8 +344,8 @@ const extInfo = useAsyncState(
      * ================================================================================
      * 目标：复用旧版多来源能力，并避免可见列表重复请求。
      * 操作：
-     * 1) 普通番号保留 JavLibrary、JavBus、JavDB、MissAV 顺序
-     * 2) FC2 在普通来源前增加 FD2PPV
+     * 1) 普通番号保留 JavLibrary、JavBus、JavDB、MissAV、Jav321、AVBASE 顺序
+     * 2) FC2 在普通来源前增加 FD2PPV 与 FC2Official
      */
     logger.info('开始加载番号资料', props.avNumber)
 
@@ -352,7 +353,9 @@ const extInfo = useAsyncState(
       // 1.1 缓存并行读取；联网请求重叠等待但仍按数组顺序选取结果。
       return await loadJavInfo(
         props.avNumber,
-        createJavInfoSources(props.avNumber),
+        createJavInfoSources(props.avNumber, {
+          enableFanza: enableFanzaSource.value,
+        }),
         {
           onUpgrade: info => updateUpgrade?.(info),
         },

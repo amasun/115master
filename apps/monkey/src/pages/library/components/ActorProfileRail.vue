@@ -200,7 +200,7 @@
           rel="noopener noreferrer"
           class="btn btn-ghost btn-xs border-base-content/8 text-base-content/70 hover:text-base-content w-full rounded-full border font-normal"
         >
-          查看 JavBus 演员主页
+          {{ profileSourceLabel }}
         </a>
       </div>
     </div>
@@ -229,6 +229,16 @@ const { LabelColor } = Api.TagApi.Req
 const store = useMediaLibraryStore()
 const tagStore = useTagStore()
 const profile = shallowRef<ActorProfile | null>(null)
+const profileSourceLabel = computed(() => {
+  switch (profile.value?.source) {
+    case 'avbase':
+      return '查看 AVBASE 演员主页'
+    case 'minnano-av':
+      return '查看 MINNANO-AV 演员主页'
+    default:
+      return '查看 JavBus 演员主页'
+  }
+})
 const loading = shallowRef(false)
 const avatarFailed = shallowRef(false)
 

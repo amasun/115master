@@ -7,6 +7,8 @@ import { GMRequest } from '@/utils/request/gmRequest'
 const logger = appLogger.sub('ActorProfileFetcher')
 
 const JAVBUS_BASE_URL = 'https://www.javbus.com'
+const AVBASE_BASE_URL = 'https://www.avbase.net'
+const MINNANO_BASE_URL = 'https://www.minnano-av.com'
 const PROFILE_STORE_NAME = 'library_actor_profile_v1'
 const PROFILE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -25,7 +27,7 @@ export interface ActorProfile {
   hobby?: string
   aliases: string[]
   profileUrl?: string
-  source: 'javbus'
+  source: 'javbus' | 'avbase' | 'minnano-av'
   updatedAt: number
 }
 
@@ -201,6 +203,328 @@ function findMatchingStarUrl(html: string, targets: string[]): string | null {
   return candidates.length === 1 ? candidates[0]!.url : null
 }
 
+function toOptionalText(value: unknown): string | undefined {
+  if (typeof value === 'number' && Number.isFinite(value))
+    return String(value)
+  if (typeof value !== 'string')
+    return undefined
+  const trimmed = cleanValue(value)
+  return trimmed || undefined
+}
+
+function toMetricUnit(value: unknown, unit = 'cm'): string | undefined {
+  const text = toOptionalText(value)
+  if (!text)
+    return undefined
+  return /^\d+$/.test(text) ? `${text}${unit}` : text
+}
+
+/** 解析 AVBASE 演员详情页 HTML 中的个人资料 */
+export function parseAvBaseActorProfile(
+  html: string,
+  actorKey: string,
+  fallbackName: string,
+  profileUrl?: string,
+  now = Date.now(),
+): ActorProfile | null {
+  if (!html)
+    return null
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const script = doc.querySelector('script#__NEXT_DATA__')
+  let talent: Record<string, any> | null = null
+  if (script?.textContent) {
+    try {
+      const nextData = JSON.parse(script.textContent) as Record<string, any>
+      talent = nextData?.props?.pageProps?.talent ?? nextData?.props?.pageProps?.actor ?? null
+    }
+    catch {
+      talent = null
+    }
+  }
+
+  const h1Name = extractCleanElementText(doc.querySelector('h1'))
+  const name = cleanActorName(toOptionalText(talent?.name) || h1Name || fallbackName) || fallbackName
+  const meta = (talent?.meta ?? {}) as Record<string, any>
+
+  const rawAvatar = toOptionalText(talent?.image_url)
+    || doc.querySelector('meta[property="og:image"]')?.getAttribute('content')?.trim()
+  const avatarUrl = rawAvatar ? new URL(rawAvatar, AVBASE_BASE_URL).href : undefined
+
+  const birthday = toOptionalText(meta.birthday)
+  const age = toOptionalText(meta.age)
+  const height = toMetricUnit(meta.height)
+  const cup = toOptionalText(meta.cup)
+  const bust = toMetricUnit(meta.bust)
+  const waist = toMetricUnit(meta.waist)
+  const hips = toMetricUnit(meta.hip ?? meta.hips)
+  const birthplace = toOptionalText(meta.prefectures ?? meta.birthplace)
+  const hobby = toOptionalText(meta.hobby)
+
+  const aliasSet = new Set<string>()
+  const addAlias = (item: unknown) => {
+    const cleaned = cleanActorName(toOptionalText(item) ?? '')
+    if (cleaned && cleaned !== name)
+      aliasSet.add(cleaned)
+  }
+  if (Array.isArray(meta.aliases))
+    meta.aliases.forEach(addAlias)
+  else if (typeof meta.aliases === 'string')
+    splitAliases(meta.aliases).forEach(addAlias)
+
+  if (Array.isArray(talent?.actors)) {
+    talent.actors.forEach((actor: Record<string, any>) => addAlias(actor?.name))
+  }
+
+  const hasDetail = Boolean(
+    birthday || age || height || cup || bust || waist || hips || birthplace || hobby || avatarUrl || aliasSet.size > 0,
+  )
+  if (!hasDetail)
+    return null
+
+  return {
+    actorKey,
+    name,
+    ...(avatarUrl ? { avatarUrl } : {}),
+    ...(birthday ? { birthday } : {}),
+    ...(age ? { age } : {}),
+    ...(height ? { height } : {}),
+    ...(cup ? { cup } : {}),
+    ...(bust ? { bust } : {}),
+    ...(waist ? { waist } : {}),
+    ...(hips ? { hips } : {}),
+    ...(birthplace ? { birthplace } : {}),
+    ...(hobby ? { hobby } : {}),
+    aliases: Array.from(aliasSet),
+    ...(profileUrl ? { profileUrl } : {}),
+    source: 'avbase',
+    updatedAt: now,
+  }
+}
+
+/** 解析 MINNANO-AV 演员详情页 HTML 中的个人资料 */
+export function parseMinnanoActorProfile(
+  html: string,
+  actorKey: string,
+  fallbackName: string,
+  profileUrl?: string,
+  now = Date.now(),
+): ActorProfile | null {
+  if (!html)
+    return null
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const profileArea = doc.querySelector('.act-profile, .main-content, main') ?? doc.body
+  if (!profileArea)
+    return null
+
+  const headingName = extractCleanElementText(doc.querySelector('.act-profile h1, h1'))
+    ?.replace(/\s*[（(].*?[)）]\s*$/, '')
+  const name = cleanActorName(headingName || fallbackName) || fallbackName
+
+  const imgSrc = doc.querySelector('.act-profile .thumb img, .thumb img')?.getAttribute('src')?.trim()
+  const avatarUrl = imgSrc && !/noimage|nowprinting/i.test(imgSrc)
+    ? new URL(imgSrc, MINNANO_BASE_URL).href
+    : undefined
+
+  let birthday: string | undefined
+  let height: string | undefined
+  let cup: string | undefined
+  let bust: string | undefined
+  let waist: string | undefined
+  let hips: string | undefined
+  let birthplace: string | undefined
+  let hobby: string | undefined
+  const aliasSet = new Set<string>()
+
+  const applyField = (label: string, value: string) => {
+    if (!label || !value)
+      return
+    if (/生年月日|誕生日/.test(label)) {
+      birthday = value.replace(/[（(].*?[)）]/g, '').trim()
+    }
+    else if (/サイズ|スリーサイズ/.test(label)) {
+      const tMatch = value.match(/T(\d+)/i)?.[1]
+      const bMatch = value.match(/B(\d+)/i)?.[1]
+      const cMatch = value.match(/[（(]([A-Z]+)カップ[)）]/i)?.[1]
+      const wMatch = value.match(/W(\d+)/i)?.[1]
+      const hMatch = value.match(/H(\d+)/i)?.[1]
+      if (tMatch)
+        height = `${tMatch}cm`
+      if (bMatch)
+        bust = `${bMatch}cm`
+      if (cMatch)
+        cup = cMatch.toUpperCase()
+      if (wMatch)
+        waist = `${wMatch}cm`
+      if (hMatch)
+        hips = `${hMatch}cm`
+    }
+    else if (/出身地/.test(label)) {
+      birthplace = value
+    }
+    else if (/趣味|特技/.test(label)) {
+      hobby = value
+    }
+    else if (/別名|旧名|改名/.test(label)) {
+      splitAliases(value).forEach((alias) => {
+        const cleaned = cleanActorName(alias)
+        if (cleaned && cleaned !== name)
+          aliasSet.add(cleaned)
+      })
+    }
+  }
+
+  profileArea.querySelectorAll('table tr').forEach((tr) => {
+    const th = cleanValue(tr.querySelector('th')?.textContent ?? '').replace(/[:：]$/, '')
+    const td = cleanValue(tr.querySelector('td')?.textContent ?? '')
+    applyField(th, td)
+  })
+  profileArea.querySelectorAll('dt').forEach((dt) => {
+    const label = cleanValue(dt.textContent ?? '').replace(/[:：]$/, '')
+    const dd = dt.nextElementSibling?.tagName.toLowerCase() === 'dd'
+      ? cleanValue(dt.nextElementSibling.textContent ?? '')
+      : ''
+    applyField(label, dd)
+  })
+
+  const hasDetail = Boolean(
+    birthday || height || cup || bust || waist || hips || birthplace || hobby || avatarUrl || aliasSet.size > 0,
+  )
+  if (!hasDetail)
+    return null
+
+  return {
+    actorKey,
+    name,
+    ...(avatarUrl ? { avatarUrl } : {}),
+    ...(birthday ? { birthday } : {}),
+    ...(height ? { height } : {}),
+    ...(cup ? { cup } : {}),
+    ...(bust ? { bust } : {}),
+    ...(waist ? { waist } : {}),
+    ...(hips ? { hips } : {}),
+    ...(birthplace ? { birthplace } : {}),
+    ...(hobby ? { hobby } : {}),
+    aliases: Array.from(aliasSet),
+    ...(profileUrl ? { profileUrl } : {}),
+    source: 'minnano-av',
+    updatedAt: now,
+  }
+}
+
+async function fetchJavBusProfile(
+  actorKey: string,
+  actorName: string,
+  names: string[],
+  options: FetchActorProfileOptions,
+): Promise<ActorProfile | null> {
+  const starUrl = await resolveJavBusStarUrl(names, options.profileUrl, options.signal)
+  if (!starUrl || options.signal?.aborted)
+    return null
+
+  try {
+    const response = await getRequest().get(starUrl, {
+      headers: { Referer: JAVBUS_BASE_URL },
+      signal: options.signal,
+    })
+    if (!response.ok || options.signal?.aborted)
+      return null
+    const html = await response.text()
+    return parseJavBusActorProfile(html, actorKey, actorName, starUrl)
+  }
+  catch (error) {
+    if (!options.signal?.aborted)
+      logger.warn('获取 JavBus 演员个人资料失败', actorName, error)
+    return null
+  }
+}
+
+async function fetchAvBaseProfile(
+  actorKey: string,
+  actorName: string,
+  names: string[],
+  signal?: AbortSignal,
+): Promise<ActorProfile | null> {
+  const request = getRequest()
+  for (const query of names.slice(0, 2)) {
+    if (signal?.aborted)
+      return null
+    const talentUrl = `${AVBASE_BASE_URL}/talents/${encodeURIComponent(query)}`
+    try {
+      const response = await request.get(talentUrl, {
+        headers: { Referer: AVBASE_BASE_URL },
+        signal,
+      })
+      if (!response.ok || signal?.aborted)
+        continue
+      const html = await response.text()
+      const profile = parseAvBaseActorProfile(html, actorKey, actorName, talentUrl)
+      if (profile)
+        return profile
+    }
+    catch (error) {
+      if (signal?.aborted)
+        return null
+      logger.warn('获取 AVBASE 演员个人资料失败', query, error)
+    }
+  }
+  return null
+}
+
+async function fetchMinnanoProfile(
+  actorKey: string,
+  actorName: string,
+  names: string[],
+  signal?: AbortSignal,
+): Promise<ActorProfile | null> {
+  const request = getRequest()
+  const normalizedTargets = names.map(normalizeKey).filter(Boolean)
+
+  for (const query of names.slice(0, 2)) {
+    if (signal?.aborted)
+      return null
+    const listUrl = `${MINNANO_BASE_URL}/actress_list.php?keyword=${encodeURIComponent(query)}`
+    try {
+      const listRes = await request.get(listUrl, {
+        headers: { Referer: MINNANO_BASE_URL },
+        signal,
+      })
+      if (!listRes.ok || signal?.aborted)
+        continue
+      const listDoc = new DOMParser().parseFromString(await listRes.text(), 'text/html')
+      const links = Array.from(listDoc.querySelectorAll('a[href*="actress"]'))
+        .map(link => ({
+          name: cleanActorName(extractCleanElementText(link)),
+          href: link.getAttribute('href')?.trim() ?? '',
+        }))
+        .filter(item => /actress\d+\.html/i.test(item.href))
+
+      const matched = links.find(item => normalizedTargets.includes(normalizeKey(item.name)))
+        ?? (links.length === 1 ? links[0] : undefined)
+      if (!matched)
+        continue
+
+      const detailUrl = new URL(matched.href, MINNANO_BASE_URL).href
+      const detailRes = await request.get(detailUrl, {
+        headers: { Referer: listUrl },
+        signal,
+      })
+      if (!detailRes.ok || signal?.aborted)
+        continue
+      const profile = parseMinnanoActorProfile(await detailRes.text(), actorKey, actorName, detailUrl)
+      if (profile)
+        return profile
+    }
+    catch (error) {
+      if (signal?.aborted)
+        return null
+      logger.warn('获取 MINNANO-AV 演员个人资料失败', query, error)
+    }
+  }
+  return null
+}
+
 async function resolveJavBusStarUrl(
   names: string[],
   knownUrl: string | undefined,
@@ -266,26 +590,13 @@ export async function fetchActorProfile(
   }
 
   const names = Array.from(new Set([actorName, ...(options.aliases ?? [])].map(s => s.trim()).filter(Boolean)))
-  const starUrl = await resolveJavBusStarUrl(names, options.profileUrl, options.signal)
-  if (!starUrl || options.signal?.aborted)
-    return null
+  const profile = (
+    await fetchJavBusProfile(actorKey, actorName, names, options)
+    || await fetchAvBaseProfile(actorKey, actorName, names, options.signal)
+    || await fetchMinnanoProfile(actorKey, actorName, names, options.signal)
+  )
 
-  try {
-    const response = await getRequest().get(starUrl, {
-      headers: { Referer: JAVBUS_BASE_URL },
-      signal: options.signal,
-    })
-    if (!response.ok || options.signal?.aborted)
-      return null
-    const html = await response.text()
-    const profile = parseJavBusActorProfile(html, actorKey, actorName, starUrl)
-    if (profile)
-      await actorProfileCache.set(actorKey, profile)
-    return profile
-  }
-  catch (error) {
-    if (!options.signal?.aborted)
-      logger.warn('获取演员个人资料失败', actorName, error)
-    return null
-  }
+  if (profile && !options.signal?.aborted)
+    await actorProfileCache.set(actorKey, profile)
+  return profile
 }

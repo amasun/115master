@@ -169,6 +169,7 @@ const PreferencesContent = defineComponent({
     const actressFaces = useUserSetting('enableActressFaces')
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
     const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
+    const enableFanzaSource = useUserSetting('enableFanzaSource')
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
     const backupBusy = shallowRef(false)
     const backupStatus = shallowRef<{ kind: 'success' | 'error', text: string } | null>(null)
@@ -357,6 +358,13 @@ const PreferencesContent = defineComponent({
                 description="自动将播放打点写入文件原生备注，换设备打开即可恢复"
                 modelValue={syncMarkersToFileDesc.value}
                 onUpdate:modelValue={value => syncMarkersToFileDesc.value = value}
+              />
+              <SettingToggle
+                icon={I.DOCUMENT}
+                label="启用 FANZA / DMM 官方源"
+                description="需日本 IP；开启后优先从 FANZA 获取高清封面与官方元数据"
+                modelValue={enableFanzaSource.value}
+                onUpdate:modelValue={value => enableFanzaSource.value = value}
               />
             </div>
           </Card>

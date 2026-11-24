@@ -23,6 +23,8 @@ export interface Settings {
   enablePlayerMovieInfo: boolean
   /** 将播放打点同步到 115 原生文件备注 */
   syncMarkersToFileDesc: boolean
+  /** 启用 FANZA / DMM 官方源（需日本 IP） */
+  enableFanzaSource: boolean
   /** 原生 115 目录跳转目标（新版 / 旧版） */
   nativeFolderTarget: NativeFolderTarget
   /** 主题模式：跟随系统 / 浅色 / 深色 */
@@ -40,6 +42,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableActressFaces: true,
   enablePlayerMovieInfo: true,
   syncMarkersToFileDesc: true,
+  enableFanzaSource: false,
   nativeFolderTarget: 'new',
   theme: 'system',
 }

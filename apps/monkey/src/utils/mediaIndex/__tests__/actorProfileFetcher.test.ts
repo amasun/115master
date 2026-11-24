@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { parseJavBusActorProfile } from '../actorProfileFetcher'
+import {
+  parseAvBaseActorProfile,
+  parseJavBusActorProfile,
+  parseMinnanoActorProfile,
+} from '../actorProfileFetcher'
 
 describe('parseJavBusActorProfile', () => {
   it('解析完整的 JavBus 演员个人资料页 HTML', () => {
@@ -108,5 +112,112 @@ describe('parseJavBusActorProfile', () => {
     `
     const profile = parseJavBusActorProfile(html, '三上悠亚', '三上悠亚有码', undefined, 1700000000002)
     expect(profile?.name).toBe('三上悠亜')
+  })
+})
+
+describe('parseAvBaseActorProfile', () => {
+  it('从 AVBASE __NEXT_DATA__ 解析演员资料与别名', () => {
+    const html = `
+      <html>
+        <head><meta property="og:image" content="https://www.avbase.net/fallback.jpg"></head>
+        <body>
+          <h1>三上悠亜</h1>
+          <script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+            props: {
+              pageProps: {
+                talent: {
+                  name: '三上悠亜',
+                  image_url: 'https://pics.dmm.co.jp/mono/actjpgs/mikami_yua.jpg',
+                  meta: {
+                    birthday: '1993-08-16',
+                    height: 159,
+                    cup: 'F',
+                    bust: 83,
+                    waist: 57,
+                    hip: 88,
+                    prefectures: '愛知県',
+                    hobby: 'ダンス',
+                  },
+                  actors: [
+                    { name: '鬼頭桃菜' },
+                    { name: '三上悠亜' },
+                  ],
+                },
+              },
+            },
+          })}</script>
+        </body>
+      </html>
+    `
+
+    const profile = parseAvBaseActorProfile(
+      html,
+      '三上悠亜',
+      '三上悠亜',
+      'https://www.avbase.net/talents/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C',
+      1700000000003,
+    )
+
+    expect(profile).toEqual({
+      actorKey: '三上悠亜',
+      name: '三上悠亜',
+      avatarUrl: 'https://pics.dmm.co.jp/mono/actjpgs/mikami_yua.jpg',
+      birthday: '1993-08-16',
+      height: '159cm',
+      cup: 'F',
+      bust: '83cm',
+      waist: '57cm',
+      hips: '88cm',
+      birthplace: '愛知県',
+      hobby: 'ダンス',
+      aliases: ['鬼頭桃菜'],
+      profileUrl: 'https://www.avbase.net/talents/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C',
+      source: 'avbase',
+      updatedAt: 1700000000003,
+    })
+  })
+})
+
+describe('parseMinnanoActorProfile', () => {
+  it('从 MINNANO-AV 表格解析三围、生日、出身地与别名', () => {
+    const html = `
+      <div class="act-profile">
+        <h1>三上悠亜（みかみゆあ）</h1>
+        <div class="thumb"><img src="/actress_img/mikami.jpg"></div>
+        <table>
+          <tr><th>生年月日</th><td>1993年08月16日（31歳）</td></tr>
+          <tr><th>サイズ</th><td>T159 B83(Fカップ) W57 H88</td></tr>
+          <tr><th>出身地</th><td>愛知県</td></tr>
+          <tr><th>趣味</th><td>ダンス、ショッピング</td></tr>
+          <tr><th>別名</th><td>鬼頭桃菜</td></tr>
+        </table>
+      </div>
+    `
+
+    const profile = parseMinnanoActorProfile(
+      html,
+      '三上悠亜',
+      '三上悠亜',
+      'https://www.minnano-av.com/actress12345.html',
+      1700000000004,
+    )
+
+    expect(profile).toEqual({
+      actorKey: '三上悠亜',
+      name: '三上悠亜',
+      avatarUrl: 'https://www.minnano-av.com/actress_img/mikami.jpg',
+      birthday: '1993年08月16日',
+      height: '159cm',
+      cup: 'F',
+      bust: '83cm',
+      waist: '57cm',
+      hips: '88cm',
+      birthplace: '愛知県',
+      hobby: 'ダンス、ショッピング',
+      aliases: ['鬼頭桃菜'],
+      profileUrl: 'https://www.minnano-av.com/actress12345.html',
+      source: 'minnano-av',
+      updatedAt: 1700000000004,
+    })
   })
 })

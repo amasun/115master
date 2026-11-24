@@ -14,6 +14,7 @@ import { buildAvNumberQueryVariants, Jav, normalizeAvNumber } from '@/utils/jav/
 import { loadJavInfo } from '@/utils/jav/loadInfo'
 import { appLogger } from '@/utils/logger'
 import { GMRequest } from '@/utils/request/gmRequest'
+import { userSettings } from '@/utils/userSettings'
 import { getCustomCover, posterThumbCache } from './videoIndexStore'
 
 const logger = appLogger.sub('ScraperRegistry')
@@ -187,7 +188,9 @@ function classifySourceError(error: unknown): 'not_found' | 'rate_limited' | 'ch
 
 /** 联网刮削单个番号元数据并返回结构化结果（用于熔断保护与空结果负缓存） */
 export async function scrapeJavMetaDetailed(avNumber: string): Promise<ScrapeResult> {
-  const sources = createJavInfoSources(avNumber)
+  const sources = createJavInfoSources(avNumber, {
+    enableFanza: userSettings.value.enableFanzaSource,
+  })
   const hasQueryVariants = buildAvNumberQueryVariants(avNumber).length > 1
   let rateLimitedReason = ''
   let challengeReason = ''

@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const testLogger = {
   info: vi.fn(),
+  warn: vi.fn(),
 }
 
 const requestMocks = vi.hoisted(() => ({
   constructorOptions: [] as unknown[],
   get: vi.fn(),
+  request: vi.fn(),
 }))
 const performerFaceCacheMocks = vi.hoisted(() => ({
   getByName: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock('@/utils/logger', () => ({
 vi.mock('@/utils/request/gmRequest', () => ({
   GMRequest: class {
     get = requestMocks.get
+    request = requestMocks.request
 
     constructor(options?: unknown) {
       requestMocks.constructorOptions.push(options)
@@ -43,6 +46,11 @@ const { JavDB } = await import('../javDB')
 const { JavLibrary } = await import('../javLibrary')
 const { MissAV } = await import('../missAV')
 const { Fd2Ppv } = await import('../fd2Ppv')
+const { Jav321 } = await import('../jav321')
+const { AvBase } = await import('../avBase')
+const { MGStage, isMgStageAvNumber } = await import('../mgStage')
+const { Fc2Official } = await import('../fc2Official')
+const { Fanza } = await import('../fanza')
 const { createJavInfoSources } = await import('../sources')
 
 function documentOf(html: string): Document {
@@ -54,6 +62,7 @@ describe('jav source parsers', () => {
     testLogger.info.mockClear()
     requestMocks.constructorOptions.length = 0
     requestMocks.get.mockReset()
+    requestMocks.request.mockReset()
     performerFaceCacheMocks.getByName.mockReset()
     performerFaceCacheMocks.getByName.mockResolvedValue(null)
     performerFaceCacheMocks.setByName.mockReset()
@@ -713,15 +722,253 @@ describe('jav source parsers', () => {
       'JavBus',
       'JavDB',
       'MissAV',
+      'Jav321',
+      'AVBASE',
     ])
     expect(createJavInfoSources('FC2-PPV-4818259').map(source => source.source)).toEqual([
       'FD2PPV',
+      'FC2Official',
       'JavLibrary',
       'JavBus',
       'JavDB',
       'MissAV',
+      'Jav321',
+      'AVBASE',
+    ])
+    expect(createJavInfoSources('SIRO-5000').map(source => source.source)).toEqual([
+      'MGStage',
+      'JavLibrary',
+      'JavBus',
+      'JavDB',
+      'MissAV',
+      'Jav321',
+      'AVBASE',
+    ])
+    expect(createJavInfoSources('SORA-636', { enableFanza: true }).map(source => source.source)).toEqual([
+      'FANZA',
+      'JavLibrary',
+      'JavBus',
+      'JavDB',
+      'MissAV',
+      'Jav321',
+      'AVBASE',
     ])
 
     testLogger.info('FC2 专用来源路由验证完成')
+  })
+
+  it('jav321 正确解析详情页字段、封面与预览图', async () => {
+    const parser = new Jav321()
+    parser.detailUrl = 'https://jp.jav321.com/video/ipx00177'
+    parser.searchUrl = 'https://jp.jav321.com/search'
+    const html = `
+      <html>
+        <head><link rel="canonical" href="https://jp.jav321.com/video/ipx00177"></head>
+        <body>
+          <div class="panel-heading"><h3>测试标题 <small>IPX-177</small></h3></div>
+          <div class="panel-body">
+            <div class="col-md-3"><img class="img-responsive" src="https://pics.dmm.co.jp/mono/movie/adult/ipx177/ipx177ps.jpg"></div>
+            <div class="col-md-9">
+              <b>出演者</b>: <a href="/star/123">相沢みなみ</a><br>
+              <b>メーカー</b>: <a href="/company/1">アイデアポケット</a><br>
+              <b>シリーズ</b>: <a href="/series/1">独占</a><br>
+              <b>ジャンル</b>: <a href="/genre/1">単体作品</a><br>
+              <b>品番</b>: ipx-177<br>
+              <b>配信開始日</b>: 2018-07-13<br>
+              <b>収録時間</b>: 120分<br>
+              <b>平均評価</b>: 4.6<br>
+            </div>
+          </div>
+          <div class="col-xs-12 col-md-12">
+            <p><img class="img-responsive" src="https://pics.dmm.co.jp/mono/movie/adult/ipx177/ipx177pl.jpg"></p>
+            <a href="/snapshot/ipx177-1"><img class="img-responsive" src="https://pics.dmm.co.jp/digital/video/ipx177/ipx177jp-1.jpg"></a>
+          </div>
+        </body>
+      </html>
+    `
+    const info = await parser.parseInfo(html)
+    expect(info?.avNumber).toBe('IPX-177')
+    expect(info?.title).toBe('测试标题')
+    expect(info?.duration).toBe(120)
+    expect(info?.actors?.map(a => a.name)).toEqual(['相沢みなみ'])
+    expect(info?.studio?.map(s => s.name)).toEqual(['アイデアポケット'])
+    expect(info?.series?.map(s => s.name)).toEqual(['独占'])
+    expect(info?.category?.map(c => c.name)).toEqual(['単体作品'])
+    expect(info?.cover?.url).toBe('https://pics.dmm.co.jp/mono/movie/adult/ipx177/ipx177pl.jpg')
+    expect(info?.coverSingle?.url).toBe('https://pics.dmm.co.jp/mono/movie/adult/ipx177/ipx177ps.jpg')
+    expect(info?.preview).toEqual([{
+      thumbnail: 'https://pics.dmm.co.jp/digital/video/ipx177/ipx177jp-1.jpg',
+      raw: 'https://pics.dmm.co.jp/digital/video/ipx177/ipx177jp-1.jpg',
+    }])
+    expect(info?.score).toBe(4.6)
+  })
+
+  it('avBase 支持 __NEXT_DATA__ 解析并在缺失时回退 DOM', async () => {
+    const parser = new AvBase()
+    parser.detailUrl = 'https://www.avbase.net/works/SSIS-001'
+    parser.searchUrl = 'https://www.avbase.net/works?q=SSIS-001'
+    const nextHtml = `
+      <html>
+        <body>
+          <script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+            props: {
+              pageProps: {
+                work: {
+                  work_id: 'dmm:SSIS-001',
+                  title: 'AVBASE 作品标题',
+                  min_date: '2021-03-19',
+                  casts: [{ actor: { name: '三上悠亜', image_url: 'https://img.example.com/yua.jpg' } }],
+                  genres: [{ name: 'ハイビジョン' }],
+                  products: [{
+                    image_url: 'https://img.example.com/pl.jpg',
+                    thumbnail_url: 'https://img.example.com/ps.jpg',
+                    maker: { name: 'S1' },
+                    label: { name: 'S1 NO.1 STYLE' },
+                    series: { name: 'No.1' },
+                    director: { name: '木村' },
+                    iteminfo: { volume: '150分' },
+                    sample_image_urls: [{ l: 'https://img.example.com/s1.jpg', s: 'https://img.example.com/s1_s.jpg' }],
+                  }],
+                },
+              },
+            },
+          })}</script>
+        </body>
+      </html>
+    `
+    const nextInfo = await parser.parseInfo(nextHtml)
+    expect(nextInfo?.avNumber).toBe('SSIS-001')
+    expect(nextInfo?.title).toBe('AVBASE 作品标题')
+    expect(nextInfo?.duration).toBe(150)
+    expect(nextInfo?.actors?.[0]).toMatchObject({ name: '三上悠亜', face: 'https://img.example.com/yua.jpg' })
+    expect(nextInfo?.studio).toEqual([{ name: 'S1' }])
+    expect(nextInfo?.cover?.url).toBe('https://img.example.com/pl.jpg')
+    expect(nextInfo?.coverSingle?.url).toBe('https://img.example.com/ps.jpg')
+    expect(nextInfo?.preview).toEqual([{ raw: 'https://img.example.com/s1.jpg', thumbnail: 'https://img.example.com/s1_s.jpg' }])
+
+    const domParser = new AvBase()
+    domParser.detailUrl = 'https://www.avbase.net/works/SSIS-002'
+    const domHtml = `
+      <html>
+        <head><meta property="og:image" content="https://img.example.com/og.jpg"></head>
+        <body>
+          <h1>SSIS-002 DOM 回退标题</h1>
+          <time datetime="2022-01-01"></time>
+          <a href="/talents/TestActor">TestActor</a>
+          <a href="/genres/Drama">Drama</a>
+        </body>
+      </html>
+    `
+    const domInfo = await domParser.parseInfo(domHtml)
+    expect(domInfo?.avNumber).toBe('SSIS-002')
+    expect(domInfo?.title).toBe('SSIS-002 DOM 回退标题')
+    expect(domInfo?.actors?.map(a => a.name)).toEqual(['TestActor'])
+    expect(domInfo?.category?.map(c => c.name)).toEqual(['Drama'])
+    expect(domInfo?.cover?.url).toBe('https://img.example.com/og.jpg')
+  })
+
+  it('mgStage 识别素人前缀并解析详情页', async () => {
+    expect(isMgStageAvNumber('SIRO-5000')).toBe(true)
+    expect(isMgStageAvNumber('259LUXU-1700')).toBe(true)
+    expect(isMgStageAvNumber('SSIS-001')).toBe(false)
+
+    const parser = new MGStage()
+    parser.detailUrl = 'https://www.mgstage.com/product/product_detail/SIRO-5000/'
+    parser.searchUrl = 'https://www.mgstage.com/search/cSearch.php?search_word=SIRO-5000'
+    const html = `
+      <h1 class="tag">素人テストタイトル</h1>
+      <a class="link_magnify" href="https://image.mgstage.com/images/siro/5000/pb_e_siro-5000.jpg">
+        <img src="https://image.mgstage.com/images/siro/5000/pf_o1_siro-5000.jpg">
+      </a>
+      <table class="detail_data">
+        <tr><th>出演：</th><td><a href="/search/actor">みさき</a></td></tr>
+        <tr><th>メーカー：</th><td><a href="/search/maker">シロウトTV</a></td></tr>
+        <tr><th>収録時間：</th><td>65min</td></tr>
+        <tr><th>品番：</th><td>SIRO-5000</td></tr>
+        <tr><th>配信開始日：</th><td>2024/05/01</td></tr>
+        <tr><th>ジャンル：</th><td><a href="/search/genre">素人</a></td></tr>
+      </table>
+      <div id="sample-photo">
+        <a class="sample_image" href="https://image.mgstage.com/cap_e_0_siro-5000.jpg">
+          <img src="https://image.mgstage.com/cap_t1_0_siro-5000.jpg">
+        </a>
+      </div>
+    `
+    const info = await parser.parseInfo(html)
+    expect(info?.avNumber).toBe('SIRO-5000')
+    expect(info?.title).toBe('素人テストタイトル')
+    expect(info?.duration).toBe(65)
+    expect(info?.actors?.map(a => a.name)).toEqual(['みさき'])
+    expect(info?.cover?.url).toBe('https://image.mgstage.com/images/siro/5000/pb_e_siro-5000.jpg')
+    expect(info?.coverSingle?.url).toBe('https://image.mgstage.com/images/siro/5000/pf_o1_siro-5000.jpg')
+    expect(info?.preview).toEqual([{
+      raw: 'https://image.mgstage.com/cap_e_0_siro-5000.jpg',
+      thumbnail: 'https://image.mgstage.com/cap_t1_0_siro-5000.jpg',
+    }])
+  })
+
+  it('fc2Official 解析详情并在下架页面抛出 NotFound', async () => {
+    const parser = new Fc2Official()
+    requestMocks.get.mockResolvedValueOnce(new Response(`
+      <html>
+        <head><link rel="canonical" href="https://adult.contents.fc2.com/article/4818259/"></head>
+        <body>
+          <div class="items_article_headerInfo">
+            <h3>FC2 测试作品</h3>
+            <a href="/users/seller1/">卖家A</a>
+          </div>
+          <div class="items_article_Releasedate">販売日：2025/01/15</div>
+          <div class="items_article_MainitemThumb">
+            <img src="//contents-thumbnail2.fc2.com/thumb.jpg">
+            <p class="items_article_info">45:30</p>
+          </div>
+          <div class="items_article_TagArea"><a class="tag" href="/tags/1">素人</a></div>
+          <div class="items_article_SampleImagesArea">
+            <a href="//contents-thumbnail2.fc2.com/sample1.jpg"><img src="//contents-thumbnail2.fc2.com/sample1_s.jpg"></a>
+          </div>
+        </body>
+      </html>
+    `, { status: 200 }))
+
+    const info = await parser.getInfoByAvNumber('FC2-PPV-4818259')
+    expect(info?.avNumber).toBe('FC2-PPV-4818259')
+    expect(info?.title).toBe('FC2 测试作品')
+    expect(info?.duration).toBe(46)
+    expect(info?.studio).toEqual([{ name: '卖家A', url: 'https://adult.contents.fc2.com/users/seller1/' }])
+    expect(info?.cover?.url).toBe('https://contents-thumbnail2.fc2.com/thumb.jpg')
+
+    requestMocks.get.mockResolvedValueOnce(new Response(
+      '<html><body>お探しの商品が見つかりません</body></html>',
+      { status: 200 },
+    ))
+    await expect(parser.getInfoByAvNumber('FC2-PPV-9999999')).rejects.toThrow('未找到番号')
+  })
+
+  it('fanza 在详情页失败时仍降级返回 GraphQL 封面与标题', async () => {
+    const parser = new Fanza()
+    requestMocks.request.mockResolvedValueOnce(new Response(JSON.stringify({
+      data: {
+        legacySearchPPV: {
+          result: {
+            contents: [{
+              id: 'ssis00001',
+              title: 'FANZA GraphQL 标题',
+              packageImage: {
+                largeUrl: 'https://pics.dmm.co.jp/digital/video/ssis00001/ssis00001pl.jpg',
+                mediumUrl: 'https://pics.dmm.co.jp/digital/video/ssis00001/ssis00001ps.jpg',
+              },
+            }],
+          },
+        },
+      },
+    }), { status: 200 }))
+    requestMocks.get.mockRejectedValueOnce(new Error('network error'))
+
+    const info = await parser.getInfoByAvNumber('SSIS-001')
+    expect(info?.source).toBe('FANZA')
+    expect(info?.avNumber).toBe('SSIS-001')
+    expect(info?.title).toBe('FANZA GraphQL 标题')
+    expect(info?.cover?.url).toBe('https://pics.dmm.co.jp/digital/video/ssis00001/ssis00001pl.jpg')
+    expect(info?.coverSingle?.url).toBe('https://pics.dmm.co.jp/digital/video/ssis00001/ssis00001ps.jpg')
   })
 })
