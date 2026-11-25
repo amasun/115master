@@ -21,9 +21,11 @@ vi.mock('@/utils/cache/javCache', () => ({
 const {
   analyzeDuplicateGroups,
   analyzeDuplicateGroupsAsync,
+  hasUniformSha1,
   isSuspectedMultiPartGroup,
   scoreEntryFilesForDedupe,
   scoreFileForKeep,
+  selectSmartRedundantFids,
 } = await import('../deduplicator')
 
 function makeVideo(overrides: Partial<IndexedVideo> = {}): IndexedVideo {
@@ -258,6 +260,45 @@ describe('deduplicator', () => {
     it('marks multi-episode files (S01E01/S01E02, 第01集/第02集) as suspectedMultiPart', () => {
       expect(isSuspectedMultiPartGroup(['Show.S01E01.1080p.mp4', 'Show.S01E02.1080p.mp4'])).toBe(true)
       expect(isSuspectedMultiPartGroup(['纪录片第01集.mp4', '纪录片第02集.mp4'])).toBe(true)
+    })
+
+    it('treats identical SHA1 files as duplicates rather than suspectedMultiPart even with multi-part names', () => {
+      const v1 = makeVideo({ fid: 'f1', pickCode: 'pc1', sha1: 'SAMEHASH', avNumber: 'ABP-200', name: 'ABP-200-cd1.mp4', size: 2 * 1024 ** 3, starred: true })
+      const v2 = makeVideo({ fid: 'f2', pickCode: 'pc2', sha1: 'samehash', avNumber: 'ABP-200', name: 'ABP-200-cd2.mp4', size: 2 * 1024 ** 3 })
+
+      expect(hasUniformSha1([v1, v2])).toBe(true)
+      expect(hasUniformSha1([v1, makeVideo({ fid: 'f3', sha1: 'other' })])).toBe(false)
+      expect(hasUniformSha1([makeVideo({ fid: 'f1', sha1: '' }), makeVideo({ fid: 'f2', sha1: '' })])).toBe(false)
+
+      const groups = analyzeDuplicateGroups([v1, v2], [makeEntry('jav:ABP200', [v1, v2])])
+      expect(groups).toHaveLength(1)
+      expect(groups[0].kind).toBe('sha1')
+      expect(groups[0].suspectedMultiPart).toBe(false)
+
+      const selected = selectSmartRedundantFids(groups)
+      expect(Array.from(selected.fids)).toEqual(['f2'])
+      expect(selected.skippedMultiPart).toBe(0)
+    })
+
+    it('smart-selects exact SHA1 duplicates inside mixed multi-part groups while skipping distinct parts', () => {
+      const cd1Keep = makeVideo({ fid: 'c1a', pickCode: 'p1a', sha1: 'AAA', avNumber: 'SSIS-300', name: 'SSIS-300-cd1.mp4', size: 2 * 1024 ** 3, starred: true })
+      const cd1Dup = makeVideo({ fid: 'c1b', pickCode: 'p1b', sha1: 'aaa', avNumber: 'SSIS-300', name: 'SSIS-300-cd1 (2).mp4', size: 2 * 1024 ** 3 })
+      const cd2 = makeVideo({ fid: 'c2', pickCode: 'p2', sha1: 'BBB', avNumber: 'SSIS-300', name: 'SSIS-300-cd2.mp4', size: 2 * 1024 ** 3 })
+      const realPart1 = makeVideo({ fid: 'r1', pickCode: 'pr1', sha1: 'CCC', avNumber: 'SSIS-301', name: 'SSIS-301-cd1.mp4', size: 2 * 1024 ** 3 })
+      const realPart2 = makeVideo({ fid: 'r2', pickCode: 'pr2', sha1: 'DDD', avNumber: 'SSIS-301', name: 'SSIS-301-cd2.mp4', size: 2 * 1024 ** 3 })
+
+      const groups = analyzeDuplicateGroups(
+        [cd1Keep, cd1Dup, cd2, realPart1, realPart2],
+        [
+          makeEntry('jav:SSIS300', [cd1Keep, cd1Dup, cd2]),
+          makeEntry('jav:SSIS301', [realPart1, realPart2]),
+        ],
+      )
+
+      const avGroups = groups.filter(g => g.kind === 'avNumber')
+      const selected = selectSmartRedundantFids(avGroups)
+      expect(Array.from(selected.fids)).toEqual(['c1b'])
+      expect(selected.skippedMultiPart).toBe(1)
     })
   })
 })

@@ -110,6 +110,18 @@ export function isSuspectedMultiPartGroup(names: string[]): boolean {
 }
 
 /**
+ * 判断一组视频文件是否拥有完全一致的非空 SHA1（内容完全相同，不属于分段视频）
+ */
+export function hasUniformSha1(files: ReadonlyArray<Pick<IndexedVideo, 'sha1'>>): boolean {
+  if (files.length < 2)
+    return false
+  const first = files[0]?.sha1?.trim().toLowerCase()
+  if (!first)
+    return false
+  return files.every(file => file.sha1?.trim().toLowerCase() === first)
+}
+
+/**
  * 为单个视频文件计算保留优先级评分与原因
  */
 export function scoreFileForKeep(
@@ -252,7 +264,9 @@ function buildGroup(
     files,
     totalSize,
     reclaimableSize: Math.max(0, totalSize - keptSize),
-    suspectedMultiPart: isSuspectedMultiPartGroup(files.map(f => f.name)),
+    suspectedMultiPart: kind === 'sha1' || hasUniformSha1(files)
+      ? false
+      : isSuspectedMultiPartGroup(files.map(f => f.name)),
   }
 }
 
@@ -702,4 +716,46 @@ export function scoreEntryFilesForDedupe(
     ...item,
     recommendedKeep: idx === 0,
   }))
+}
+
+/**
+ * 智能勾选当前重复组中的冗余文件：
+ * - 非疑似分段组（含所有 SHA1 一致重复组）：保留推荐项，勾选其余冗余文件
+ * - 疑似分段组：若组内存在 SHA1 完全一致的重复文件，同 SHA1 仅保留评分最高的一份并勾选其余冗余
+ */
+export function selectSmartRedundantFids(
+  groups: readonly DuplicateGroup[],
+): { fids: Set<string>, skippedMultiPart: number } {
+  const fids = new Set<string>()
+  let skippedMultiPart = 0
+
+  for (const group of groups) {
+    if (!group.suspectedMultiPart || group.kind === 'sha1' || hasUniformSha1(group.files)) {
+      for (const file of group.files) {
+        if (!file.recommendedKeep)
+          fids.add(file.fid)
+      }
+      continue
+    }
+
+    const seenSha1 = new Set<string>()
+    let selectedInGroup = false
+    for (const file of group.files) {
+      const sha1 = file.sha1?.trim().toLowerCase()
+      if (!sha1)
+        continue
+      if (seenSha1.has(sha1)) {
+        fids.add(file.fid)
+        selectedInGroup = true
+      }
+      else {
+        seenSha1.add(sha1)
+      }
+    }
+
+    if (!selectedInGroup)
+      skippedMultiPart += 1
+  }
+
+  return { fids, skippedMultiPart }
 }

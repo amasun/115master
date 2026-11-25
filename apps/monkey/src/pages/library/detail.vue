@@ -686,6 +686,7 @@ import { createGMImageFallbackLoader } from '@/utils/imageLoader'
 import { syncMarkersFromFileDesc } from '@/utils/markers'
 import {
   getCoverCandidates,
+  hasUniformSha1,
   isSuspectedMultiPartGroup,
   loadCustomFullCoverUrl,
   loadPosterThumbUrl,
@@ -761,7 +762,9 @@ const hasExactSha1Duplicate = computed(() => {
 
 const isDetailMultiPart = computed(() => {
   const files = entry.value?.files ?? []
-  return files.length > 1 && isSuspectedMultiPartGroup(files.map(f => f.name))
+  return files.length > 1
+    && !hasUniformSha1(files)
+    && isSuspectedMultiPartGroup(files.map(f => f.name))
 })
 
 const detailFilesToDelete = computed(() =>

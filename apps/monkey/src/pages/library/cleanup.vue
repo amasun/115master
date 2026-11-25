@@ -838,6 +838,7 @@ import {
   JUNK_EXTENSION_GROUPS,
   safeDeleteFiles,
   scanDriveJunkFiles,
+  selectSmartRedundantFids,
 } from '@/utils/mediaIndex'
 
 useTitle('去重与清理 · 影视库 · 115Master Fusion')
@@ -1018,18 +1019,7 @@ function clearDupSelection() {
 }
 
 function smartSelectRedundant() {
-  const next = new Set<string>()
-  let skippedMultiPart = 0
-  for (const group of renderedDuplicateGroups.value) {
-    if (group.suspectedMultiPart) {
-      skippedMultiPart += 1
-      continue
-    }
-    for (const file of group.files) {
-      if (!file.recommendedKeep)
-        next.add(file.fid)
-    }
-  }
+  const { fids: next, skippedMultiPart } = selectSmartRedundantFids(renderedDuplicateGroups.value)
   selectedDupFids.value = next
   if (next.size === 0) {
     toast.info('当前页无可安全自动勾选的冗余文件')

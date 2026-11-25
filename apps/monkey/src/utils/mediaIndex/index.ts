@@ -9,9 +9,11 @@ export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetch
 export {
   analyzeDuplicateGroups,
   analyzeDuplicateGroupsAsync,
+  hasUniformSha1,
   isSuspectedMultiPartGroup,
   scoreEntryFilesForDedupe,
   scoreFileForKeep,
+  selectSmartRedundantFids,
 } from './deduplicator'
 export type {
   DuplicateFileCandidate,

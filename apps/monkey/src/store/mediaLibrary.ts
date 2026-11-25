@@ -42,6 +42,7 @@ import {
   DEFAULT_LIBRARY_AD_MATCH_MODE,
   DEFAULT_LIBRARY_AD_MAX_DURATION_SEC,
   DEFAULT_LIBRARY_AD_MAX_SIZE_MB,
+  hasUniformSha1,
   isAdLibraryEntry,
   isSuspectedMultiPartGroup,
   loadVideoIndexSnapshot,
@@ -946,7 +947,9 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
         files,
         totalSize,
         reclaimableSize: Math.max(0, totalSize - keptSize),
-        suspectedMultiPart: isSuspectedMultiPartGroup(files.map(f => f.name)),
+        suspectedMultiPart: group.kind === 'sha1' || hasUniformSha1(files)
+          ? false
+          : isSuspectedMultiPartGroup(files.map(f => f.name)),
       })
     }
     duplicateGroups.value = nextGroups
