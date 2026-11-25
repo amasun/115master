@@ -5,11 +5,11 @@
       role="dialog"
       aria-modal="true"
       aria-label="浮窗播放器"
-      class="ui-z-host fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/75 p-2 backdrop-blur-sm sm:p-5"
+      class="library-video-overlay ui-z-host fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/75 px-2 pb-6 backdrop-blur-sm sm:px-5 sm:pb-10"
       @click="store.closePlayerOverlay()"
     >
       <div
-        class="bg-base-100 relative my-auto w-full max-w-[1440px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+        class="library-video-overlay-card bg-base-100 relative w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
         @click.stop
       >
         <VideoPage
@@ -67,3 +67,22 @@ onUnmounted(() => {
   restoreBodyOverflow()
 })
 </script>
+
+<style scoped>
+.library-video-overlay {
+  --overlay-px: 1rem;
+  --overlay-player-w: min(calc(100vw - var(--overlay-px)), 1440px, calc(82dvh * 16 / 9));
+  --overlay-player-h: calc(var(--overlay-player-w) * 9 / 16);
+  padding-top: max(1rem, calc((100dvh - var(--overlay-player-h)) / 2));
+}
+
+@media (min-width: 640px) {
+  .library-video-overlay {
+    --overlay-px: 2.5rem;
+  }
+}
+
+.library-video-overlay-card {
+  max-width: var(--overlay-player-w);
+}
+</style>

@@ -268,9 +268,9 @@ const styles = clsx({
       'bg-base-100',
     ],
     pageMainStandalone: 'min-h-screen px-4 py-6 sm:px-8',
-    pageMainOverlay: 'min-h-0 bg-black p-0',
+    pageMainOverlay: 'min-h-0 w-full bg-black p-0',
     pageMainTheatre: 'h-screen min-h-0 bg-black p-0!',
-    pageMainOverlayTheatre: 'h-[85vh] min-h-0 bg-black p-0!',
+    pageMainOverlayTheatre: 'min-h-0 w-full bg-black p-0!',
     pageFlow: 'bg-base-100 flex w-full flex-col gap-8 px-6 py-8 xl:px-36',
     pageFlowOverlay: 'bg-base-100 flex w-full flex-col gap-6 px-5 py-5 sm:px-8 sm:py-6',
   },
@@ -282,9 +282,9 @@ const styles = clsx({
       'transition-all duration-200 ease-[var(--app-ease-in-out-cubic)] will-change-contents',
     ],
     containerStandalone: 'max-w-[calc((100vh-3rem)*16/9)] rounded-lg',
-    containerOverlay: 'max-h-[85vh] max-w-none rounded-none',
+    containerOverlay: 'aspect-video w-full max-w-none rounded-none',
     containerTheatre: '[aspect-ratio:auto] h-screen max-w-none rounded-none',
-    containerOverlayTheatre: '[aspect-ratio:auto] h-[85vh] max-w-none rounded-none',
+    containerOverlayTheatre: 'aspect-video w-full max-w-none rounded-none',
     video: 'absolute m-auto h-full w-full overflow-hidden',
   },
   // 控制样式
@@ -357,8 +357,8 @@ const changeing = shallowRef(false)
 /** 视频尺寸 */
 const videoSize = computed(() => {
   return {
-    width: Number(DataFileInfo.state?.width) ?? 1920,
-    height: Number(DataFileInfo.state?.height) ?? 1080,
+    width: Number(DataFileInfo.state?.width) || 1920,
+    height: Number(DataFileInfo.state?.height) || 1080,
   }
 })
 /** 视频比例 */
