@@ -84,7 +84,7 @@ export default defineConfig({
     monkey({
       entry: 'src/main.ts',
       userscript: {
-        'name': dev?.userscript.name ?? '115master fusion+（影院版）',
+        'name': dev?.userscript.name ?? '115 master fusion+',
         'icon': logoSvg,
         'namespace': 'https://github.com/amasun/115master',
         'homepage': PKG.homepage,

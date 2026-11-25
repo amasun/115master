@@ -4,7 +4,7 @@
     :data-theatre="preferences.theatre"
     :class="[
       styles.container.main,
-      props.overlay && 'min-h-0',
+      props.overlay ? styles.container.mainOverlay : styles.container.mainStandalone,
       preferences.theatre && styles.container.mainTheatre,
     ]"
   >
@@ -12,8 +12,8 @@
     <div
       :class="[
         styles.container.pageMain,
-        props.overlay && 'min-h-0 py-4 sm:py-5',
-        preferences.theatre && styles.container.pageMainTheatre,
+        props.overlay ? styles.container.pageMainOverlay : styles.container.pageMainStandalone,
+        preferences.theatre && (props.overlay ? styles.container.pageMainOverlayTheatre : styles.container.pageMainTheatre),
       ]"
     >
       <div
@@ -21,7 +21,8 @@
         data-video-player-shell
         :class="[
           styles.player.container,
-          preferences.theatre && styles.player.containerTheatre,
+          !preferences.theatre && (props.overlay ? styles.player.containerOverlay : styles.player.containerStandalone),
+          preferences.theatre && (props.overlay ? styles.player.containerOverlayTheatre : styles.player.containerTheatre),
         ]"
       >
         <!-- 视频播放器 -->
@@ -165,7 +166,7 @@
     </div>
 
     <!-- 页面下方内容 -->
-    <div v-if="showMovieInfo" :class="styles.container.pageFlow">
+    <div v-if="showMovieInfo" :class="props.overlay ? styles.container.pageFlowOverlay : styles.container.pageFlow">
       <!-- 电影信息 -->
       <MovieInfo :movie-infos="DataMovieInfo" />
     </div>
@@ -256,26 +257,34 @@ const styles = clsx({
   container: {
     main: [
       'flex flex-col items-center',
-      'min-h-screen gap-5',
       'bg-base-100 text-base-content',
       'relative',
     ],
+    mainStandalone: 'min-h-screen gap-5',
+    mainOverlay: 'min-h-0 w-full gap-0',
     mainTheatre: 'w-full bg-black',
     pageMain: [
-      'relative flex min-h-screen w-full items-center justify-center overflow-hidden',
-      'bg-base-100 px-4 py-6 sm:px-8',
+      'relative flex w-full items-center justify-center overflow-hidden',
+      'bg-base-100',
     ],
+    pageMainStandalone: 'min-h-screen px-4 py-6 sm:px-8',
+    pageMainOverlay: 'min-h-0 bg-black p-0',
     pageMainTheatre: 'h-screen min-h-0 bg-black p-0!',
+    pageMainOverlayTheatre: 'h-[85vh] min-h-0 bg-black p-0!',
     pageFlow: 'bg-base-100 flex w-full flex-col gap-8 px-6 py-8 xl:px-36',
+    pageFlowOverlay: 'bg-base-100 flex w-full flex-col gap-6 px-5 py-5 sm:px-8 sm:py-6',
   },
   // 播放器样式
   player: {
     container: [
-      'relative flex aspect-video w-full max-w-[calc((100vh-3rem)*16/9)]',
-      'transform-gpu items-center justify-center overflow-hidden rounded-lg',
+      'relative flex aspect-video w-full',
+      'transform-gpu items-center justify-center overflow-hidden',
       'transition-all duration-200 ease-[var(--app-ease-in-out-cubic)] will-change-contents',
     ],
+    containerStandalone: 'max-w-[calc((100vh-3rem)*16/9)] rounded-lg',
+    containerOverlay: 'max-h-[85vh] max-w-none rounded-none',
     containerTheatre: '[aspect-ratio:auto] h-screen max-w-none rounded-none',
+    containerOverlayTheatre: '[aspect-ratio:auto] h-[85vh] max-w-none rounded-none',
     video: 'absolute m-auto h-full w-full overflow-hidden',
   },
   // 控制样式
