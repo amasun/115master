@@ -54,6 +54,10 @@ const props = {
     type: Boolean,
     default: true,
   },
+  showQuickJumper: {
+    type: Boolean,
+    default: false,
+  },
   labels: {
     type: Object as PropType<PaginationLabels>,
     required: true,
@@ -116,6 +120,12 @@ export const Pagination = defineComponent({
 
     function changeSize(event: Event) {
       props.onPageSizeChange(Number((event.target as HTMLSelectElement).value))
+    }
+
+    function changePage(event: Event) {
+      const page = Number((event.target as HTMLSelectElement).value)
+      if (page >= 1 && page <= count.value && page !== props.currentPage)
+        props.onCurrentPageChange(page)
     }
 
     function input(event: Event) {
@@ -279,6 +289,27 @@ export const Pagination = defineComponent({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {props.showQuickJumper && count.value > 1 && (
+            <div class="ml-2 hidden items-center gap-1 md:flex">
+              {count.value <= 500
+                ? (
+                    <select
+                      class="select select-ghost select-sm text-base-content/80 cursor-pointer rounded-xl tabular-nums focus:outline-none"
+                      aria-label={labels.jumpToPage}
+                      value={props.currentPage}
+                      onChange={changePage}
+                    >
+                      {range(1, count.value).map(page => (
+                        <option key={page} value={page}>
+                          {`${page} / ${count.value}`}
+                        </option>
+                      ))}
+                    </select>
+                  )
+                : jumpInput(true)}
             </div>
           )}
         </Pill>

@@ -191,4 +191,16 @@ describe('getNumber', () => {
     expect(getAvNumber('[电影天堂www.dytt89.com]中国乒乓之绝地反击-2023_4K国语中字.mp4')).toBeNull()
     expect(getAvNumber('[阳光电影www.ygdy8.com]流浪地球2-2023_HD国语中字.mp4')).toBeNull()
   })
+
+  it('不把 HD-1080 等分辨率、帧率或编码标识误判为番号', () => {
+    expect(getAvNumber('示例视频 HD-1080.mp4')).toBeNull()
+    expect(getAvNumber('sample_HD1080.mp4')).toBeNull()
+    expect(getAvNumber('clip.HD-720.mp4')).toBeNull()
+    expect(getAvNumber('movie_UHD-2160.mkv')).toBeNull()
+    expect(getAvNumber('old_SD-480.avi')).toBeNull()
+    expect(getAvNumber('clip_FHD-1080.mp4')).toBeNull()
+    expect(getAvNumber('video_H-264_FPS-60.mp4')).toBeNull()
+    expect(getAvNumber('video_X-265.mp4')).toBeNull()
+    expect(getAvNumber('SSIS-001 HD-1080.mp4')).toBe('SSIS-001')
+  })
 })

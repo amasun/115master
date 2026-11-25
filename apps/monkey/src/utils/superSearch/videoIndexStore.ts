@@ -8,7 +8,7 @@ import { parseMediaIdentity } from '@/utils/mediaIdentity'
 
 const VIDEO_INDEX_STORE_NAME = 'video_index_v1'
 const SNAPSHOT_KEY = 'snapshot'
-export const AV_NUMBER_RULE_VERSION = 3
+export const AV_NUMBER_RULE_VERSION = 4
 
 /**
  * 网盘视频索引持久化存储
@@ -63,6 +63,14 @@ export async function loadVideoIndexSnapshot(): Promise<VideoIndexSnapshot | nul
       ...snapshot,
       avRuleVersion: AV_NUMBER_RULE_VERSION,
       items: snapshot.items.map((item) => {
+        if (
+          item.libraryCategory === 'cinema'
+          || item.customScrapeMode === 'cinema'
+          || item.customScrapeMode === 'folder_collection'
+          || item.customScrapeMode === 'none'
+        ) {
+          return item
+        }
         const folder = item.cid && item.cid !== '0' ? folderPathResolver.getCached(item.cid) : null
         const identity = parseMediaIdentity(item.name, folder)
         const { platform: _oldPlatform, creator: _oldCreator, ...rest } = item

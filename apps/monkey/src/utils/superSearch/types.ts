@@ -1,6 +1,6 @@
 import type { JavInfo } from '@/utils/jav/jav'
 import type { MediaCreator, MediaPlatform } from '@/utils/mediaIdentity'
-import type { IndexRootCategory } from '@/utils/userSettings'
+import type { CustomScrapeMode, IndexRootCategory } from '@/utils/userSettings'
 
 /** 115 网盘文件文字标签 */
 export interface IndexedVideoLabel {
@@ -27,6 +27,10 @@ export interface IndexedVideo {
   platform?: Exclude<MediaPlatform, 'unknown'>
   /** 所属库栏目分类（默认 jav；cinema 为院线影视目录，跳过 JAV 番号识别） */
   libraryCategory?: IndexRootCategory
+  /** 所属自建侧边栏目 ID */
+  sectionId?: string
+  /** 自建侧边栏目专属刮削模式 */
+  customScrapeMode?: CustomScrapeMode
   /** 创作者信息（MyFans / OnlyFans 提取） */
   creator?: MediaCreator
   /** 文件大小（字节） */
@@ -49,6 +53,8 @@ export interface VideoIndexSnapshot {
   avRuleVersion?: number
   /** 扫描的根目录 cid 列表，默认 ['0'] */
   rootCids: string[]
+  /** 根目录与栏目配置签名（变更时强制全量重标分类） */
+  rootConfigSignature?: string
   /** 上次全量同步时间（ms） */
   lastFullSyncAt: number
   /** 上次增量或全量同步时间（ms） */

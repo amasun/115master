@@ -426,7 +426,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+                  class="btn btn-xs btn-ghost w-40 justify-start rounded-lg sm:w-48"
                   :title="folderPaths.getNativeItemDisplay(item).tooltip"
                   @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
                 >
@@ -462,40 +462,41 @@
           class="bg-base-200/35 hover:bg-base-200/75 border-base-content/8 flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition-colors"
         >
           <div class="min-w-0 flex-1 space-y-1">
-            <div class="flex flex-wrap items-center gap-1.5">
+            <div class="flex flex-wrap items-center gap-1.5 empty:hidden">
               <span
                 v-if="item.platform === 'onlyfans'"
-                class="badge badge-info badge-soft badge-xs font-medium"
+                class="badge badge-info badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
               >
                 OnlyFans
               </span>
               <span
                 v-else-if="item.platform === 'myfans'"
-                class="badge badge-accent badge-soft badge-xs font-medium"
+                class="badge badge-accent badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
               >
                 MyFans
               </span>
               <span
                 v-else-if="item.platform === 'fc2' && !(item.avNumber ?? item.video.avNumber)"
-                class="badge badge-secondary badge-soft badge-xs font-medium"
+                class="badge badge-secondary badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
               >
                 FC2
               </span>
               <span
                 v-if="item.avNumber !== undefined ? item.avNumber : item.video.avNumber"
-                class="badge badge-primary badge-soft badge-xs font-mono font-semibold"
+                class="badge badge-primary badge-soft badge-xs shrink-0 whitespace-nowrap font-mono font-semibold"
               >
                 {{ item.avNumber !== undefined ? item.avNumber : item.video.avNumber }}
               </span>
               <span
                 v-if="item.creator"
-                class="badge badge-outline badge-xs text-[11px]"
+                class="badge badge-outline badge-xs max-w-44 overflow-hidden whitespace-nowrap text-[11px]"
+                :title="formatCreatorLabel(item.creator)"
               >
-                {{ item.creator.name ? (item.creator.handle && item.creator.name.toLowerCase() !== item.creator.handle.toLowerCase() ? `${item.creator.name} (@${item.creator.handle})` : item.creator.name) : `@${item.creator.handle}` }}
+                <span class="truncate">{{ formatCreatorLabel(item.creator) }}</span>
               </span>
               <span
                 v-if="item.video.starred"
-                class="badge badge-warning badge-soft badge-xs gap-0.5 font-medium"
+                class="badge badge-warning badge-soft badge-xs shrink-0 gap-0.5 whitespace-nowrap font-medium"
                 title="已收藏（星标）"
               >
                 <Icon :name="I.STAR_FILL" class="text-[11px]" />
@@ -504,41 +505,44 @@
               <span
                 v-for="label in item.video.labels"
                 :key="label.id"
-                class="badge bg-base-content/10 badge-xs border-none text-[11px]"
+                class="badge bg-base-content/10 badge-xs max-w-36 overflow-hidden border-none whitespace-nowrap text-[11px]"
                 :style="label.color ? { backgroundColor: label.color } : undefined"
                 :title="`网盘标签：${label.name}`"
               >
-                {{ label.name }}
+                <span class="truncate">{{ label.name }}</span>
               </span>
               <span
-                v-for="reason in item.reasons"
+                v-for="reason in getVisibleReasons(item)"
                 :key="`${reason.kind}-${reason.label}`"
-                class="badge badge-xs text-[11px]"
+                class="badge badge-xs max-w-44 overflow-hidden whitespace-nowrap text-[11px]"
                 :class="reason.kind === 'actorReverse' || reason.kind === 'creator'
                   ? 'badge-secondary badge-soft font-medium'
-                  : reason.kind === 'folderPath'
-                    ? 'badge-info badge-soft'
-                    : 'badge-ghost'"
+                  : 'badge-ghost'"
+                :title="reason.label"
               >
-                {{ reason.label }}
+                <span class="truncate">{{ reason.label }}</span>
               </span>
             </div>
 
             <div
-              class="text-base-content truncate text-sm font-medium"
+              class="text-base-content min-w-0 truncate text-sm leading-snug font-medium"
               :title="item.javInfo?.title || item.video.name"
             >
               {{ item.javInfo?.title || item.video.name }}
             </div>
 
             <div class="text-base-content/55 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
-              <span v-if="item.javInfo?.title" class="max-w-[360px] truncate" :title="item.video.name">
+              <span
+                v-if="item.javInfo?.title"
+                class="min-w-0 max-w-full truncate sm:max-w-[360px]"
+                :title="item.video.name"
+              >
                 {{ item.video.name }}
               </span>
-              <span v-if="item.video.duration > 0" class="tabular-nums">
+              <span v-if="item.video.duration > 0" class="shrink-0 whitespace-nowrap tabular-nums">
                 {{ formatDuration(item.video.duration) }}
               </span>
-              <span v-if="item.video.size > 0" class="tabular-nums">
+              <span v-if="item.video.size > 0" class="shrink-0 whitespace-nowrap tabular-nums">
                 {{ formatSize(item.video.size) }}
               </span>
             </div>
@@ -547,7 +551,7 @@
           <div class="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              class="btn btn-xs btn-primary rounded-lg"
+              class="btn btn-xs btn-primary shrink-0 rounded-lg"
               title="使用 MASTER 播放器播放"
               @click="playVideo(item.video)"
             >
@@ -556,7 +560,8 @@
             </button>
             <button
               type="button"
-              class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+              class="btn btn-xs btn-ghost w-40 justify-start rounded-lg sm:w-48"
+              :class="hasFolderPathMatch(item) && 'text-info'"
               :title="folderPaths.getTooltip(item.video.cid, '打开视频所在网盘目录')"
               @click="openFolder(item.video)"
             >
@@ -631,7 +636,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-xs btn-ghost max-w-44 rounded-lg sm:max-w-56"
+                  class="btn btn-xs btn-ghost w-40 justify-start rounded-lg sm:w-48"
                   :title="folderPaths.getNativeItemDisplay(item).tooltip"
                   @click="openFolderByCid(item.fc === 0 ? item.cid : item.pid)"
                 >
@@ -1277,6 +1282,22 @@ async function startFolderSync() {
 
 function cancelFolderSync() {
   folderAbortController?.abort()
+}
+
+function formatCreatorLabel(creator: { name?: string, handle?: string }): string {
+  if (!creator.name)
+    return `@${creator.handle ?? ''}`
+  if (creator.handle && creator.name.toLowerCase() !== creator.handle.toLowerCase())
+    return `${creator.name} (@${creator.handle})`
+  return creator.name
+}
+
+function getVisibleReasons(item: (typeof results.value)[number]) {
+  return item.reasons.filter(reason => reason.kind !== 'folderPath')
+}
+
+function hasFolderPathMatch(item: (typeof results.value)[number]): boolean {
+  return item.reasons.some(reason => reason.kind === 'folderPath')
 }
 
 function isMasterApp(): boolean {

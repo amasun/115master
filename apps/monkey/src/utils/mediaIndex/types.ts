@@ -4,6 +4,7 @@ import type {
   IndexProgress,
   VideoIndexSnapshot,
 } from '@/utils/superSearch'
+import type { CustomScrapeMode } from '@/utils/userSettings'
 
 export type {
   IndexedVideo,
@@ -23,7 +24,7 @@ export interface CollectionCustomMeta {
   updatedAt: number
 }
 
-export type LibraryView = 'all' | 'cinema' | 'starred' | 'marked'
+export type LibraryView = 'all' | 'cinema' | 'starred' | 'marked' | `section:${string}`
 
 export type LibrarySortBy = 'mtime' | 'releaseDate' | 'duration' | 'size' | 'title'
 
@@ -90,6 +91,8 @@ export interface LibraryEntry {
   mediaKey: string
   kind: MediaKind
   externalId?: string
+  sectionId?: string
+  customScrapeMode?: CustomScrapeMode
   meta: UnifiedMediaMeta | null
   files: LibraryFileItem[]
   latestMtime: number

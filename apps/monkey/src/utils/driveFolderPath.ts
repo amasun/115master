@@ -51,7 +51,7 @@ export const ROOT_FOLDER_PATH: FolderPathInfo = {
 
 const DEFAULT_STORAGE_KEY = '115Master_folder_path_cache_v1'
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000
-const DEFAULT_MAX_ENTRIES = 5000
+const DEFAULT_MAX_ENTRIES = 20000
 const DEFAULT_MAX_CONCURRENT = 1
 const DEFAULT_DELAY_MS = 400
 const DEFAULT_GLOBAL_BACKOFF_MS = 30_000

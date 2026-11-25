@@ -91,7 +91,7 @@
 - **关键代码**：`apps/monkey/src/utils/jav/{sources,jav321,avBase,mgStage,fc2Official,fanza}.ts`、`apps/monkey/src/utils/mediaIndex/scraperRegistry.ts`、`apps/monkey/src/utils/driveFolderPath.ts`
 
 ### 2.7 跨设备缓存同步与设置/工程增强
-- **跨设备缓存导入导出**：在偏好设置「缓存与数据同步」中支持一键将本地视频索引、刮削元数据、演员个人资料、播放打点、目录路径缓存及自定义封面/头像导出为 JSON 备份，并在其他设备上安全合并导入（按时间戳保留较新数据，即时热刷新影视库）。
+- **跨设备缓存导入导出（`.115bak` 单文件归档）**：在偏好设置「缓存与数据同步」中支持将本地视频索引、JAV 与院线刮削元数据、刮削未命中负缓存、演员个人资料、播放打点、目录路径缓存（2 万条）及可选的自定义封面/头像与海报墙 WebP 缩略图打包为单个 `.115bak` 二进制归档（Manifest gzip 压缩 + Blob 零拷贝拼接，无碎片文件），并在其他设备上安全合并导入（同时兼容旧版 `.json` 备份）。
 - **原生 115 目录跳转版本切换**：支持在偏好设置中选择「打开所在目录」默认跳转到 **新版 115** 或 **旧版 115**（当旧版触发风控刷不出时可无缝切至新版）。
 - **离线图标子集与一键发布工作流**：全量迁移至 Phosphor 图标库并在构建期生成离线 SVG 子集；提供 `pnpm ship` 一键完成暂存提交、rebase、userscript 构建校验与 `v2` 自动发版推送。
 - **关键代码**：`apps/monkey/src/utils/cacheBackup.ts`、`apps/monkey/src/utils/userSettings.ts`、`apps/monkey/src/components/Preferences/PreferencesContent.tsx`、`apps/monkey/plugins/phosphorIcons.ts`、`scripts/push-and-build.mjs`
@@ -100,6 +100,12 @@
 - **无番号目录自动合集**：同一非根目录（自动排除根目录、扫描根目录与受保护通用目录）下存在 `>= 2` 个非院线视频且全部未识别出番号时，自动聚合为单一合集卡片（`collection:<cid>`）在海报墙呈现，优先以父目录名作为合集标题并跳过无意义的番号刮削与同作去重误报。
 - **合集详情与自定义编辑**：点开合集卡片展示「合集视频列表」（支持按文件名、时间、体积、时长排序及直接连播）；支持在线编辑合集标题、简介、标签/题材、关联创作者及自定义封面（接入跨设备缓存备份），并支持一键「拆分为独立视频」与「恢复为目录合集」。
 - **关键代码**：`apps/monkey/src/utils/mediaIndex/libraryAggregator.ts`、`apps/monkey/src/utils/mediaIndex/collectionStore.ts`、`apps/monkey/src/pages/library/detail.vue`、`apps/monkey/src/pages/library/components/PosterCard.vue`
+
+### 2.9 索引目录隔离与自建侧边栏目
+- **AV 与院线双目录选择 + 院线按需开启**：偏好设置中将「AV / 番号影视目录」与「院线影视目录」拆分为独立选择框，院线影视栏目默认隐藏、开启开关后呈现；「全部作品」严格仅展示 AV 与默认库作品，不混入院线及自建栏目内容。
+- **常驻目录入口与侧栏右键菜单**：在「全部作品」「院线影视」与自建栏目顶部栏常驻目录/栏目配置按钮，侧边栏各栏目支持右键快捷配置目录、全量重建或隐藏/删除；同步支持院线剧集按父目录名兜底解析与优先级防覆盖。
+- **用户自建侧边栏目**：支持随时新建自定义侧边栏目，绑定一个或多个 115 目录并独立设定刮削策略（番号刮削、TMDB/豆瓣院线刮削、目录合集、纯本地平铺）。
+- **关键代码**：`apps/monkey/src/utils/userSettings.ts`、`apps/monkey/src/components/CustomSectionDialog/`、`apps/monkey/src/pages/library/components/{LibrarySider,LibraryHeader}.vue`
 
 ---
 

@@ -1,5 +1,5 @@
 import type { AppDialogService } from '@/app/dialog'
-import type { IndexRootFolder } from '@/utils/userSettings'
+import type { IndexRootCategory, IndexRootFolder } from '@/utils/userSettings'
 import { ref } from 'vue'
 import { appDialog } from '@/app/dialog'
 import { normalizeIndexRootFolders, userSettings } from '@/utils/userSettings'
@@ -9,6 +9,7 @@ export interface OpenIndexFolderPickerOptions {
   title?: string
   description?: string
   initialFolders?: ReadonlyArray<IndexRootFolder>
+  fixedCategory?: IndexRootCategory
   confirmText?: string
   cancelText?: string
   dialog?: AppDialogService
@@ -35,6 +36,7 @@ export async function openIndexFolderPicker(
         <IndexFolderPickerContent
           modelValue={selected.value}
           description={options.description}
+          fixedCategory={options.fixedCategory}
           onUpdate:modelValue={(next: IndexRootFolder[]) => {
             selected.value = next
           }}

@@ -2,7 +2,7 @@
 import type { IndexedVideo } from '@/utils/superSearch'
 import { describe, expect, it } from 'vitest'
 import { analyzeDuplicateGroups } from '../deduplicator'
-import { aggregateLibraryEntries } from '../libraryAggregator'
+import { aggregateLibraryEntries, buildLibraryIndex } from '../libraryAggregator'
 
 function makeVideo(overrides: Partial<IndexedVideo> & { fid: string, cid: string, name: string }): IndexedVideo {
   return {
@@ -93,5 +93,31 @@ describe('libraryAggregator auto collection', () => {
 
     const dupGroups = analyzeDuplicateGroups(videos, entries)
     expect(dupGroups).toHaveLength(0)
+  })
+
+  it('isolates all works, cinema, and custom sections by view', () => {
+    const videos = [
+      makeVideo({ fid: '1', cid: 'dir-av', name: 'SSIS-001.mp4', avNumber: 'SSIS-001' }),
+      makeVideo({ fid: '2', cid: 'dir-cin', name: 'Dune.2021.1080p.mp4', libraryCategory: 'cinema' }),
+      makeVideo({ fid: '3', cid: 'dir-sec', name: 'Doc1.mp4', sectionId: 'sec_doc', customScrapeMode: 'folder_collection' }),
+      makeVideo({ fid: '4', cid: 'dir-sec', name: 'Doc2.mp4', sectionId: 'sec_doc', customScrapeMode: 'folder_collection' }),
+      makeVideo({ fid: '5', cid: 'dir-raw', name: 'Personal.mp4', sectionId: 'sec_raw', customScrapeMode: 'none' }),
+    ]
+
+    const entries = aggregateLibraryEntries(videos, new Map(), {})
+    const index = buildLibraryIndex(entries)
+    const baseFilter = {
+      keyword: '',
+      scrapeStatus: 'all' as const,
+      onlyStarred: false,
+      onlyMarked: false,
+      sortBy: 'mtime' as const,
+      sortAsc: false,
+    }
+
+    expect(index.query({ ...baseFilter, view: 'all' }).map(e => e.mediaKey)).toEqual(['jav:SSIS001'])
+    expect(index.query({ ...baseFilter, view: 'cinema' }).map(e => e.mediaKey)).toEqual(['movie:dune:2021'])
+    expect(index.query({ ...baseFilter, view: 'section:sec_doc' }).map(e => e.mediaKey)).toEqual(['collection:dir-sec'])
+    expect(index.query({ ...baseFilter, view: 'section:sec_raw' }).map(e => e.mediaKey)).toEqual(['sec:sec_raw:file:5'])
   })
 })

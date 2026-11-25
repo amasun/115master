@@ -34,6 +34,7 @@
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
           @click="selectAllWorks"
+          @contextmenu.prevent="openNavMenu($event, { kind: 'all' })"
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.LIBRARY" :filled="isAllWorksActive" class="text-lg" />
@@ -42,7 +43,7 @@
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.visibleEntryCount }}</span>
         </button>
       </li>
-      <li>
+      <li v-if="store.enableCinemaLibrary">
         <button
           type="button"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
@@ -50,12 +51,44 @@
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
           @click="selectView('cinema')"
+          @contextmenu.prevent="openNavMenu($event, { kind: 'cinema' })"
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.FILE_VIDEO" :filled="isCinemaActive" class="text-lg" />
             <span>院线影视</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.cinemaCount }}</span>
+        </button>
+      </li>
+      <li
+        v-for="section in store.customSections"
+        :key="section.id"
+      >
+        <button
+          type="button"
+          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          :class="isSectionActive(section.id)
+            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
+            : 'hover:bg-base-content/5 text-base-content/75'"
+          :title="`${section.name}（${scrapeModeLabel(section.scrapeMode)}）`"
+          @click="selectView(`section:${section.id}`)"
+          @contextmenu.prevent="openNavMenu($event, { kind: 'section', sectionId: section.id })"
+        >
+          <span class="flex min-w-0 items-center gap-2.5">
+            <Icon :name="I.FOLDER_OPEN" :filled="isSectionActive(section.id)" class="shrink-0 text-lg" />
+            <span class="truncate">{{ section.name }}</span>
+          </span>
+          <span class="text-base-content/45 shrink-0 text-xs tabular-nums">{{ store.sectionCounts[section.id] ?? 0 }}</span>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="hover:bg-base-content/5 text-base-content/55 hover:text-base-content flex h-8 w-full items-center gap-2 rounded-full border border-transparent px-3.5 text-xs transition-colors"
+          @click="handleCreateCustomSection"
+        >
+          <Icon :name="I.ADD_LINK" class="text-sm" />
+          <span>新建栏目</span>
         </button>
       </li>
       <li>
@@ -369,14 +402,24 @@
         />
       </div>
     </div>
+
+    <ActionMenu
+      aria-label="栏目操作菜单"
+      :groups="navMenuGroups"
+      :open="navMenuOpen"
+      :position="navMenuPosition"
+      @update:open="navMenuOpen = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { ActionMenuGroup } from '@115master/ui'
 import type { LibraryView } from '@/utils/mediaIndex'
-import { Button, Tooltip } from '@115master/ui'
+import type { CustomScrapeMode } from '@/utils/userSettings'
+import { ActionMenu, Button, Tooltip } from '@115master/ui'
 import { format } from '@115master/utils'
-import { computed } from 'vue'
+import { computed, h, shallowRef } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import LogoWordmark from '@/assets/logo-wordmark-inline.svg?component'
 import { useToast } from '@/components'
@@ -419,6 +462,135 @@ const isAllWorksActive = computed(() =>
 const isCinemaActive = computed(() =>
   isWallRoute.value && store.filter.view === 'cinema' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
 )
+function isSectionActive(sectionId: string): boolean {
+  return isWallRoute.value && store.filter.view === `section:${sectionId}` && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel
+}
+function scrapeModeLabel(mode: CustomScrapeMode): string {
+  if (mode === 'jav')
+    return '番号刮削'
+  if (mode === 'cinema')
+    return '院线刮削'
+  if (mode === 'folder_collection')
+    return '目录合集'
+  return '纯本地'
+}
+
+async function handleCreateCustomSection() {
+  const created = await store.createCustomSection()
+  if (created) {
+    toast.success(`已创建栏目「${created.name}」`)
+    ensureLibraryWall()
+  }
+}
+
+type NavMenuTarget = { kind: 'all' } | { kind: 'cinema' } | { kind: 'section', sectionId: string }
+const navMenuOpen = shallowRef(false)
+const navMenuPosition = shallowRef({ x: 0, y: 0 })
+const navMenuTarget = shallowRef<NavMenuTarget | null>(null)
+
+function openNavMenu(event: MouseEvent, target: NavMenuTarget) {
+  navMenuTarget.value = target
+  navMenuPosition.value = { x: event.clientX, y: event.clientY }
+  navMenuOpen.value = true
+}
+
+function menuIcon(name: (typeof I)[keyof typeof I]) {
+  return () => h(Icon, { name, class: 'text-base' })
+}
+
+const navMenuGroups = computed<ActionMenuGroup[]>(() => {
+  const target = navMenuTarget.value
+  if (!target)
+    return []
+
+  if (target.kind === 'all') {
+    return [[
+      {
+        id: 'config-jav-folders',
+        label: '配置 AV 扫描目录',
+        leading: menuIcon(I.FOLDER_OPEN),
+        onSelect: () => {
+          void store.configureCategoryFolders('jav')
+        },
+      },
+      {
+        id: 'resync-all',
+        label: '全量重建索引',
+        leading: menuIcon(I.RESET_ALL),
+        onSelect: () => {
+          void store.syncIndex('full')
+        },
+      },
+    ]]
+  }
+
+  if (target.kind === 'cinema') {
+    return [
+      [
+        {
+          id: 'config-cinema-folders',
+          label: '配置院线扫描目录',
+          leading: menuIcon(I.FOLDER_OPEN),
+          onSelect: () => {
+            void store.configureCategoryFolders('cinema')
+          },
+        },
+        {
+          id: 'resync-cinema',
+          label: '全量重建索引',
+          leading: menuIcon(I.RESET_ALL),
+          onSelect: () => {
+            void store.syncIndex('full')
+          },
+        },
+      ],
+      [
+        {
+          id: 'hide-cinema',
+          label: '隐藏院线影视栏目',
+          leading: menuIcon(I.PREVIEW_OFF),
+          onSelect: () => {
+            store.enableCinemaLibrary = false
+            void store.syncIndex('full')
+          },
+        },
+      ],
+    ]
+  }
+
+  const sectionId = target.sectionId
+  return [
+    [
+      {
+        id: 'edit-section',
+        label: '编辑栏目与刮削规则',
+        leading: menuIcon(I.RENAME),
+        onSelect: () => {
+          void store.editCustomSection(sectionId)
+        },
+      },
+      {
+        id: 'resync-section',
+        label: '全量重建索引',
+        leading: menuIcon(I.RESET_ALL),
+        onSelect: () => {
+          void store.syncIndex('full')
+        },
+      },
+    ],
+    [
+      {
+        id: 'delete-section',
+        label: '删除该栏目',
+        leading: menuIcon(I.DELETE),
+        tone: 'destructive',
+        onSelect: () => {
+          void store.deleteCustomSection(sectionId)
+        },
+      },
+    ],
+  ]
+})
 const isStarredActive = computed(() => isWallRoute.value && store.filter.view === 'starred')
 const isMarkedActive = computed(() => isWallRoute.value && store.filter.view === 'marked')
 

@@ -195,6 +195,23 @@
         </Button>
       </Tooltip>
 
+      <!-- 常驻目录 / 栏目配置入口 -->
+      <Tooltip
+        v-if="!isActors && !isCleanup && !isDetail && headerFolderAction"
+        :content="headerFolderAction.tooltip"
+      >
+        <Button
+          variant="glass-floating"
+          size="sm"
+          class="hidden gap-1.5 rounded-full px-3 text-xs sm:inline-flex"
+          :disabled="store.indexing"
+          @click="headerFolderAction.onClick()"
+        >
+          <Icon :name="I.FOLDER_OPEN" class="text-sm" />
+          <span>{{ headerFolderAction.label }}</span>
+        </Button>
+      </Tooltip>
+
       <!-- 刮削状态徽章 -->
       <span
         v-if="store.scrapingCount > 0 || store.indexing"
@@ -217,6 +234,7 @@ import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
+import { getIndexFoldersByCategory } from '@/utils/userSettings'
 import { buildLibraryBreadcrumbs } from './breadcrumb'
 import { resolveDriveLabelName } from './tagRail'
 import { WALL_PAGE_SIZE_OPTIONS } from './wallPagination'
@@ -336,10 +354,18 @@ const headerCount = computed(() => {
   ).length
 })
 
+const activeCustomSection = computed(() => {
+  if (!store.filter.view.startsWith('section:'))
+    return undefined
+  const id = store.filter.view.slice('section:'.length)
+  return store.customSections.find(sec => sec.id === id)
+})
+
 const breadcrumbs = computed(() =>
   buildLibraryBreadcrumbs({
     routeName: String(route.name ?? 'library'),
     view: store.filter.view,
+    sectionName: activeCustomSection.value?.name,
     actor: store.filter.actor,
     genre: store.filter.genre,
     director: store.filter.director,
@@ -387,6 +413,34 @@ const hideAdTooltip = computed(() => {
   return store.hideAdVideos
     ? `已隐藏疑似广告视频（${rule}${countText}），点击显示全部`
     : `显示全部视频（点击隐藏疑似广告：${rule}${countText}）`
+})
+
+const headerFolderAction = computed(() => {
+  if (store.filter.view === 'cinema') {
+    const count = getIndexFoldersByCategory(store.indexRootFolders, 'cinema').length
+    return {
+      label: count > 0 ? `院线目录 (${count})` : '配置院线目录',
+      tooltip: '设置院线影视扫描与刮削目录（支持多选）',
+      onClick: () => store.configureCategoryFolders('cinema'),
+    }
+  }
+  if (activeCustomSection.value) {
+    const section = activeCustomSection.value
+    return {
+      label: `栏目设置 (${section.folders.length})`,
+      tooltip: `编辑「${section.name}」的目录与刮削模式`,
+      onClick: () => store.editCustomSection(section.id),
+    }
+  }
+  if (store.filter.view === 'all') {
+    const count = getIndexFoldersByCategory(store.indexRootFolders, 'jav').length
+    return {
+      label: count > 0 ? `AV 目录 (${count})` : 'AV 目录 (全盘)',
+      tooltip: '设置「全部作品」AV 扫描与刮削目录（不选默认全盘）',
+      onClick: () => store.configureCategoryFolders('jav'),
+    }
+  }
+  return null
 })
 
 const densityLabel = computed(() => {

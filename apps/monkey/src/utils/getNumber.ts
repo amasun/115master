@@ -256,9 +256,9 @@ export function getAvNumber(filename: string): string | null {
     .replace(/[\u4E00-\u9FA5]+/g, ' | ')
   // 清除日语
     .replace(/[\u3040-\u309F\u30A0-\u30FF]+/g, ' | ')
-  // 电影常用格式/分辨率/编码名称
+  // 电影常用格式/分辨率/帧率/编码名称
     .replace(
-      /(?<![a-z0-9])(?:BDRIP|HDRIP|WEBRIP|WEB[-_.]?DL|BLURAY|BLU-RAY|REMUX|HDR10\+?|HEVC|H\.?26[45]|X26[45]|DVDRIP|HDTV|1080P|2160P|720P|480P|UHD|FHD)(?![a-z0-9])/gi,
+      /(?<![a-z0-9])(?:BDRIP|HDRIP|WEBRIP|WEB[-_.]?DL|BLURAY|BLU-RAY|REMUX|HDR10\+?|HEVC|DVDRIP|HDTV|AV1|VP9|DTS[-_.\s]?HD|(?:FULL[-_.\s]?HD|FHD|UHD|QHD|WQHD|HD|SD)[-_.\s]?(?:4320|2160|1440|1080|720|540|480|360)[pi]?|(?:4320|2160|1440|1080|720|540|480|360)[pi]|(?:H|X)[-_.\s]?26[45]|(?:FPS|FRAME)[-_.\s]?(?:24|25|30|50|60|120)|(?:24|25|30|50|60|120)[-_.\s]?FPS|UHD|FHD)(?![a-z0-9])/gi,
       ' | ',
     )
   // 清除@SIS001@

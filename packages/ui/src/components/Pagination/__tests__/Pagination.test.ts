@@ -71,4 +71,30 @@ describe('pagination surface', () => {
     expect(root.classList).not.toContain('ui-glass-floating')
     expect(root.querySelector('[aria-current="page"]')?.classList).toContain('ui-glass-inset')
   })
+
+  it('renders a quick-jump page selector when showQuickJumper is enabled', () => {
+    const host = document.createElement('div')
+    const changed: number[] = []
+    const app = createApp({
+      setup: () => () => h(Pagination, {
+        currentPage: 1,
+        currentPageSize: 30,
+        total: 90,
+        showSizeChanger: false,
+        showQuickJumper: true,
+        labels,
+        onCurrentPageChange: page => changed.push(page),
+        onPageSizeChange: () => {},
+      }),
+    })
+    app.mount(host)
+    apps.push(app)
+
+    const select = host.querySelector<HTMLSelectElement>('select[aria-label="Jump to page"]')
+    expect(select).not.toBeNull()
+    expect(select?.options).toHaveLength(3)
+    select!.value = '3'
+    select!.dispatchEvent(new Event('change'))
+    expect(changed).toEqual([3])
+  })
 })

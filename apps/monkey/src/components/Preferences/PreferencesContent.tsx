@@ -1,5 +1,6 @@
 import type { PropType } from 'vue'
 import type { IconValue } from '@/icons'
+import type { IndexRootCategory } from '@/utils/userSettings'
 import { GM_info } from '$'
 import { format } from '@115master/utils'
 import { defineComponent, ref, shallowRef } from 'vue'
@@ -10,13 +11,16 @@ import { useDriveListMode } from '@/hooks/useDriveListMode'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import {
-  downloadCacheBackupFile,
-  exportCacheBackup,
-  importCacheBackup,
-  parseCacheBackup,
-  summarizeCacheBackup,
+  downloadCacheArchiveFile,
+  exportCacheArchive,
+  importInspectedBackup,
+  inspectBackupFile,
 } from '@/utils/cacheBackup'
-import { normalizeIndexRootFolders, useUserSetting } from '@/utils/userSettings'
+import {
+  getIndexFoldersByCategory,
+  replaceIndexFoldersForCategory,
+  useUserSetting,
+} from '@/utils/userSettings'
 import AccountPreferences from './AccountPreferences'
 
 /** 分类卡片：使用 UI Glass 表面与统一间距，支持右上角附属徽章与自定义表面样式 */
@@ -173,46 +177,73 @@ const PreferencesContent = defineComponent({
     const enableFanzaSource = useUserSetting('enableFanzaSource')
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
     const indexRootFolders = useUserSetting('indexRootFolders')
+    const enableCinemaLibrary = useUserSetting('enableCinemaLibrary')
     const tmdbApiKey = useUserSetting('tmdbApiKey')
     const backupBusy = shallowRef(false)
-    const backupStatus = shallowRef<{ kind: 'success' | 'error', text: string } | null>(null)
+    const exportIncludeCustomMedia = shallowRef(true)
+    const exportIncludePosterThumbs = shallowRef(false)
+    const backupStatus = shallowRef<{ kind: 'success' | 'error' | 'info', text: string } | null>(null)
     const backupFileInputRef = ref<HTMLInputElement | null>(null)
 
-    const handlePickIndexFolders = async () => {
+    const triggerLibraryResync = () => {
+      try {
+        void useMediaLibraryStore().syncIndex('full')
+      }
+      catch {
+        // 非 Pinia 挂载上下文中忽略即时同步
+      }
+    }
+
+    const handlePickCategoryFolders = async (category: IndexRootCategory) => {
+      const current = getIndexFoldersByCategory(indexRootFolders.value, category)
       const picked = await openIndexFolderPicker({
-        initialFolders: indexRootFolders.value,
+        title: category === 'cinema' ? '选择院线影视目录（可多选）' : '选择 AV / 番号影视目录（可多选）',
+        description: category === 'cinema'
+          ? '选中的目录将归类为「院线影视」，使用 TMDB / 豆瓣刮削电影与剧集。'
+          : '选中的目录将作为「全部作品」AV 扫描范围；不选时默认扫描全盘。',
+        initialFolders: current,
+        fixedCategory: category,
       })
-      if (picked !== null)
-        indexRootFolders.value = picked
+      if (picked === null)
+        return
+      indexRootFolders.value = replaceIndexFoldersForCategory(indexRootFolders.value, category, picked)
+      triggerLibraryResync()
     }
 
-    const handleToggleIndexFolderCategory = (cid: string) => {
-      indexRootFolders.value = normalizeIndexRootFolders(indexRootFolders.value).map(item =>
-        item.cid === cid
-          ? { ...item, category: item.category === 'cinema' ? 'jav' : 'cinema' }
-          : item,
-      )
+    const handleRemoveCategoryFolder = (category: IndexRootCategory, cid: string) => {
+      const next = getIndexFoldersByCategory(indexRootFolders.value, category).filter(item => item.cid !== cid)
+      indexRootFolders.value = replaceIndexFoldersForCategory(indexRootFolders.value, category, next)
+      triggerLibraryResync()
     }
 
-    const handleRemoveIndexFolder = (cid: string) => {
-      indexRootFolders.value = normalizeIndexRootFolders(indexRootFolders.value).filter(item => item.cid !== cid)
-    }
-
-    const handleResetIndexFolders = () => {
-      indexRootFolders.value = []
+    const handleResetCategoryFolders = (category: IndexRootCategory) => {
+      indexRootFolders.value = replaceIndexFoldersForCategory(indexRootFolders.value, category, [])
+      triggerLibraryResync()
     }
 
     const handleExportBackup = async () => {
       if (backupBusy.value)
         return
       backupBusy.value = true
-      backupStatus.value = null
+      backupStatus.value = { kind: 'info', text: '正在准备导出数据…' }
       try {
-        const { payload, stats } = await exportCacheBackup()
-        const { sizeBytes } = downloadCacheBackupFile(payload)
+        const { blob, filename, sizeBytes, stats } = await exportCacheArchive({
+          includeCustomMedia: exportIncludeCustomMedia.value,
+          includePosterThumbs: exportIncludePosterThumbs.value,
+          onProgress: (text) => {
+            backupStatus.value = { kind: 'info', text }
+          },
+        })
+        downloadCacheArchiveFile(blob, filename)
+        const mediaParts: string[] = []
+        if (stats.customCoverCount > 0 || stats.customAvatarCount > 0)
+          mediaParts.push(`自定义媒体 ${stats.customCoverCount + stats.customAvatarCount}`)
+        if (stats.posterThumbCount > 0)
+          mediaParts.push(`缩略图 ${stats.posterThumbCount}`)
+        const mediaSuffix = mediaParts.length > 0 ? ` · ${mediaParts.join(' · ')}` : ''
         backupStatus.value = {
           kind: 'success',
-          text: `已导出：视频 ${stats.videoCount} · 刮削 ${stats.javMetaCount} · 打点 ${stats.markerDocCount} · 目录 ${stats.folderPathCount} (${format.fileSize(sizeBytes)})`,
+          text: `已导出 ${filename}：视频 ${stats.videoCount} · JAV ${stats.javMetaCount} · 院线 ${stats.cinemaMetaCount} · 目录 ${stats.folderPathCount}${mediaSuffix} (${format.fileSize(sizeBytes)})`,
         }
       }
       catch (error) {
@@ -234,27 +265,39 @@ const PreferencesContent = defineComponent({
         return
 
       backupBusy.value = true
-      backupStatus.value = null
+      backupStatus.value = { kind: 'info', text: '正在解析备份文件…' }
       try {
-        const text = await file.text()
-        const payload = parseCacheBackup(text)
-        const preview = summarizeCacheBackup(payload)
+        const inspected = await inspectBackupFile(file)
+        const preview = inspected.stats
+        const mediaLines = inspected.format === 'archive'
+          ? `、自定义封面 ${preview.customCoverCount} 张、自定义头像 ${preview.customAvatarCount} 个、海报缩略图 ${preview.posterThumbCount} 张`
+          : ''
         const confirmed = window.confirm(
-          `确认将备份数据合并导入当前设备吗？\n\n包含：视频索引 ${preview.videoCount} 条、刮削资料 ${preview.javMetaCount} 条、演员资料 ${preview.actorProfileCount} 条、播放打点 ${preview.markerDocCount} 个、目录缓存 ${preview.folderPathCount} 条。\n（将保留较新记录，不会清空现有数据）`,
+          `确认将备份数据合并导入当前设备吗？\n\n包含：视频索引 ${preview.videoCount} 条、JAV 刮削 ${preview.javMetaCount} 条、院线刮削 ${preview.cinemaMetaCount} 条、未命中记录 ${preview.scrapeMissCount} 条、演员资料 ${preview.actorProfileCount} 条、播放打点 ${preview.markerDocCount} 个、目录缓存 ${preview.folderPathCount} 条${mediaLines}。\n（将保留较新记录，不会清空现有数据）`,
         )
-        if (!confirmed)
+        if (!confirmed) {
+          backupStatus.value = null
           return
+        }
 
-        const stats = await importCacheBackup(payload, { mode: 'merge' })
+        const stats = await importInspectedBackup(inspected, {
+          mode: 'merge',
+          onProgress: (text) => {
+            backupStatus.value = { kind: 'info', text }
+          },
+        })
         try {
           await useMediaLibraryStore().reloadFromCache()
         }
         catch {
           // 非 Pinia 挂载上下文中忽略即时 store 刷新
         }
+        const importedMediaSuffix = (stats.customCoverCount + stats.customAvatarCount + stats.posterThumbCount) > 0
+          ? ` · 图片 ${stats.customCoverCount + stats.customAvatarCount + stats.posterThumbCount}`
+          : ''
         backupStatus.value = {
           kind: 'success',
-          text: `导入完成：视频 ${stats.videoCount} · 刮削 ${stats.javMetaCount} · 打点 ${stats.markerDocCount} · 目录 ${stats.folderPathCount}`,
+          text: `导入完成：视频 ${stats.videoCount} · JAV ${stats.javMetaCount} · 院线 ${stats.cinemaMetaCount} · 打点 ${stats.markerDocCount} · 目录 ${stats.folderPathCount}${importedMediaSuffix}`,
         }
       }
       catch (error) {
@@ -442,92 +485,184 @@ const PreferencesContent = defineComponent({
             </div>
           </Card>
 
-          <Card title="索引与刮削目录" hint="限定影视库与超级搜索的扫描范围，未选择时默认全盘" icon={I.FOLDER_OPEN}>
-            <div class="flex flex-col gap-2.5">
-              {indexRootFolders.value.length > 0
-                ? (
-                    <div class="flex flex-wrap gap-1.5">
-                      {indexRootFolders.value.map(folder => (
-                        <span
-                          key={folder.cid}
-                          class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-1.5 text-[11px]"
-                          title={folder.path}
-                        >
-                          <button
-                            type="button"
-                            class={[
-                              'badge badge-xs cursor-pointer border-none font-semibold',
-                              folder.category === 'cinema' ? 'badge-secondary' : 'badge-primary',
-                            ]}
-                            title="点击切换 AV / 院线影视"
-                            onClick={() => handleToggleIndexFolderCategory(folder.cid)}
+          <Card title="索引与刮削目录" hint="分别配置 AV 与院线影视目录，修改后将自动重新同步" icon={I.FOLDER_OPEN}>
+            <div class="flex flex-col gap-3">
+              {/* AV / 番号影视目录 */}
+              <div class="border-base-content/10 bg-base-100/35 flex flex-col gap-2 rounded-xl border p-2.5">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                  <span class="text-base-content font-medium">AV / 番号影视目录</span>
+                  <span class="text-base-content/50 text-[11px]">
+                    {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0
+                      ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'jav').length} 个`
+                      : '全盘扫描'}
+                  </span>
+                </div>
+                {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0
+                  ? (
+                      <div class="flex flex-wrap gap-1.5">
+                        {getIndexFoldersByCategory(indexRootFolders.value, 'jav').map(folder => (
+                          <span
+                            key={folder.cid}
+                            class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                            title={folder.path}
                           >
-                            {folder.category === 'cinema' ? '院线' : 'AV'}
-                          </button>
-                          <span class="max-w-28 truncate">{folder.name}</span>
-                          <button
-                            type="button"
-                            class="hover:bg-primary/20 rounded-full p-0.5"
-                            aria-label={`移除 ${folder.name}`}
-                            onClick={() => handleRemoveIndexFolder(folder.cid)}
-                          >
-                            <Icon name={I.CLOSE} size="xs" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )
-                : (
-                    <p class="text-base-content/60 text-xs">
-                      当前范围：全盘（根目录，默认 AV）
-                    </p>
-                  )}
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-soft btn-primary flex-1 gap-1.5 rounded-xl"
-                  onClick={handlePickIndexFolders}
-                >
-                  <Icon name={I.FOLDER_OPEN} size="sm" />
-                  <span>选择目录（多选）</span>
-                </button>
-                {indexRootFolders.value.length > 0 && (
+                            <span class="max-w-32 truncate">{folder.name}</span>
+                            <button
+                              type="button"
+                              class="hover:bg-primary/20 rounded-full p-0.5"
+                              aria-label={`移除 ${folder.name}`}
+                              onClick={() => handleRemoveCategoryFolder('jav', folder.cid)}
+                            >
+                              <Icon name={I.CLOSE} size="xs" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )
+                  : (
+                      <p class="text-base-content/55 text-[11px]">
+                        未指定目录时默认扫描全盘（仅归入「全部作品」）。
+                      </p>
+                    )}
+                <div class="flex gap-2">
                   <button
                     type="button"
-                    class="btn btn-sm btn-ghost rounded-xl"
-                    onClick={handleResetIndexFolders}
+                    class="btn btn-xs btn-soft btn-primary flex-1 gap-1.5 rounded-lg"
+                    onClick={() => handlePickCategoryFolders('jav')}
                   >
-                    恢复全盘
+                    <Icon name={I.FOLDER_OPEN} size="xs" />
+                    <span>选择 AV 目录</span>
                   </button>
-                )}
-              </div>
-              <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
-                <div class="flex items-center justify-between gap-2 text-xs">
-                  <span class="text-base-content/80 font-medium">TMDB API Key（院线影视）</span>
-                  <span class="text-base-content/45 text-[11px]">留空走豆瓣免 Key 兜底</span>
+                  {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0 && (
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost rounded-lg"
+                      onClick={() => handleResetCategoryFolders('jav')}
+                    >
+                      恢复全盘
+                    </button>
+                  )}
                 </div>
-                <input
-                  id="tmdb-api-key-input"
-                  type="password"
-                  autocomplete="off"
-                  placeholder="可选，支持 v3 API Key 或 v4 Read Token"
-                  class="input input-bordered input-xs bg-base-100/80 w-full rounded-xl font-mono"
-                  value={tmdbApiKey.value}
-                  onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
-                />
-              </label>
+              </div>
+
+              {/* 启用院线影视栏目开关 */}
+              <SettingToggle
+                icon={I.FILE_VIDEO}
+                label="启用院线影视栏目"
+                description="开启后在侧边栏显示「院线影视」，支持 TMDB / 豆瓣电影剧集刮削"
+                modelValue={enableCinemaLibrary.value}
+                onUpdate:modelValue={(value) => {
+                  enableCinemaLibrary.value = value
+                  triggerLibraryResync()
+                }}
+              />
+
+              {/* 院线影视目录（开启后展示） */}
+              {enableCinemaLibrary.value && (
+                <div class="border-base-content/10 bg-base-100/35 flex flex-col gap-2 rounded-xl border p-2.5">
+                  <div class="flex items-center justify-between gap-2 text-xs">
+                    <span class="text-base-content font-medium">院线影视目录</span>
+                    <span class="text-base-content/50 text-[11px]">
+                      {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0
+                        ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length} 个`
+                        : '未配置'}
+                    </span>
+                  </div>
+                  {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0
+                    ? (
+                        <div class="flex flex-wrap gap-1.5">
+                          {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').map(folder => (
+                            <span
+                              key={folder.cid}
+                              class="badge badge-secondary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                              title={folder.path}
+                            >
+                              <span class="max-w-32 truncate">{folder.name}</span>
+                              <button
+                                type="button"
+                                class="hover:bg-secondary/20 rounded-full p-0.5"
+                                aria-label={`移除 ${folder.name}`}
+                                onClick={() => handleRemoveCategoryFolder('cinema', folder.cid)}
+                              >
+                                <Icon name={I.CLOSE} size="xs" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    : (
+                        <p class="text-base-content/55 text-[11px]">
+                          请选择存放电影或剧集的 115 目录，避免与 AV 混在一起。
+                        </p>
+                      )}
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-soft btn-secondary flex-1 gap-1.5 rounded-lg"
+                      onClick={() => handlePickCategoryFolders('cinema')}
+                    >
+                      <Icon name={I.FOLDER_OPEN} size="xs" />
+                      <span>选择院线目录</span>
+                    </button>
+                    {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0 && (
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-ghost rounded-lg"
+                        onClick={() => handleResetCategoryFolders('cinema')}
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
+                  <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-base-content/80 font-medium">TMDB API Key（可选）</span>
+                      <span class="text-base-content/45 text-[11px]">留空走豆瓣免 Key 兜底</span>
+                    </div>
+                    <input
+                      id="tmdb-api-key-input"
+                      type="password"
+                      autocomplete="off"
+                      placeholder="支持 v3 API Key 或 v4 Read Token"
+                      class="input input-bordered input-xs bg-base-100/80 w-full rounded-xl font-mono"
+                      value={tmdbApiKey.value}
+                      onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           </Card>
 
-          <Card title="缓存与数据同步" hint="跨设备导出/导入刮削资料、网盘索引与打点" icon={I.SORT_DATABASE}>
+          <Card title="缓存与数据同步" hint="打包为单文件 .115bak 跨设备迁移（导入兼容旧 .json）" icon={I.SORT_DATABASE}>
             <input
               ref={backupFileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".115bak,.json,application/json"
               class="hidden"
               onChange={handleImportBackup}
             />
-            <div class="flex gap-2">
+            <div class="flex flex-col gap-1.5 text-xs">
+              <label class="text-base-content/80 flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-xs checkbox-primary"
+                  checked={exportIncludeCustomMedia.value}
+                  onChange={event => exportIncludeCustomMedia.value = (event.target as HTMLInputElement).checked}
+                />
+                <span>包含自定义封面与头像</span>
+              </label>
+              <label class="text-base-content/80 flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-xs checkbox-primary"
+                  checked={exportIncludePosterThumbs.value}
+                  onChange={event => exportIncludePosterThumbs.value = (event.target as HTMLInputElement).checked}
+                />
+                <span>包含海报墙缩略图缓存（体积较大，新设备秒开海报墙）</span>
+              </label>
+            </div>
+            <div class="flex gap-2 pt-1">
               <button
                 type="button"
                 class="btn btn-sm btn-soft btn-primary flex-1 gap-1.5 rounded-xl"
@@ -535,7 +670,7 @@ const PreferencesContent = defineComponent({
                 onClick={handleExportBackup}
               >
                 <Icon name={I.EXPORT} size="sm" />
-                <span>{backupBusy.value ? '处理中...' : '导出备份'}</span>
+                <span>{backupBusy.value ? '处理中...' : '导出 .115bak'}</span>
               </button>
               <button
                 type="button"
@@ -551,7 +686,11 @@ const PreferencesContent = defineComponent({
               <p
                 class={[
                   'text-[11px] leading-4',
-                  backupStatus.value.kind === 'error' ? 'text-error' : 'text-success',
+                  backupStatus.value.kind === 'error'
+                    ? 'text-error'
+                    : backupStatus.value.kind === 'info'
+                      ? 'text-info'
+                      : 'text-success',
                 ]}
               >
                 {backupStatus.value.text}

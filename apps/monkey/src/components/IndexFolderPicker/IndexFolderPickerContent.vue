@@ -10,7 +10,9 @@
         <span class="text-base-content/70 font-medium">
           已选扫描目录
           <strong class="text-base-content tabular-nums">{{ modelValue.length }}</strong>
-          <span v-if="modelValue.length === 0" class="text-base-content/50 font-normal">（不选将默认扫描全盘）</span>
+          <span v-if="modelValue.length === 0" class="text-base-content/50 font-normal">
+            {{ fixedCategory === 'cinema' ? '（未选择院线目录）' : '（不选将默认扫描全盘）' }}
+          </span>
         </span>
         <button
           v-if="modelValue.length > 0"
@@ -18,7 +20,7 @@
           class="btn btn-ghost btn-xs text-base-content/65 hover:text-error rounded-lg"
           @click="clearSelected"
         >
-          清空（恢复全盘）
+          {{ fixedCategory === 'cinema' ? '清空' : '清空（恢复全盘）' }}
         </button>
       </div>
 
@@ -31,6 +33,7 @@
             :title="folder.path"
           >
             <button
+              v-if="!fixedCategory"
               type="button"
               class="badge badge-xs cursor-pointer border-none font-semibold transition-colors"
               :class="folder.category === 'cinema' ? 'badge-secondary' : 'badge-primary'"
@@ -51,7 +54,7 @@
             </button>
           </span>
         </div>
-        <p class="text-base-content/50 text-[11px]">
+        <p v-if="!fixedCategory" class="text-base-content/50 text-[11px]">
           点击已选目录上的「AV / 院线」可手动切换刮削类型（默认 AV）
         </p>
       </div>
@@ -158,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import type { IndexRootFolder } from '@/utils/userSettings'
+import type { IndexRootCategory, IndexRootFolder } from '@/utils/userSettings'
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { I, Icon } from '@/icons'
 import { drive115 } from '@/utils/drive115Instance'
@@ -177,6 +180,7 @@ interface BreadcrumbItem {
 const props = defineProps<{
   modelValue: IndexRootFolder[]
   description?: string
+  fixedCategory?: IndexRootCategory
 }>()
 
 const emit = defineEmits<{
@@ -294,7 +298,7 @@ function toggleFolder(folder: FolderItem) {
   }
   emit('update:modelValue', [
     ...props.modelValue,
-    { cid: folder.cid, name: folder.name, path: folder.path, category: 'jav' },
+    { cid: folder.cid, name: folder.name, path: folder.path, category: props.fixedCategory ?? 'jav' },
   ])
 }
 

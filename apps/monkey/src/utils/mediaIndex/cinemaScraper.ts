@@ -339,10 +339,11 @@ async function scrapeFromDouban(params: {
 export async function scrapeCinemaMetaDetailed(params: {
   mediaKey: string
   filename: string
+  folderName?: string
   customQuery?: string
   kindHint?: 'movie' | 'tv'
 }): Promise<ScrapeResult> {
-  const parsed = parseCinemaTitle(params.customQuery?.trim() || params.filename)
+  const parsed = parseCinemaTitle(params.customQuery?.trim() || params.filename, params.folderName)
   const mediaType = params.kindHint ?? parsed.mediaType
   const apiKey = userSettings.value.tmdbApiKey.trim()
 

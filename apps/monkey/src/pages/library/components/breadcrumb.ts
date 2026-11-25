@@ -19,6 +19,7 @@ export interface LibraryBreadcrumbItem {
 export interface LibraryBreadcrumbContext {
   routeName: string
   view: LibraryView
+  sectionName?: string
   actor?: string
   genre?: string
   director?: string
@@ -28,7 +29,7 @@ export interface LibraryBreadcrumbContext {
   count?: number
 }
 
-const VIEW_LABELS: Record<Exclude<LibraryView, 'all'>, string> = {
+const VIEW_LABELS: Record<'cinema' | 'starred' | 'marked', string> = {
   cinema: '院线影视',
   starred: '星标收藏',
   marked: '有打点',
@@ -89,9 +90,12 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
 
   if (ctx.view !== 'all') {
     kept.push('view')
+    const viewLabel = ctx.view.startsWith('section:')
+      ? (ctx.sectionName || '自建栏目')
+      : VIEW_LABELS[ctx.view as 'cinema' | 'starred' | 'marked']
     items.push({
       key: `view:${ctx.view}`,
-      label: VIEW_LABELS[ctx.view],
+      label: viewLabel,
       current: false,
       target: { kind: 'scope', keep: [...kept] },
     })

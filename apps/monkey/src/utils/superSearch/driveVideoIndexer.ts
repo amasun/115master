@@ -1,11 +1,11 @@
 import type { Share } from '@115master/drive115'
 import type { IndexedVideo, IndexedVideoLabel, IndexProgress, VideoIndexSnapshot } from './types'
-import type { IndexRootCategory } from '@/utils/userSettings'
+import type { IndexRootCategory, RootScanTarget } from '@/utils/userSettings'
 import { drive115 } from '@/utils/drive115Instance'
 import { folderPathResolver } from '@/utils/driveFolderPath'
 import { appLogger } from '@/utils/logger'
 import { parseMediaIdentity } from '@/utils/mediaIdentity'
-import { getConfiguredIndexRootCategoryMap, getConfiguredIndexRootCids } from '@/utils/userSettings'
+import { buildRootScanPlan } from '@/utils/userSettings'
 import { loadVideoIndexSnapshot, saveVideoIndexSnapshot } from './videoIndexStore'
 
 const logger = appLogger.sub('DriveVideoIndexer')
@@ -20,6 +20,10 @@ export interface SyncVideoIndexOptions {
   rootCids?: string[]
   /** 各根目录对应的库分类（'jav' | 'cinema'），默认读取用户设置 */
   rootCategories?: ReadonlyMap<string, IndexRootCategory>
+  /** 带优先级的扫描目标列表（优先级越高越后扫，且不被低优先级覆盖） */
+  scanTargets?: RootScanTarget[]
+  /** 根目录与栏目配置签名 */
+  rootConfigSignature?: string
   /** 同步模式：incremental 仅拉取比上次更新的文件，full 全量重建 */
   mode?: 'full' | 'incremental'
   /** 取消信号 */
@@ -128,7 +132,7 @@ function parseDriveTimestamp(value: number | string | undefined): number {
 /** 将 115 文件项转换为轻量的 IndexedVideo 记录 */
 export function toIndexedVideo(
   item: Share.Entity.FilesItem | RawDriveFileItem,
-  libraryCategory?: IndexRootCategory,
+  targetOrCategory?: IndexRootCategory | Pick<RootScanTarget, 'category' | 'sectionId' | 'customScrapeMode'>,
 ): IndexedVideo | null {
   const raw: RawDriveFileItem = item
   if (raw.fc === 0 || raw.fc === '0')
@@ -136,10 +140,14 @@ export function toIndexedVideo(
   if (!raw.fid || !raw.pc || !raw.n)
     return null
 
+  const target = typeof targetOrCategory === 'string'
+    ? { category: targetOrCategory }
+    : (targetOrCategory ?? { category: 'jav' as IndexRootCategory })
   const cid = String(raw.pid || raw.cid || '0')
-  const isCinema = libraryCategory === 'cinema'
-  const folder = !isCinema && cid !== '0' ? folderPathResolver.getCached(cid) : null
-  const identity = isCinema
+  const isCinema = target.category === 'cinema' || target.customScrapeMode === 'cinema'
+  const skipIdentity = isCinema || target.customScrapeMode === 'folder_collection' || target.customScrapeMode === 'none'
+  const folder = !skipIdentity && cid !== '0' ? folderPathResolver.getCached(cid) : null
+  const identity = skipIdentity
     ? { platform: 'unknown' as const, avNumber: null, creator: undefined }
     : parseMediaIdentity(raw.n, folder)
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
@@ -161,6 +169,8 @@ export function toIndexedVideo(
     avNumber: identity.avNumber,
     ...(identity.platform !== 'unknown' ? { platform: identity.platform } : {}),
     ...(isCinema ? { libraryCategory: 'cinema' } : {}),
+    ...(target.sectionId ? { sectionId: target.sectionId } : {}),
+    ...(target.customScrapeMode ? { customScrapeMode: target.customScrapeMode } : {}),
     ...(identity.creator ? { creator: identity.creator } : {}),
     size,
     duration: Number(raw.play_long) || 0,
@@ -185,13 +195,32 @@ export async function syncDriveVideoIndex(
   options: SyncVideoIndexOptions = {},
 ): Promise<VideoIndexSnapshot> {
   const existing = await loadVideoIndexSnapshot()
-  const configuredRootCids = getConfiguredIndexRootCids()
-  const rootCategories = options.rootCategories ?? getConfiguredIndexRootCategoryMap()
-  const rootCids = options.rootCids?.length
-    ? Array.from(new Set(options.rootCids))
-    : (configuredRootCids.length > 0 ? configuredRootCids : ['0'])
-  const rootChanged = Boolean(existing && !hasSameRootCids(existing.rootCids, rootCids))
-  const canIncremental = options.mode === 'incremental' && Boolean(existing && existing.items.length > 0) && !rootChanged
+  const defaultPlan = buildRootScanPlan()
+  const scanTargets: RootScanTarget[] = options.scanTargets?.length
+    ? [...options.scanTargets].sort((a, b) => a.priority - b.priority)
+    : options.rootCids?.length
+      ? Array.from(new Set(options.rootCids)).map((cid) => {
+          const category = options.rootCategories?.get(cid) ?? 'jav'
+          return { cid, category, priority: category === 'cinema' ? 2 : (cid === '0' ? 0 : 1) }
+        }).sort((a, b) => a.priority - b.priority)
+      : defaultPlan.targets
+
+  const rootCids = Array.from(new Set(scanTargets.map(target => target.cid)))
+  const rootConfigSignature = options.rootConfigSignature
+    ?? (options.scanTargets?.length
+      ? scanTargets.map(t => `${t.cid}:${t.category}:${t.sectionId ?? ''}:${t.customScrapeMode ?? ''}`).join('|')
+      : options.rootCids?.length
+        ? scanTargets.map(t => `${t.cid}:${t.category}::`).join('|')
+        : defaultPlan.signature)
+
+  const configChanged = Boolean(
+    existing && (
+      !hasSameRootCids(existing.rootCids, rootCids)
+      || (existing.rootConfigSignature !== undefined && existing.rootConfigSignature !== rootConfigSignature)
+      || (existing.rootConfigSignature === undefined && scanTargets.some(t => t.category === 'cinema' || Boolean(t.sectionId)))
+    ),
+  )
+  const canIncremental = options.mode === 'incremental' && Boolean(existing && existing.items.length > 0) && !configChanged
   const mode: 'full' | 'incremental' = canIncremental ? 'incremental' : 'full'
   const lastSyncSec = canIncremental && existing ? Math.floor(existing.lastSyncAt / 1000) : 0
   const cutoffSec = lastSyncSec > 0 ? Math.max(0, lastSyncSec - 300) : 0
@@ -200,6 +229,7 @@ export async function syncDriveVideoIndex(
   logger.info('开始同步网盘视频索引', { mode, rootCids })
 
   const byFid = new Map<string, IndexedVideo>()
+  const fidPriority = new Map<string, number>()
   const existingFids = new Set<string>()
   if (mode === 'incremental' && existing) {
     for (const item of existing.items) {
@@ -212,8 +242,8 @@ export async function syncDriveVideoIndex(
   let fetched = 0
   let total = 0
 
-  for (const rootCid of rootCids) {
-    const rootCategory = rootCategories.get(rootCid) ?? 'jav'
+  for (const target of scanTargets) {
+    const rootCid = target.cid
     let offset = 0
     let dirTotal = 0
     while (true) {
@@ -250,10 +280,14 @@ export async function syncDriveVideoIndex(
 
       let lastValidRecord: IndexedVideo | null = null
       for (const raw of list) {
-        const record = toIndexedVideo(raw, rootCategory)
+        const record = toIndexedVideo(raw, target)
         if (!record)
           continue
-        byFid.set(record.fid, record)
+        const prevPriority = fidPriority.get(record.fid)
+        if (prevPriority === undefined || target.priority >= prevPriority) {
+          byFid.set(record.fid, record)
+          fidPriority.set(record.fid, target.priority)
+        }
         lastValidRecord = record
         fetched += 1
       }
@@ -291,6 +325,7 @@ export async function syncDriveVideoIndex(
   const snapshot: VideoIndexSnapshot = {
     schemaVersion: 1,
     rootCids,
+    rootConfigSignature,
     lastFullSyncAt: mode === 'full' ? now : (existing?.lastFullSyncAt ?? now),
     lastSyncAt: now,
     items,

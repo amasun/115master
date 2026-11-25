@@ -19,9 +19,12 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 const {
+  buildRootScanPlan,
   getConfiguredIndexRootCategoryMap,
   getConfiguredIndexRootCids,
+  getIndexFoldersByCategory,
   normalizeIndexRootFolders,
+  replaceIndexFoldersForCategory,
   userSettings,
   useUserSetting,
 } = await import('../userSettings')
@@ -93,5 +96,45 @@ describe('useUserSetting', () => {
       ['123', 'jav'],
       ['456', 'cinema'],
     ]))
+
+    const javOnly = getIndexFoldersByCategory(normalized, 'jav')
+    expect(javOnly.map(f => f.cid)).toEqual(['123'])
+
+    const replacedCinema = replaceIndexFoldersForCategory(normalized, 'cinema', [
+      { cid: '789', name: '新院线', path: '新院线', category: 'jav' },
+    ])
+    expect(replacedCinema).toEqual([
+      { cid: '123', name: '影视库', path: '根目录 / 影视库', category: 'jav' },
+      { cid: '789', name: '新院线', path: '新院线', category: 'cinema' },
+    ])
+
+    const planDisabled = buildRootScanPlan({
+      indexRootFolders: replacedCinema,
+      enableCinemaLibrary: false,
+      customSections: [
+        {
+          id: 'sec_doc',
+          name: '纪录片',
+          scrapeMode: 'folder_collection',
+          folders: [{ cid: '901', name: 'BBC', path: 'BBC', category: 'jav' }],
+          createdAt: 1,
+        },
+      ],
+    })
+    expect(planDisabled.targets.map(t => `${t.cid}:${t.category}:${t.sectionId ?? ''}:${t.priority}`)).toEqual([
+      '123:jav::1',
+      '901:jav:sec_doc:3',
+    ])
+
+    const planEnabled = buildRootScanPlan({
+      indexRootFolders: replacedCinema,
+      enableCinemaLibrary: true,
+      customSections: [],
+    })
+    expect(planEnabled.targets.map(t => `${t.cid}:${t.category}:${t.priority}`)).toEqual([
+      '123:jav:1',
+      '789:cinema:2',
+    ])
+    expect(planEnabled.signature).not.toBe(planDisabled.signature)
   })
 })

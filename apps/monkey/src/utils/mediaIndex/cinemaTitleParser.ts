@@ -30,12 +30,13 @@ function preferPrimaryTitle(cleaned: string): string {
 }
 
 /**
- * 解析电影 / 剧集文件名，提取干净片名、年份、类型与剧集号
+ * 解析电影 / 剧集文件名，提取干净片名、年份、类型与剧集号；
+ * 当文件名仅含集数/纯数字（如 S01E01.mkv、01.mp4）且提供了父目录名时，自动回退解析父目录名。
  */
-export function parseCinemaTitle(rawInput: string): ParsedCinemaTitle {
+export function parseCinemaTitle(rawInput: string, fallbackFolderName?: string): ParsedCinemaTitle {
   let working = rawInput
     .normalize('NFKC')
-    .replace(/\.[^./\\]{2,5}$/, '')
+    .replace(/\.(?!\d{4}$)[^./\\]{2,5}$/, '')
     .replace(DOMAIN_BRACKET_RE, ' ')
     .replace(LEADING_DOMAIN_RE, '')
     .trim()
@@ -91,9 +92,27 @@ export function parseCinemaTitle(rawInput: string): ParsedCinemaTitle {
     .replace(CN_NOISE_TAG_RE, ' ')
     .replace(/[[【(（]\s*[\]】)）]/g, ' ')
     .replace(/[._]+/g, ' ')
-    .replace(/\s*-\s*$/g, '')
+    .replace(/[\s\-([【（]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+
+  const bareStem = working.replace(/[\s\-()（）[\]【】]+/g, '')
+  const needsFolderFallback = Boolean(
+    fallbackFolderName?.trim()
+    && (!bareStem || /^\d{1,4}$/.test(bareStem)),
+  )
+
+  if (needsFolderFallback && fallbackFolderName) {
+    const folderParsed = parseCinemaTitle(fallbackFolderName)
+    return {
+      title: folderParsed.title,
+      ...(year ?? folderParsed.year ? { year: year ?? folderParsed.year } : {}),
+      mediaType: mediaType === 'tv' || /^\d{1,4}$/.test(bareStem) ? 'tv' : folderParsed.mediaType,
+      ...(season !== undefined ? { season } : folderParsed.season !== undefined ? { season: folderParsed.season } : {}),
+      ...(episode !== undefined ? { episode } : /^\d{1,4}$/.test(bareStem) ? { episode: Number(bareStem) } : {}),
+      normalizedKey: folderParsed.normalizedKey,
+    }
+  }
 
   const title = preferPrimaryTitle(working) || rawInput.replace(/\.[^./\\]{2,5}$/, '').trim()
   const normalizedKey = normalizeCinemaKey(title) || normalizeCinemaKey(rawInput) || 'unknown'

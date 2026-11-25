@@ -25,13 +25,47 @@ vi.mock('@/utils/mediaIndex/actorProfileFetcher', () => ({
   },
 }))
 
+vi.mock('@/utils/mediaIndex/cinemaScraper', () => ({
+  cinemaCache: {
+    storage: { iterate: vi.fn() },
+    get: vi.fn(),
+    set: vi.fn(),
+  },
+}))
+
+vi.mock('@/utils/mediaIndex/videoIndexStore', () => ({
+  customMediaCache: {
+    storage: { iterate: vi.fn() },
+    get: vi.fn(),
+  },
+  posterThumbCache: {
+    storage: { iterate: vi.fn() },
+    get: vi.fn(),
+    set: vi.fn(),
+  },
+  scrapeMissCache: {
+    storage: { iterate: vi.fn() },
+    get: vi.fn(),
+    set: vi.fn(),
+  },
+  saveCustomCover: vi.fn(),
+  saveCustomAvatar: vi.fn(),
+}))
+
 const {
   CACHE_BACKUP_SCHEMA_VERSION,
+  inspectBackupFile,
   mergeMarkerDocs,
   mergeVideoIndexSnapshots,
   parseCacheBackup,
   summarizeCacheBackup,
 } = await import('../cacheBackup')
+
+const {
+  encodeBackupArchive,
+  peekBackupArchive,
+  readArchiveBlob,
+} = await import('../cacheBackupArchive')
 
 function makeSnapshot(partial: Partial<VideoIndexSnapshot> = {}): VideoIndexSnapshot {
   return {
@@ -62,12 +96,17 @@ describe('cacheBackup', () => {
     expect(summarizeCacheBackup(payload)).toEqual({
       videoCount: 1,
       javMetaCount: 1,
+      cinemaMetaCount: 0,
+      scrapeMissCount: 0,
       actorWorksCount: 0,
       actorProfileCount: 0,
       markerDocCount: 0,
       folderPathCount: 0,
       hasUserSettings: false,
       libraryPrefCount: 0,
+      customCoverCount: 0,
+      customAvatarCount: 0,
+      posterThumbCount: 0,
     })
   })
 
@@ -134,5 +173,83 @@ describe('cacheBackup', () => {
       'm2:local-only',
       'm3:incoming-only',
     ])
+  })
+
+  it('encodes and peeks .115bak archive with multiple binary blobs and inspects both formats', async () => {
+    const thumbBytes = new Uint8Array([1, 2, 3, 4, 5])
+    const avatarBytes = new Uint8Array([9, 8, 7, 6])
+    const archive = await encodeBackupArchive(
+      {
+        exportedAt: 20261125,
+        appVersion: '2.7.50',
+        data: {
+          cinemaMeta: {
+            'movie:test:2024': {
+              mediaKey: 'movie:test:2024',
+              kind: 'movie',
+              externalId: '123',
+              title: 'Test Movie',
+              directors: [],
+              actors: [],
+              genres: [],
+              source: 'tmdb',
+              updatedAt: 1000,
+            },
+          },
+          scrapeMisses: {
+            'jav:MISS001': {
+              avNumber: 'MISS-001',
+              missedAt: 1000,
+              expiresAt: Date.now() + 60_000,
+            },
+          },
+        },
+      },
+      [
+        {
+          kind: 'posterThumb',
+          key: 'jav:SSIS001',
+          blob: new Blob([thumbBytes], { type: 'image/webp' }),
+        },
+        {
+          kind: 'customAvatar',
+          key: 'actor:a',
+          blob: new Blob([avatarBytes], { type: 'image/jpeg' }),
+          sourceLabel: 'local',
+          updatedAt: 1234,
+        },
+      ],
+      { compress: false },
+    )
+
+    const { manifest, blobSectionOffset } = await peekBackupArchive<{ cinemaMeta?: Record<string, unknown> }>(archive)
+    expect(manifest.schemaVersion).toBe(2)
+    expect(manifest.blobs).toHaveLength(2)
+    expect(manifest.data.cinemaMeta).toHaveProperty('movie:test:2024')
+
+    const extractedThumb = new Uint8Array(
+      await readArchiveBlob(archive, blobSectionOffset, manifest.blobs[0]).arrayBuffer(),
+    )
+    const extractedAvatar = new Uint8Array(
+      await readArchiveBlob(archive, blobSectionOffset, manifest.blobs[1]).arrayBuffer(),
+    )
+    expect(Array.from(extractedThumb)).toEqual(Array.from(thumbBytes))
+    expect(Array.from(extractedAvatar)).toEqual(Array.from(avatarBytes))
+
+    const inspectedArchive = await inspectBackupFile(archive)
+    expect(inspectedArchive.format).toBe('archive')
+    expect(inspectedArchive.stats.cinemaMetaCount).toBe(1)
+    expect(inspectedArchive.stats.scrapeMissCount).toBe(1)
+    expect(inspectedArchive.stats.posterThumbCount).toBe(1)
+    expect(inspectedArchive.stats.customAvatarCount).toBe(1)
+
+    const legacyJsonBlob = new Blob([JSON.stringify({
+      schemaVersion: 1,
+      exportedAt: 1000,
+      data: { javMeta: { 'SSIS-001': { avNumber: 'SSIS-001', title: 'Legacy' } } },
+    })], { type: 'application/json' })
+    const inspectedJson = await inspectBackupFile(legacyJsonBlob)
+    expect(inspectedJson.format).toBe('json')
+    expect(inspectedJson.stats.javMetaCount).toBe(1)
   })
 })

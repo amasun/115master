@@ -16,9 +16,11 @@ import type {
   UnifiedMediaMeta,
 } from '@/utils/mediaIndex'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
+import type { IndexRootCategory } from '@/utils/userSettings'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { openCustomSectionDialog } from '@/components/CustomSectionDialog'
 import { openIndexFolderPicker } from '@/components/IndexFolderPicker'
 import {
   clampWallPage,
@@ -71,9 +73,12 @@ import {
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
 import { getAllCachedActorWorks } from '@/utils/superSearch'
 import {
-  getConfiguredIndexRootCategoryMap,
+  buildRootScanPlan,
   getConfiguredIndexRootCids,
+  getIndexFoldersByCategory,
+  normalizeCustomSections,
   normalizeIndexRootFolders,
+  replaceIndexFoldersForCategory,
   useUserSetting,
 } from '@/utils/userSettings'
 
@@ -189,6 +194,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const ungroupedCollectionCids = useStorage<string[]>(UNGROUPED_COLLECTION_CIDS_STORAGE_KEY, [])
   const ungroupedCollectionCidSet = computed(() => new Set(ungroupedCollectionCids.value))
   const indexRootFolders = useUserSetting('indexRootFolders')
+  const enableCinemaLibrary = useUserSetting('enableCinemaLibrary')
+  const customSections = useUserSetting('customSections')
+
+  watch(enableCinemaLibrary, (enabled) => {
+    if (!enabled && filter.view === 'cinema')
+      filter.view = 'all'
+  })
   const scrollTop = shallowRef(0)
   const tagRailOpen = ref(false)
   const actorAvatars = shallowRef<Record<string, string>>({})
@@ -404,8 +416,12 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     syncController = controller
 
     const resolvedMode = videos.value.length > 0 ? mode : 'full'
-    const targetRootCids = overrideRootCids ?? getConfiguredIndexRootCids(indexRootFolders.value)
-    const rootCategories = getConfiguredIndexRootCategoryMap(indexRootFolders.value)
+    const scanPlan = buildRootScanPlan({
+      indexRootFolders: indexRootFolders.value,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
+    const targetRootCids = overrideRootCids ?? scanPlan.rootCids
     indexing.value = true
     indexError.value = null
     indexProgress.value = {
@@ -419,8 +435,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
         syncDriveVideoIndex({
           mode: resolvedMode,
-          rootCids: targetRootCids,
-          rootCategories,
+          ...(overrideRootCids ? { rootCids: targetRootCids } : { scanTargets: scanPlan.targets, rootConfigSignature: scanPlan.signature }),
           signal: controller.signal,
           onProgress: (progress) => {
             indexProgress.value = progress
@@ -531,21 +546,101 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   }
 
   async function configureIndexRootFolders(options: { resyncIfChanged?: boolean } = {}) {
-    const prevMap = getConfiguredIndexRootCategoryMap(indexRootFolders.value)
-    const prevCids = getConfiguredIndexRootCids(indexRootFolders.value)
+    const prevPlan = buildRootScanPlan({
+      indexRootFolders: indexRootFolders.value,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
     const picked = await openIndexFolderPicker({
       initialFolders: indexRootFolders.value,
     })
     if (picked === null)
       return false
     indexRootFolders.value = picked
-    const nextMap = getConfiguredIndexRootCategoryMap(picked)
-    const nextCids = getConfiguredIndexRootCids(picked)
-    const changed = prevCids.length !== nextCids.length
-      || prevCids.some(cid => !nextCids.includes(cid) || prevMap.get(cid) !== nextMap.get(cid))
-    if (changed && options.resyncIfChanged !== false)
-      await syncIndex('full', nextCids)
+    const nextPlan = buildRootScanPlan({
+      indexRootFolders: picked,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
+    if (prevPlan.signature !== nextPlan.signature && options.resyncIfChanged !== false)
+      await syncIndex('full')
     return true
+  }
+
+  async function configureCategoryFolders(
+    category: IndexRootCategory,
+    options: { resyncIfChanged?: boolean } = {},
+  ) {
+    const prevPlan = buildRootScanPlan({
+      indexRootFolders: indexRootFolders.value,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
+    const initialCategoryFolders = getIndexFoldersByCategory(indexRootFolders.value, category)
+    const picked = await openIndexFolderPicker({
+      title: category === 'cinema' ? '选择院线影视目录（可多选）' : '选择 AV / 番号影视目录（可多选）',
+      description: category === 'cinema'
+        ? '选中的目录将归类为「院线影视」，使用 TMDB / 豆瓣刮削电影与剧集。'
+        : '选中的目录将作为「全部作品」AV 扫描范围；不选时默认扫描全盘。',
+      initialFolders: initialCategoryFolders,
+      fixedCategory: category,
+    })
+    if (picked === null)
+      return false
+    const merged = replaceIndexFoldersForCategory(indexRootFolders.value, category, picked)
+    indexRootFolders.value = merged
+    const nextPlan = buildRootScanPlan({
+      indexRootFolders: merged,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
+    if (prevPlan.signature !== nextPlan.signature && options.resyncIfChanged !== false)
+      await syncIndex('full')
+    return true
+  }
+
+  async function createCustomSection() {
+    const created = await openCustomSectionDialog()
+    if (!created)
+      return null
+    customSections.value = [...normalizeCustomSections(customSections.value), created]
+    await syncIndex('full')
+    filter.view = `section:${created.id}`
+    return created
+  }
+
+  async function editCustomSection(sectionId: string) {
+    const current = normalizeCustomSections(customSections.value).find(sec => sec.id === sectionId)
+    if (!current)
+      return false
+    const prevPlan = buildRootScanPlan({
+      indexRootFolders: indexRootFolders.value,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: customSections.value,
+    })
+    const updated = await openCustomSectionDialog({ initialSection: current })
+    if (!updated)
+      return false
+    const nextList = normalizeCustomSections(customSections.value).map(sec =>
+      sec.id === sectionId ? updated : sec,
+    )
+    customSections.value = nextList
+    const nextPlan = buildRootScanPlan({
+      indexRootFolders: indexRootFolders.value,
+      enableCinemaLibrary: enableCinemaLibrary.value,
+      customSections: nextList,
+    })
+    if (prevPlan.signature !== nextPlan.signature)
+      await syncIndex('full')
+    return true
+  }
+
+  async function deleteCustomSection(sectionId: string) {
+    const nextList = normalizeCustomSections(customSections.value).filter(sec => sec.id !== sectionId)
+    customSections.value = nextList
+    if (filter.view === `section:${sectionId}`)
+      filter.view = 'all'
+    await syncIndex('full')
   }
 
   async function reloadFromCache() {
@@ -670,14 +765,20 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   }
 
   function isScrapableEntry(entry: LibraryEntry): boolean {
+    if (entry.kind === 'collection')
+      return false
+    if (entry.customScrapeMode === 'folder_collection' || entry.customScrapeMode === 'none')
+      return false
     return (entry.kind === 'jav' && Boolean(entry.externalId)) || isCinemaEntry(entry)
   }
 
   function scrapeEntryByKind(entry: LibraryEntry, customQuery?: string): Promise<ScrapeResult> {
     if (isCinemaEntry(entry)) {
+      const folderName = folderPathResolver.getCached(entry.files[0]?.cid ?? '')?.name
       return scrapeCinemaMetaDetailed({
         mediaKey: entry.mediaKey,
         filename: entry.files[0]?.name ?? '',
+        ...(folderName ? { folderName } : {}),
         customQuery,
         kindHint: entry.kind as 'movie' | 'tv',
       })
@@ -792,11 +893,20 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       : entries.value,
   )
   const visibleEntryCount = computed(() =>
-    visibleEntries.value.filter(entry => !isCinemaEntry(entry)).length,
+    visibleEntries.value.filter(entry => !isCinemaEntry(entry) && !entry.sectionId).length,
   )
   const cinemaCount = computed(() =>
-    visibleEntries.value.filter(entry => isCinemaEntry(entry)).length,
+    visibleEntries.value.filter(entry => isCinemaEntry(entry) && !entry.sectionId).length,
   )
+  const sectionCounts = computed<Record<string, number>>(() => {
+    const counts: Record<string, number> = {}
+    for (const entry of visibleEntries.value) {
+      if (!entry.sectionId)
+        continue
+      counts[entry.sectionId] = (counts[entry.sectionId] ?? 0) + 1
+    }
+    return counts
+  })
 
   function commitAdThresholds(next?: { maxDurationSec?: unknown, maxSizeMB?: unknown, matchMode?: unknown }) {
     const duration = clampAdMaxDurationSec(
@@ -1436,6 +1546,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     adEntryCount,
     visibleEntryCount,
     cinemaCount,
+    sectionCounts,
     commitAdThresholds,
     hiddenActorKeys,
     hiddenActorKeySet,
@@ -1467,7 +1578,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     init,
     syncIndex,
     indexRootFolders,
+    enableCinemaLibrary,
+    customSections,
     configureIndexRootFolders,
+    configureCategoryFolders,
+    createCustomSection,
+    editCustomSection,
+    deleteCustomSection,
     scheduleOfflineIncrementalSync,
     refreshLocalContext,
     reloadFromCache,

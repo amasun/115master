@@ -10,12 +10,33 @@ export type NativeFolderTarget = 'new' | 'legacy'
 /** 索引与刮削目录归属分类 */
 export type IndexRootCategory = 'jav' | 'cinema'
 
+/** 自建侧边栏目专属刮削模式 */
+export type CustomScrapeMode = 'jav' | 'cinema' | 'folder_collection' | 'none'
+
 /** 索引与刮削根目录项 */
 export interface IndexRootFolder {
   cid: string
   name: string
   path: string
   category?: IndexRootCategory
+}
+
+/** 用户自建侧边栏目 */
+export interface CustomLibrarySection {
+  id: string
+  name: string
+  folders: IndexRootFolder[]
+  scrapeMode: CustomScrapeMode
+  createdAt: number
+}
+
+/** 索引扫描目标（带优先级与栏目归属） */
+export interface RootScanTarget {
+  cid: string
+  category: IndexRootCategory
+  sectionId?: string
+  customScrapeMode?: CustomScrapeMode
+  priority: number
 }
 
 /** 用户设置接口 */
@@ -40,6 +61,10 @@ export interface Settings {
   nativeFolderTarget: NativeFolderTarget
   /** 指定索引与刮削根目录（空数组表示全盘） */
   indexRootFolders: IndexRootFolder[]
+  /** 是否在侧边栏启用「院线影视」栏目（默认关闭） */
+  enableCinemaLibrary: boolean
+  /** 用户自建侧边栏目列表 */
+  customSections: CustomLibrarySection[]
   /** TMDB API Key（可选，支持 v3 Key 或 v4 Bearer Token；留空时自动用豆瓣免 Key 兜底） */
   tmdbApiKey: string
   /** 主题模式：跟随系统 / 浅色 / 深色 */
@@ -60,6 +85,8 @@ const DEFAULT_SETTINGS: Settings = {
   enableFanzaSource: false,
   nativeFolderTarget: 'new',
   indexRootFolders: [],
+  enableCinemaLibrary: false,
+  customSections: [],
   tmdbApiKey: '',
   theme: 'system',
 }
@@ -238,6 +265,117 @@ export function getConfiguredIndexRootCategoryMap(
   for (const folder of normalizeIndexRootFolders(folders))
     map.set(folder.cid, folder.category ?? 'jav')
   return map
+}
+
+/** 按分类筛选索引根目录 */
+export function getIndexFoldersByCategory(
+  folders: ReadonlyArray<IndexRootFolder>,
+  category: IndexRootCategory,
+): IndexRootFolder[] {
+  return normalizeIndexRootFolders(folders).filter(
+    folder => (folder.category ?? 'jav') === category,
+  )
+}
+
+/** 仅替换指定分类的索引根目录，保留其他分类配置 */
+export function replaceIndexFoldersForCategory(
+  allFolders: ReadonlyArray<IndexRootFolder>,
+  category: IndexRootCategory,
+  nextCategoryFolders: ReadonlyArray<IndexRootFolder>,
+): IndexRootFolder[] {
+  const others = normalizeIndexRootFolders(allFolders).filter(
+    folder => (folder.category ?? 'jav') !== category,
+  )
+  const replaced = normalizeIndexRootFolders(
+    nextCategoryFolders.map(folder => ({ ...folder, category })),
+  )
+  return normalizeIndexRootFolders([...others, ...replaced])
+}
+
+/** 规范化用户自建侧边栏目列表 */
+export function normalizeCustomSections(raw: unknown): CustomLibrarySection[] {
+  if (!Array.isArray(raw))
+    return []
+
+  const seenIds = new Set<string>()
+  const validModes = new Set<CustomScrapeMode>(['jav', 'cinema', 'folder_collection', 'none'])
+  const result: CustomLibrarySection[] = []
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object')
+      continue
+    const record = item as Partial<CustomLibrarySection>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    const name = typeof record.name === 'string' ? record.name.trim() : ''
+    if (!id || !name || seenIds.has(id))
+      continue
+    seenIds.add(id)
+    const scrapeMode: CustomScrapeMode = validModes.has(record.scrapeMode as CustomScrapeMode)
+      ? (record.scrapeMode as CustomScrapeMode)
+      : 'none'
+    const folderCategory: IndexRootCategory = scrapeMode === 'cinema' ? 'cinema' : 'jav'
+    const folders = normalizeIndexRootFolders(record.folders).map(folder => ({
+      ...folder,
+      category: folderCategory,
+    }))
+    if (folders.length === 0)
+      continue
+    result.push({
+      id,
+      name,
+      folders,
+      scrapeMode,
+      createdAt: typeof record.createdAt === 'number' ? record.createdAt : Date.now(),
+    })
+  }
+  return result
+}
+
+/** 构建带优先级与配置签名的索引扫描计划（低优先级全盘/AV 先扫，院线与自建栏目后扫且不被覆盖） */
+export function buildRootScanPlan(
+  config: Pick<Settings, 'indexRootFolders' | 'enableCinemaLibrary' | 'customSections'> = userSettings.value,
+): {
+  targets: RootScanTarget[]
+  rootCids: string[]
+  signature: string
+} {
+  const javFolders = getIndexFoldersByCategory(config.indexRootFolders, 'jav')
+  const cinemaFolders = config.enableCinemaLibrary
+    ? getIndexFoldersByCategory(config.indexRootFolders, 'cinema')
+    : []
+  const sections = normalizeCustomSections(config.customSections)
+
+  const targets: RootScanTarget[] = []
+  if (javFolders.length > 0) {
+    for (const folder of javFolders)
+      targets.push({ cid: folder.cid, category: 'jav', priority: 1 })
+  }
+  else {
+    targets.push({ cid: '0', category: 'jav', priority: 0 })
+  }
+
+  for (const folder of cinemaFolders)
+    targets.push({ cid: folder.cid, category: 'cinema', priority: 2 })
+
+  for (const section of sections) {
+    const category: IndexRootCategory = section.scrapeMode === 'cinema' ? 'cinema' : 'jav'
+    for (const folder of section.folders) {
+      targets.push({
+        cid: folder.cid,
+        category,
+        sectionId: section.id,
+        customScrapeMode: section.scrapeMode,
+        priority: 3,
+      })
+    }
+  }
+
+  const rootCids = Array.from(new Set(targets.map(t => t.cid)))
+  const signature = targets
+    .map(t => `${t.cid}:${t.category}:${t.sectionId ?? ''}:${t.customScrapeMode ?? ''}`)
+    .join('|')
+
+  return { targets, rootCids, signature }
 }
 
 /** 根据用户设置构造原生 115 目录跳转链接 */

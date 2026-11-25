@@ -1,17 +1,35 @@
 import type { CacheValue } from '@115master/shared'
+import type { ArchiveBlobDescriptor, ArchiveBlobInput, CacheBackupArchiveManifest } from './cacheBackupArchive'
 import type { FolderPathInfo } from '@/utils/driveFolderPath'
 import type { JavInfo } from '@/utils/jav/jav'
 import type { MarkerDoc } from '@/utils/markers/types'
 import type { ActorProfile } from '@/utils/mediaIndex/actorProfileFetcher'
+import type { UnifiedMediaMeta } from '@/utils/mediaIndex/types'
+import type { CustomAvatarRecord, CustomCoverRecord, CustomMediaRecord, ScrapeMissEntry } from '@/utils/mediaIndex/videoIndexStore'
 import type { ActorWorksCacheEntry, IndexedVideo, VideoIndexSnapshot } from '@/utils/superSearch/types'
 import type { Settings } from '@/utils/userSettings'
 import { javCache } from '@/utils/cache/javCache'
 import { markerStore } from '@/utils/cache/markerStore'
 import { folderPathResolver } from '@/utils/driveFolderPath'
 import { actorProfileCache } from '@/utils/mediaIndex/actorProfileFetcher'
+import { cinemaCache } from '@/utils/mediaIndex/cinemaScraper'
+import {
+  customMediaCache,
+  posterThumbCache,
+  saveCustomAvatar,
+  saveCustomCover,
+  scrapeMissCache,
+} from '@/utils/mediaIndex/videoIndexStore'
 import { getAllCachedActorWorks, saveActorWorks } from '@/utils/superSearch/actorWorksStore'
 import { loadVideoIndexSnapshot, saveVideoIndexSnapshot } from '@/utils/superSearch/videoIndexStore'
 import { userSettings } from '@/utils/userSettings'
+import {
+  ARCHIVE_MAGIC,
+  encodeBackupArchive,
+  isBackupArchiveBuffer,
+  peekBackupArchive,
+  readArchiveBlob,
+} from './cacheBackupArchive'
 
 export const CACHE_BACKUP_SCHEMA_VERSION = 1
 
@@ -20,6 +38,8 @@ export type ImportCacheMode = 'merge' | 'overwrite'
 export interface CacheBackupData {
   videoIndex?: VideoIndexSnapshot | null
   javMeta?: Record<string, JavInfo>
+  cinemaMeta?: Record<string, UnifiedMediaMeta>
+  scrapeMisses?: Record<string, ScrapeMissEntry>
   actorWorks?: ActorWorksCacheEntry[]
   actorProfiles?: Record<string, ActorProfile>
   markers?: Record<string, MarkerDoc>
@@ -38,16 +58,21 @@ export interface CacheBackupPayload {
 export interface CacheBackupStats {
   videoCount: number
   javMetaCount: number
+  cinemaMetaCount: number
+  scrapeMissCount: number
   actorWorksCount: number
   actorProfileCount: number
   markerDocCount: number
   folderPathCount: number
   hasUserSettings: boolean
   libraryPrefCount: number
+  customCoverCount: number
+  customAvatarCount: number
+  posterThumbCount: number
 }
 
 const FOLDER_PATH_STORAGE_KEY = '115Master_folder_path_cache_v1'
-const MAX_FOLDER_PATH_ENTRIES = 2000
+const MAX_FOLDER_PATH_ENTRIES = 20000
 
 const LIBRARY_PREF_KEYS = [
   '115Master_library_hidden_actors',
@@ -137,17 +162,37 @@ export function mergeMarkerDocs(
 }
 
 /** 统计备份文件内各类数据条数 */
-export function summarizeCacheBackup(payload: CacheBackupPayload): CacheBackupStats {
+export function summarizeCacheBackup(
+  payload: Pick<CacheBackupPayload, 'data'>,
+  blobs: readonly Pick<ArchiveBlobDescriptor, 'kind'>[] = [],
+): CacheBackupStats {
   const { data } = payload
+  let customCoverCount = 0
+  let customAvatarCount = 0
+  let posterThumbCount = 0
+  for (const blob of blobs) {
+    if (blob.kind === 'customCoverThumb')
+      customCoverCount += 1
+    else if (blob.kind === 'customAvatar')
+      customAvatarCount += 1
+    else if (blob.kind === 'posterThumb')
+      posterThumbCount += 1
+  }
+
   return {
     videoCount: data.videoIndex?.items?.length ?? 0,
     javMetaCount: data.javMeta ? Object.keys(data.javMeta).length : 0,
+    cinemaMetaCount: data.cinemaMeta ? Object.keys(data.cinemaMeta).length : 0,
+    scrapeMissCount: data.scrapeMisses ? Object.keys(data.scrapeMisses).length : 0,
     actorWorksCount: data.actorWorks?.length ?? 0,
     actorProfileCount: data.actorProfiles ? Object.keys(data.actorProfiles).length : 0,
     markerDocCount: data.markers ? Object.keys(data.markers).length : 0,
     folderPathCount: data.folderPaths?.length ?? 0,
     hasUserSettings: Boolean(data.userSettings && Object.keys(data.userSettings).length > 0),
     libraryPrefCount: data.libraryPrefs ? Object.keys(data.libraryPrefs).length : 0,
+    customCoverCount,
+    customAvatarCount,
+    posterThumbCount,
   }
 }
 
@@ -183,6 +228,25 @@ async function readAllJavMetaRecord(): Promise<Record<string, JavInfo>> {
   const result: Record<string, JavInfo> = {}
   await javCache.storage.iterate<CacheValue<JavInfo> | null, void>((entry: CacheValue<JavInfo> | null, key: string) => {
     if (entry?.value)
+      result[key] = entry.value
+  })
+  return result
+}
+
+async function readAllCinemaMetaRecord(): Promise<Record<string, UnifiedMediaMeta>> {
+  const result: Record<string, UnifiedMediaMeta> = {}
+  await cinemaCache.storage.iterate<CacheValue<UnifiedMediaMeta> | null, void>((entry: CacheValue<UnifiedMediaMeta> | null, key: string) => {
+    if (entry?.value)
+      result[key] = entry.value
+  })
+  return result
+}
+
+async function readAllScrapeMissRecord(): Promise<Record<string, ScrapeMissEntry>> {
+  const result: Record<string, ScrapeMissEntry> = {}
+  const now = Date.now()
+  await scrapeMissCache.storage.iterate<CacheValue<ScrapeMissEntry> | null, void>((entry: CacheValue<ScrapeMissEntry> | null, key: string) => {
+    if (entry?.value && entry.value.expiresAt > now)
       result[key] = entry.value
   })
   return result
@@ -226,9 +290,11 @@ function readLibraryPrefsFromStorage(): Record<string, string> {
 
 /** 导出当前设备上的全部影视库与脚本缓存数据 */
 export async function exportCacheBackup(): Promise<{ payload: CacheBackupPayload, stats: CacheBackupStats }> {
-  const [videoIndex, javMeta, actorWorks, actorProfiles, markers] = await Promise.all([
+  const [videoIndex, javMeta, cinemaMeta, scrapeMisses, actorWorks, actorProfiles, markers] = await Promise.all([
     loadVideoIndexSnapshot(),
     readAllJavMetaRecord(),
+    readAllCinemaMetaRecord(),
+    readAllScrapeMissRecord(),
     getAllCachedActorWorks(),
     readAllActorProfilesRecord(),
     markerStore.getAllDocs(),
@@ -244,6 +310,8 @@ export async function exportCacheBackup(): Promise<{ payload: CacheBackupPayload
     data: {
       videoIndex,
       javMeta,
+      cinemaMeta,
+      scrapeMisses,
       actorWorks,
       actorProfiles,
       markers,
@@ -259,19 +327,15 @@ export async function exportCacheBackup(): Promise<{ payload: CacheBackupPayload
   }
 }
 
-function formatBackupFilename(timestamp: number): string {
+function formatBackupFilename(timestamp: number, ext: 'json' | '115bak' = '115bak'): string {
   const d = new Date(timestamp)
   const pad = (n: number) => String(n).padStart(2, '0')
   const datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
   const timePart = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
-  return `115master-cache-backup-${datePart}-${timePart}.json`
+  return `115master-cache-backup-${datePart}-${timePart}.${ext}`
 }
 
-/** 触发浏览器下载备份 JSON 文件 */
-export function downloadCacheBackupFile(payload: CacheBackupPayload): { filename: string, sizeBytes: number } {
-  const json = JSON.stringify(payload)
-  const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
-  const filename = formatBackupFilename(payload.exportedAt)
+function triggerBlobDownload(blob: Blob, filename: string): { filename: string, sizeBytes: number } {
   const url = URL.createObjectURL(blob)
 
   const link = document.createElement('a')
@@ -284,6 +348,149 @@ export function downloadCacheBackupFile(payload: CacheBackupPayload): { filename
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 
   return { filename, sizeBytes: blob.size }
+}
+
+/** 触发浏览器下载备份 JSON 文件 */
+export function downloadCacheBackupFile(payload: CacheBackupPayload): { filename: string, sizeBytes: number } {
+  const json = JSON.stringify(payload)
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+  return triggerBlobDownload(blob, formatBackupFilename(payload.exportedAt, 'json'))
+}
+
+/** 触发浏览器下载 .115bak 单文件归档 */
+export function downloadCacheArchiveFile(blob: Blob, filename: string): { filename: string, sizeBytes: number } {
+  return triggerBlobDownload(blob, filename)
+}
+
+/** 导出包含文字缓存与可选图片资源的单个 .115bak 二进制归档 */
+export async function exportCacheArchive(options: {
+  includeCustomMedia?: boolean
+  includePosterThumbs?: boolean
+  onProgress?: (text: string) => void
+} = {}): Promise<{ blob: Blob, filename: string, sizeBytes: number, stats: CacheBackupStats }> {
+  const includeCustomMedia = options.includeCustomMedia !== false
+  const includePosterThumbs = options.includePosterThumbs === true
+
+  options.onProgress?.('正在收集索引与刮削元数据…')
+  const { payload } = await exportCacheBackup()
+  const blobInputs: ArchiveBlobInput[] = []
+  const customCoverKeys = new Set<string>()
+
+  if (includeCustomMedia) {
+    options.onProgress?.('正在收集自定义封面与头像…')
+    await customMediaCache.storage.iterate<CacheValue<CustomMediaRecord> | null, void>((entry: CacheValue<CustomMediaRecord> | null) => {
+      const record = entry?.value
+      if (!record)
+        return
+      if (record.kind === 'cover' && record.mediaKey) {
+        customCoverKeys.add(record.mediaKey)
+        if (record.thumbBlob instanceof Blob && record.thumbBlob.size > 0) {
+          blobInputs.push({
+            kind: 'customCoverThumb',
+            key: record.mediaKey,
+            blob: record.thumbBlob,
+            sourceLabel: record.sourceLabel,
+            updatedAt: record.updatedAt,
+          })
+        }
+        if (record.fullBlob instanceof Blob && record.fullBlob.size > 0) {
+          blobInputs.push({
+            kind: 'customCoverFull',
+            key: record.mediaKey,
+            blob: record.fullBlob,
+            sourceLabel: record.sourceLabel,
+            updatedAt: record.updatedAt,
+          })
+        }
+        return
+      }
+      if (record.kind === 'avatar' && record.actorKey && record.blob instanceof Blob && record.blob.size > 0) {
+        blobInputs.push({
+          kind: 'customAvatar',
+          key: record.actorKey,
+          blob: record.blob,
+          sourceLabel: record.sourceLabel,
+          updatedAt: record.updatedAt,
+        })
+      }
+    })
+  }
+
+  if (includePosterThumbs) {
+    options.onProgress?.('正在收集海报墙缩略图缓存…')
+    await posterThumbCache.storage.iterate<CacheValue<Blob> | null, void>((entry: CacheValue<Blob> | null, key: string) => {
+      const val = entry?.value
+      if (!(val instanceof Blob) || val.size <= 0)
+        return
+      if (customCoverKeys.has(key))
+        return
+      blobInputs.push({
+        kind: 'posterThumb',
+        key,
+        blob: val,
+      })
+    })
+  }
+
+  options.onProgress?.(`正在打包归档（${blobInputs.length} 个图片资源）…`)
+  const blob = await encodeBackupArchive(
+    {
+      exportedAt: payload.exportedAt,
+      appVersion: payload.appVersion,
+      data: payload.data,
+    },
+    blobInputs,
+  )
+
+  const descriptorSummary = blobInputs.map(item => ({ kind: item.kind }))
+  const stats = summarizeCacheBackup(payload, descriptorSummary)
+  const filename = formatBackupFilename(payload.exportedAt, '115bak')
+
+  return {
+    blob,
+    filename,
+    sizeBytes: blob.size,
+    stats,
+  }
+}
+
+export type InspectedBackupFile
+  = | {
+    format: 'json'
+    payload: CacheBackupPayload
+    stats: CacheBackupStats
+  }
+  | {
+    format: 'archive'
+    file: Blob
+    manifest: CacheBackupArchiveManifest<CacheBackupData>
+    blobSectionOffset: number
+    stats: CacheBackupStats
+  }
+
+/** 识别并预览 .115bak 或旧版 .json 备份文件 */
+export async function inspectBackupFile(file: Blob): Promise<InspectedBackupFile> {
+  const headerSlice = file.slice(0, ARCHIVE_MAGIC.length)
+  const headerBytes = new Uint8Array(await headerSlice.arrayBuffer())
+  if (isBackupArchiveBuffer(headerBytes)) {
+    const { manifest, blobSectionOffset } = await peekBackupArchive<CacheBackupData>(file)
+    const stats = summarizeCacheBackup({ data: manifest.data }, manifest.blobs)
+    return {
+      format: 'archive',
+      file,
+      manifest,
+      blobSectionOffset,
+      stats,
+    }
+  }
+
+  const text = await file.text()
+  const payload = parseCacheBackup(text)
+  return {
+    format: 'json',
+    payload,
+    stats: summarizeCacheBackup(payload),
+  }
 }
 
 /** 将备份数据注入当前设备缓存（默认合并保留较新记录） */
@@ -314,6 +521,45 @@ export async function importCacheBackup(
               return
           }
           await javCache.set(key, info)
+        }),
+      )
+    }
+  }
+
+  if (data.cinemaMeta && typeof data.cinemaMeta === 'object') {
+    const entries = Object.entries(data.cinemaMeta)
+    for (let i = 0; i < entries.length; i += 50) {
+      const batch = entries.slice(i, i + 50)
+      await Promise.all(
+        batch.map(async ([key, meta]) => {
+          if (!meta)
+            return
+          if (mode === 'merge') {
+            const existing = await cinemaCache.get(key)
+            if (existing?.value && (existing.value.updatedAt ?? 0) >= (meta.updatedAt ?? 0))
+              return
+          }
+          await cinemaCache.set(key, meta)
+        }),
+      )
+    }
+  }
+
+  if (data.scrapeMisses && typeof data.scrapeMisses === 'object') {
+    const now = Date.now()
+    const entries = Object.entries(data.scrapeMisses)
+    for (let i = 0; i < entries.length; i += 50) {
+      const batch = entries.slice(i, i + 50)
+      await Promise.all(
+        batch.map(async ([key, miss]) => {
+          if (!miss || miss.expiresAt <= now)
+            return
+          if (mode === 'merge') {
+            const existing = await scrapeMissCache.get(key)
+            if (existing?.value && existing.value.missedAt >= miss.missedAt)
+              return
+          }
+          await scrapeMissCache.set(key, miss)
         }),
       )
     }
@@ -398,4 +644,131 @@ export async function importCacheBackup(
   }
 
   return summarizeCacheBackup(payload)
+}
+
+/** 将已解析的 .115bak 或 .json 备份导入当前设备 */
+export async function importInspectedBackup(
+  inspected: InspectedBackupFile,
+  options: {
+    mode?: ImportCacheMode
+    onProgress?: (text: string) => void
+  } = {},
+): Promise<CacheBackupStats> {
+  const mode = options.mode ?? 'merge'
+  if (inspected.format === 'json') {
+    options.onProgress?.('正在写入索引与元数据…')
+    return importCacheBackup(inspected.payload, { mode })
+  }
+
+  const { file, manifest, blobSectionOffset } = inspected
+  options.onProgress?.('正在写入索引与刮削元数据…')
+  await importCacheBackup(
+    {
+      schemaVersion: CACHE_BACKUP_SCHEMA_VERSION,
+      exportedAt: manifest.exportedAt,
+      appVersion: manifest.appVersion,
+      data: manifest.data,
+    },
+    { mode },
+  )
+
+  const coverParts = new Map<string, {
+    thumb?: ArchiveBlobDescriptor
+    full?: ArchiveBlobDescriptor
+  }>()
+  const avatars: ArchiveBlobDescriptor[] = []
+  const posterThumbs: ArchiveBlobDescriptor[] = []
+
+  for (const descriptor of manifest.blobs) {
+    if (descriptor.kind === 'customCoverThumb' || descriptor.kind === 'customCoverFull') {
+      const pair = coverParts.get(descriptor.key) ?? {}
+      if (descriptor.kind === 'customCoverThumb')
+        pair.thumb = descriptor
+      else
+        pair.full = descriptor
+      coverParts.set(descriptor.key, pair)
+      continue
+    }
+    if (descriptor.kind === 'customAvatar') {
+      avatars.push(descriptor)
+      continue
+    }
+    if (descriptor.kind === 'posterThumb')
+      posterThumbs.push(descriptor)
+  }
+
+  const coverEntries = Array.from(coverParts.entries())
+  if (coverEntries.length > 0) {
+    options.onProgress?.(`正在恢复自定义封面（${coverEntries.length} 部）…`)
+    for (let i = 0; i < coverEntries.length; i += 20) {
+      const batch = coverEntries.slice(i, i + 20)
+      await Promise.all(
+        batch.map(async ([mediaKey, pair]) => {
+          const thumbDesc = pair.thumb ?? pair.full
+          const fullDesc = pair.full ?? pair.thumb
+          if (!thumbDesc || !fullDesc)
+            return
+          if (mode === 'merge') {
+            const existing = await customMediaCache.get(`cover:${mediaKey}`)
+            if (existing?.value)
+              return
+          }
+          const record: CustomCoverRecord = {
+            kind: 'cover',
+            mediaKey,
+            thumbBlob: readArchiveBlob(file, blobSectionOffset, thumbDesc),
+            fullBlob: readArchiveBlob(file, blobSectionOffset, fullDesc),
+            sourceLabel: fullDesc.sourceLabel ?? thumbDesc.sourceLabel ?? '备份导入',
+            updatedAt: fullDesc.updatedAt ?? thumbDesc.updatedAt ?? Date.now(),
+          }
+          await saveCustomCover(record)
+        }),
+      )
+    }
+  }
+
+  if (avatars.length > 0) {
+    options.onProgress?.(`正在恢复自定义头像（${avatars.length} 个）…`)
+    for (let i = 0; i < avatars.length; i += 25) {
+      const batch = avatars.slice(i, i + 25)
+      await Promise.all(
+        batch.map(async (desc) => {
+          if (mode === 'merge') {
+            const existing = await customMediaCache.get(`avatar:${desc.key}`)
+            if (existing?.value)
+              return
+          }
+          const record: CustomAvatarRecord = {
+            kind: 'avatar',
+            actorKey: desc.key,
+            blob: readArchiveBlob(file, blobSectionOffset, desc),
+            sourceLabel: desc.sourceLabel ?? '备份导入',
+            updatedAt: desc.updatedAt ?? Date.now(),
+          }
+          await saveCustomAvatar(record)
+        }),
+      )
+    }
+  }
+
+  if (posterThumbs.length > 0) {
+    const batchSize = 40
+    for (let i = 0; i < posterThumbs.length; i += batchSize) {
+      options.onProgress?.(`正在恢复海报缩略图（${Math.min(i + batchSize, posterThumbs.length)} / ${posterThumbs.length}）…`)
+      const batch = posterThumbs.slice(i, i + batchSize)
+      await Promise.all(
+        batch.map(async (desc) => {
+          if (mode === 'merge') {
+            const existing = await posterThumbCache.get(desc.key)
+            if (existing?.value)
+              return
+          }
+          const blob = readArchiveBlob(file, blobSectionOffset, desc)
+          await posterThumbCache.set(desc.key, blob)
+        }),
+      )
+    }
+  }
+
+  return summarizeCacheBackup({ data: manifest.data }, manifest.blobs)
 }

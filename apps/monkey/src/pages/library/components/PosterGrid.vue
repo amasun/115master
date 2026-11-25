@@ -41,7 +41,7 @@
           color="primary"
           size="sm"
           class="rounded-full"
-          @click="store.configureIndexRootFolders()"
+          @click="store.configureCategoryFolders('cinema')"
         >
           选择院线影视目录
         </Button>
@@ -136,12 +136,33 @@
           :total="entries.length"
           :page-size-options="WALL_PAGE_SIZE_OPTIONS"
           :show-size-changer="true"
+          :show-quick-jumper="true"
           :labels="paginationLabels"
           :on-current-page-change="handlePageChange"
           :on-page-size-change="handlePageSizeChange"
         />
         <div class="text-base-content/55 flex flex-wrap items-center justify-center gap-3 text-xs tabular-nums">
           <span>第 {{ store.wallPage }} / {{ store.wallTotalPages }} 页 · 共 {{ entries.length }} 部</span>
+          <label
+            v-if="store.wallTotalPages > 1 && store.wallTotalPages <= 500"
+            class="inline-flex items-center gap-1.5 md:hidden"
+          >
+            <span>跳转</span>
+            <select
+              :value="store.wallPage"
+              aria-label="跳转页码"
+              class="select select-ghost select-xs bg-base-200/70 rounded-full tabular-nums"
+              @change="handleMobilePageChange"
+            >
+              <option
+                v-for="page in store.wallTotalPages"
+                :key="page"
+                :value="page"
+              >
+                第 {{ page }} 页
+              </option>
+            </select>
+          </label>
           <label class="inline-flex items-center gap-1.5 md:hidden">
             <span>每页</span>
             <select
@@ -255,6 +276,11 @@ function handlePageSizeChange(size: number) {
 function handleMobilePageSizeChange(event: Event) {
   const value = Number((event.target as HTMLSelectElement).value)
   handlePageSizeChange(value)
+}
+
+function handleMobilePageChange(event: Event) {
+  const value = Number((event.target as HTMLSelectElement).value)
+  handlePageChange(value)
 }
 
 let activePageKeys = new Set<string>()

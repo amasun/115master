@@ -36,4 +36,23 @@ describe('cinemaTitleParser', () => {
       normalizedKey: '三体',
     })
   })
+
+  it('当文件名仅含集数或纯数字时自动回退解析父目录名', () => {
+    expect(parseCinemaTitle('S01E02.1080p.mkv', '绝命毒师.Breaking.Bad.2008')).toEqual({
+      title: '绝命毒师',
+      year: 2008,
+      mediaType: 'tv',
+      season: 1,
+      episode: 2,
+      normalizedKey: '绝命毒师',
+    })
+
+    expect(parseCinemaTitle('03.mp4', '漫长的季节 (2023)')).toEqual({
+      title: '漫长的季节',
+      year: 2023,
+      mediaType: 'tv',
+      episode: 3,
+      normalizedKey: '漫长的季节',
+    })
+  })
 })

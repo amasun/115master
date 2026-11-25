@@ -114,10 +114,12 @@ function resolveAutoCollectionCids(
   videos: IndexedVideo[],
   options?: AggregateLibraryOptions,
 ): Set<string> {
-  const stats = new Map<string, { total: number, hasAvNumber: boolean }>()
+  const stats = new Map<string, { total: number, hasAvNumber: boolean, hasFolderCollectionSection: boolean }>()
 
   for (const video of videos) {
-    if (video.libraryCategory === 'cinema')
+    if (video.libraryCategory === 'cinema' || video.customScrapeMode === 'none')
+      continue
+    if (video.sectionId && video.customScrapeMode !== 'folder_collection')
       continue
     const cid = video.cid?.trim()
     if (!cid || cid === '0')
@@ -126,14 +128,21 @@ function resolveAutoCollectionCids(
       continue
 
     const hasAv = Boolean(video.avNumber && normalizeAvNumber(video.avNumber))
+    const isSectionFolderCollection = video.customScrapeMode === 'folder_collection'
     const current = stats.get(cid)
     if (current) {
       current.total += 1
-      if (hasAv)
+      if (hasAv && !isSectionFolderCollection)
         current.hasAvNumber = true
+      if (isSectionFolderCollection)
+        current.hasFolderCollectionSection = true
     }
     else {
-      stats.set(cid, { total: 1, hasAvNumber: hasAv })
+      stats.set(cid, {
+        total: 1,
+        hasAvNumber: isSectionFolderCollection ? false : hasAv,
+        hasFolderCollectionSection: isSectionFolderCollection,
+      })
     }
   }
 
@@ -141,17 +150,48 @@ function resolveAutoCollectionCids(
   stats.forEach((stat, cid) => {
     if (stat.total < 2 || stat.hasAvNumber)
       return
-    const folderName = options?.folderNameLookup?.(cid)?.trim().toLowerCase()
-    if (folderName && PROTECTED_FOLDER_NAMES.has(folderName))
-      return
+    if (!stat.hasFolderCollectionSection) {
+      const folderName = options?.folderNameLookup?.(cid)?.trim().toLowerCase()
+      if (folderName && PROTECTED_FOLDER_NAMES.has(folderName))
+        return
+    }
     result.add(cid)
   })
   return result
 }
 
-function resolveMediaKey(video: IndexedVideo, collectionCids: ReadonlySet<string>): string {
+function resolveMediaKey(
+  video: IndexedVideo,
+  collectionCids: ReadonlySet<string>,
+  options?: AggregateLibraryOptions,
+): string {
+  const sectionPrefix = video.sectionId ? `sec:${video.sectionId}:` : ''
+  const folderName = video.cid && video.cid !== '0' ? options?.folderNameLookup?.(video.cid) : undefined
+
+  if (video.sectionId) {
+    if (video.customScrapeMode === 'folder_collection') {
+      if (video.cid && collectionCids.has(video.cid))
+        return `collection:${video.cid}`
+      return `${sectionPrefix}file:${video.fid}`
+    }
+    if (video.customScrapeMode === 'none')
+      return `${sectionPrefix}file:${video.fid}`
+    if (video.customScrapeMode === 'cinema') {
+      const parsed = parseCinemaTitle(video.name, folderName)
+      return parsed.mediaType === 'movie' && parsed.year
+        ? `${sectionPrefix}movie:${parsed.normalizedKey}:${parsed.year}`
+        : `${sectionPrefix}${parsed.mediaType}:${parsed.normalizedKey}`
+    }
+    if (video.avNumber) {
+      const normalized = normalizeAvNumber(video.avNumber)
+      if (normalized)
+        return `${sectionPrefix}jav:${normalized}`
+    }
+    return `${sectionPrefix}file:${video.fid}`
+  }
+
   if (video.libraryCategory === 'cinema') {
-    const parsed = parseCinemaTitle(video.name)
+    const parsed = parseCinemaTitle(video.name, folderName)
     return parsed.mediaType === 'movie' && parsed.year
       ? `movie:${parsed.normalizedKey}:${parsed.year}`
       : `${parsed.mediaType}:${parsed.normalizedKey}`
@@ -230,37 +270,50 @@ export function aggregateLibraryEntries(
   options?: AggregateLibraryOptions,
 ): LibraryEntry[] {
   const collectionCids = resolveAutoCollectionCids(videos, options)
-  const groups = new Map<string, { videos: IndexedVideo[], externalId?: string }>()
+  const groups = new Map<string, {
+    videos: IndexedVideo[]
+    externalId?: string
+    sectionId?: string
+    customScrapeMode?: IndexedVideo['customScrapeMode']
+  }>()
 
   videos.forEach((video) => {
-    const mediaKey = resolveMediaKey(video, collectionCids)
+    const mediaKey = resolveMediaKey(video, collectionCids, options)
     const group = groups.get(mediaKey)
     if (group) {
       group.videos.push(video)
       if (!group.externalId && video.avNumber)
         group.externalId = video.avNumber
+      if (!group.sectionId && video.sectionId) {
+        group.sectionId = video.sectionId
+        group.customScrapeMode = video.customScrapeMode
+      }
       return
     }
     groups.set(mediaKey, {
       videos: [video],
       externalId: video.avNumber ?? undefined,
+      ...(video.sectionId ? { sectionId: video.sectionId, customScrapeMode: video.customScrapeMode } : {}),
     })
   })
 
   return Array.from(groups.entries()).map(([mediaKey, group]) => {
     const isCollection = mediaKey.startsWith('collection:')
+    const unprefixedKey = mediaKey.startsWith('sec:')
+      ? mediaKey.slice(mediaKey.indexOf(':', 4) + 1)
+      : mediaKey
     const sortedVideos = [...group.videos].sort((a, b) => b.mtime - a.mtime || b.size - a.size)
     const files = sortedVideos.map(toLibraryFile)
     const latestMtime = files.reduce((max, file) => Math.max(max, file.mtime), 0)
     const meta = isCollection
       ? buildCollectionMeta(mediaKey.slice('collection:'.length), latestMtime, options)
-      : (metaMap.get(mediaKey) ?? null)
+      : (metaMap.get(mediaKey) ?? metaMap.get(unprefixedKey) ?? null)
     const externalId = isCollection ? undefined : (meta?.externalId ?? group.externalId)
     const kind = isCollection
       ? 'collection'
-      : mediaKey.startsWith('movie:')
+      : unprefixedKey.startsWith('movie:')
         ? 'movie'
-        : mediaKey.startsWith('tv:')
+        : unprefixedKey.startsWith('tv:')
           ? 'tv'
           : (meta?.kind ?? (externalId ? 'jav' : 'unknown'))
     const totalSize = files.reduce((sum, file) => sum + file.size, 0)
@@ -273,6 +326,8 @@ export function aggregateLibraryEntries(
       mediaKey,
       kind,
       externalId,
+      ...(group.sectionId ? { sectionId: group.sectionId } : {}),
+      ...(group.customScrapeMode ? { customScrapeMode: group.customScrapeMode } : {}),
       meta,
       files,
       latestMtime,
@@ -626,10 +681,15 @@ export function buildLibraryIndex(
         return false
       if (options?.hideAdVideos && isAdLibraryEntry(entry, options.adFilterOptions))
         return false
-      if (filter.view === 'all' && (entry.kind === 'movie' || entry.kind === 'tv'))
+      if (filter.view === 'all' && (entry.kind === 'movie' || entry.kind === 'tv' || Boolean(entry.sectionId)))
         return false
-      if (filter.view === 'cinema' && entry.kind !== 'movie' && entry.kind !== 'tv')
+      if (filter.view === 'cinema' && (Boolean(entry.sectionId) || (entry.kind !== 'movie' && entry.kind !== 'tv')))
         return false
+      if (filter.view.startsWith('section:')) {
+        const targetSectionId = filter.view.slice('section:'.length)
+        if (entry.sectionId !== targetSectionId)
+          return false
+      }
       if ((filter.view === 'starred' || filter.onlyStarred) && !entry.starred)
         return false
       if ((filter.view === 'marked' || filter.onlyMarked) && entry.markerCount <= 0)
