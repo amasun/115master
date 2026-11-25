@@ -9,7 +9,8 @@ export const ARCHIVE_MAGIC = new Uint8Array([
   0x02, // "115MBAK\x02"
 ])
 
-export const ARCHIVE_HEADER_SIZE = ARCHIVE_MAGIC.length + 1 + 4 // 13 bytes
+export /** 13 bytes */
+const ARCHIVE_HEADER_SIZE = ARCHIVE_MAGIC.length + 1 + 4
 const FLAG_GZIP = 0x01
 
 export type ArchiveBlobKind

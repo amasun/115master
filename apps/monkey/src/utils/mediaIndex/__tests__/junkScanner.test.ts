@@ -115,12 +115,24 @@ describe('junkScanner', () => {
 
   describe('scanDriveJunkFiles', () => {
     it('scans suffixes and optional magnet search, deduplicates by fid, and reports progress', async () => {
-      const getFilesWithFallback = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
-        if (params.suffix === 'html') {
+      const getFilesWithFallback = vi.fn().mockResolvedValue({ state: true, data: [] })
+
+      const searchFiles = vi.fn().mockImplementation(async (params: { suffix?: string, search_value?: string }) => {
+        if (params.search_value === 'magnet') {
           return {
             state: true,
             data: [
               { fc: 1, fid: 'j1', pid: 'c1', pc: 'pc1', n: 'promo.html', s: 1024, t: 100, tu: 200, ico: 'html', iv: 0, play_long: 0 },
+              { fc: 1, fid: 'j3', pid: 'c3', pc: 'pc3', n: 'magnet_links.txt', s: 512, t: 100, tu: 400, ico: 'txt', iv: 0, play_long: 0 },
+            ],
+          }
+        }
+        if (params.suffix === 'html') {
+          return {
+            state: true,
+            data: [
+              { fc: '1', fid: 'j1', pid: 'c1', pc: 'pc1', n: 'promo.html', s: 1024, t: 100, tu: 200, ico: 'html', iv: 0, play_long: 0 },
+              { fid: 'noise1', pid: 'c1', pc: 'pcn', n: 'html_guide.mp4', s: 1024, t: 100, tu: 200, ico: 'mp4', iv: 1, play_long: 60 },
               { fc: 0, cid: 'dir1', n: 'folder', pid: 'c1', s: 0, t: 100, tu: 100, ico: '', iv: 0, play_long: 0 },
             ],
           }
@@ -131,14 +143,6 @@ describe('junkScanner', () => {
             { fc: 1, fid: 'j2', pid: 'c2', pc: 'pc2', n: 'setup.exe', s: 2048, t: 100, tu: 300, ico: 'exe', iv: 0, play_long: 0 },
           ],
         }
-      })
-
-      const searchFiles = vi.fn().mockResolvedValue({
-        state: true,
-        data: [
-          { fc: 1, fid: 'j1', pid: 'c1', pc: 'pc1', n: 'promo.html', s: 1024, t: 100, tu: 200, ico: 'html', iv: 0, play_long: 0 },
-          { fc: 1, fid: 'j3', pid: 'c3', pc: 'pc3', n: 'magnet_links.txt', s: 512, t: 100, tu: 400, ico: 'txt', iv: 0, play_long: 0 },
-        ],
       })
 
       const driveApi = { getFilesWithFallback, searchFiles } as unknown as JunkScannerDriveApi
@@ -154,11 +158,11 @@ describe('junkScanner', () => {
       })
 
       expect(results.map(r => r.fid)).toEqual(['j1', 'j2', 'j3'])
-      expect(getFilesWithFallback).toHaveBeenCalledWith(
+      expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          o: 'user_ptime',
-          asc: 0,
-          custom_order: 1,
+          suffix: 'html',
+          search_value: '.html',
+          fc: 2,
         }),
         undefined,
       )
@@ -174,16 +178,14 @@ describe('junkScanner', () => {
       })
     })
 
-    it('falls back to searchFiles when getFilesWithFallback throws non-JSON HTML error and skips isolated suffix failures', async () => {
-      const getFilesWithFallback = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
+    it('falls back to getFilesWithFallback when searchFiles throws or returns empty and skips isolated suffix failures', async () => {
+      const searchFiles = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
         if (params.suffix === 'html')
           throw new Error('Unexpected token \'<\', "<!doctypeh"... is not valid JSON')
-        if (params.suffix === 'exe')
-          throw new Error('temporary network error')
-        return { state: true, data: [] }
+        throw new Error('search failed for exe')
       })
 
-      const searchFiles = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
+      const getFilesWithFallback = vi.fn().mockImplementation(async (params: { suffix?: string }) => {
         if (params.suffix === 'html') {
           return {
             state: true,
@@ -192,7 +194,7 @@ describe('junkScanner', () => {
             ],
           }
         }
-        throw new Error('search failed for exe')
+        throw new Error('temporary network error')
       })
 
       const driveApi = { getFilesWithFallback, searchFiles } as unknown as JunkScannerDriveApi
@@ -205,11 +207,12 @@ describe('junkScanner', () => {
       })
 
       expect(results.map(r => r.fid)).toEqual(['fallback1'])
-      expect(searchFiles).toHaveBeenCalledWith(
+      expect(getFilesWithFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           suffix: 'html',
-          search_value: '',
-          fc: 2,
+          o: 'user_ptime',
+          asc: 0,
+          custom_order: 1,
         }),
         undefined,
       )

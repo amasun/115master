@@ -465,38 +465,38 @@
             <div class="flex flex-wrap items-center gap-1.5 empty:hidden">
               <span
                 v-if="item.platform === 'onlyfans'"
-                class="badge badge-info badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
+                class="badge badge-info badge-soft badge-xs shrink-0 font-medium whitespace-nowrap"
               >
                 OnlyFans
               </span>
               <span
                 v-else-if="item.platform === 'myfans'"
-                class="badge badge-accent badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
+                class="badge badge-accent badge-soft badge-xs shrink-0 font-medium whitespace-nowrap"
               >
                 MyFans
               </span>
               <span
                 v-else-if="item.platform === 'fc2' && !(item.avNumber ?? item.video.avNumber)"
-                class="badge badge-secondary badge-soft badge-xs shrink-0 whitespace-nowrap font-medium"
+                class="badge badge-secondary badge-soft badge-xs shrink-0 font-medium whitespace-nowrap"
               >
                 FC2
               </span>
               <span
                 v-if="item.avNumber !== undefined ? item.avNumber : item.video.avNumber"
-                class="badge badge-primary badge-soft badge-xs shrink-0 whitespace-nowrap font-mono font-semibold"
+                class="badge badge-primary badge-soft badge-xs shrink-0 font-mono font-semibold whitespace-nowrap"
               >
                 {{ item.avNumber !== undefined ? item.avNumber : item.video.avNumber }}
               </span>
               <span
                 v-if="item.creator"
-                class="badge badge-outline badge-xs max-w-44 overflow-hidden whitespace-nowrap text-[11px]"
+                class="badge badge-outline badge-xs max-w-44 overflow-hidden text-[11px] whitespace-nowrap"
                 :title="formatCreatorLabel(item.creator)"
               >
                 <span class="truncate">{{ formatCreatorLabel(item.creator) }}</span>
               </span>
               <span
                 v-if="item.video.starred"
-                class="badge badge-warning badge-soft badge-xs shrink-0 gap-0.5 whitespace-nowrap font-medium"
+                class="badge badge-warning badge-soft badge-xs shrink-0 gap-0.5 font-medium whitespace-nowrap"
                 title="已收藏（星标）"
               >
                 <Icon :name="I.STAR_FILL" class="text-[11px]" />
@@ -505,7 +505,7 @@
               <span
                 v-for="label in item.video.labels"
                 :key="label.id"
-                class="badge bg-base-content/10 badge-xs max-w-36 overflow-hidden border-none whitespace-nowrap text-[11px]"
+                class="badge bg-base-content/10 badge-xs max-w-36 overflow-hidden border-none text-[11px] whitespace-nowrap"
                 :style="label.color ? { backgroundColor: label.color } : undefined"
                 :title="`网盘标签：${label.name}`"
               >
@@ -514,7 +514,7 @@
               <span
                 v-for="reason in getVisibleReasons(item)"
                 :key="`${reason.kind}-${reason.label}`"
-                class="badge badge-xs max-w-44 overflow-hidden whitespace-nowrap text-[11px]"
+                class="badge badge-xs max-w-44 overflow-hidden text-[11px] whitespace-nowrap"
                 :class="reason.kind === 'actorReverse' || reason.kind === 'creator'
                   ? 'badge-secondary badge-soft font-medium'
                   : 'badge-ghost'"
@@ -534,7 +534,7 @@
             <div class="text-base-content/55 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
               <span
                 v-if="item.javInfo?.title"
-                class="min-w-0 max-w-full truncate sm:max-w-[360px]"
+                class="max-w-full min-w-0 truncate sm:max-w-[360px]"
                 :title="item.video.name"
               >
                 {{ item.video.name }}

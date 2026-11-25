@@ -200,28 +200,62 @@ export function detectAdVideos(
     })
 }
 
-type DriveFilesItem = Awaited<ReturnType<JunkScannerDriveApi['getFilesWithFallback']>>['data'][number]
+interface RawJunkDriveItem {
+  fc?: number | string
+  fid?: string | number
+  pid?: string | number
+  cid?: string | number
+  pc?: string
+  n?: string
+  s?: number | string
+  t?: number | string
+  tu?: number | string
+  ico?: string
+  iv?: number | string
+  play_long?: number | string
+}
 
-function toJunkFileItem(item: DriveFilesItem, category: JunkCategory, reason: string): JunkFileItem | null {
-  if (item.fc !== 1)
+type DriveFilesItem = Awaited<ReturnType<JunkScannerDriveApi['getFilesWithFallback']>>['data'][number] | RawJunkDriveItem
+
+function toJunkFileItem(
+  item: DriveFilesItem,
+  category: JunkCategory,
+  reason: string,
+  expectedSuffix?: string,
+): JunkFileItem | null {
+  const raw = item as RawJunkDriveItem
+  if (raw.fc === 0 || raw.fc === '0')
+    return null
+  const fid = raw.fid !== undefined && raw.fid !== null ? String(raw.fid).trim() : ''
+  const name = typeof raw.n === 'string' ? raw.n : ''
+  if (!fid || !name)
     return null
 
-  const size = typeof item.s === 'number' ? item.s : Number(item.s) || 0
-  const mtime = Number(item.tu || item.t) || 0
-  const suffix = (item.ico || extractExtension(item.n)).toLowerCase()
+  const suffix = (raw.ico || extractExtension(name)).toLowerCase()
+  if (expectedSuffix && suffix !== expectedSuffix && !name.toLowerCase().endsWith(`.${expectedSuffix}`))
+    return null
+
+  const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
+  const mtime = Number(raw.tu || raw.t) || 0
+  const cid = raw.pid !== undefined && raw.pid !== null
+    ? String(raw.pid)
+    : raw.cid !== undefined && raw.cid !== null
+      ? String(raw.cid)
+      : '0'
+  const duration = Number(raw.play_long)
 
   return {
-    fid: item.fid,
-    cid: item.pid,
-    pickCode: item.pc || undefined,
-    name: item.n,
+    fid,
+    cid,
+    pickCode: raw.pc || undefined,
+    name,
     size,
-    duration: item.play_long > 0 ? item.play_long : undefined,
+    duration: Number.isFinite(duration) && duration > 0 ? duration : undefined,
     mtime,
     suffix,
     category,
     reason,
-    isVideo: item.iv === 1,
+    isVideo: raw.iv === 1 || raw.iv === '1',
   }
 }
 
@@ -269,12 +303,40 @@ export async function scanDriveJunkFiles(options: {
     let suffixSucceeded = false
 
     try {
+      let useFallbackListing = false
       while (true) {
         throwIfAborted(options.signal)
 
         let list: DriveFilesItem[] = []
-        try {
-          const res = await api.getFilesWithFallback(
+        if (!useFallbackListing) {
+          try {
+            const searchRes = await api.searchFiles(
+              {
+                aid: 1,
+                cid: rootCid,
+                search_value: `.${suffix}`,
+                suffix,
+                offset,
+                limit: PAGE_LIMIT,
+                fc: 2,
+                show_dir: 0,
+                format: 'json',
+              },
+              options.signal,
+            )
+            list = Array.isArray(searchRes.data) ? searchRes.data : []
+            if (offset === 0 && list.length === 0)
+              useFallbackListing = true
+          }
+          catch (searchError) {
+            if (isAbortLikeError(searchError, options.signal))
+              throw searchError
+            useFallbackListing = true
+          }
+        }
+
+        if (useFallbackListing) {
+          const fallbackRes = await api.getFilesWithFallback(
             {
               aid: 1,
               cid: rootCid,
@@ -292,33 +354,13 @@ export async function scanDriveJunkFiles(options: {
             },
             options.signal,
           )
-          list = Array.isArray(res.data) ? res.data : []
-        }
-        catch (primaryError) {
-          if (isAbortLikeError(primaryError, options.signal))
-            throw primaryError
-
-          const fallbackRes = await api.searchFiles(
-            {
-              aid: 1,
-              cid: rootCid,
-              search_value: '',
-              suffix,
-              offset,
-              limit: PAGE_LIMIT,
-              fc: 2,
-              show_dir: 0,
-              format: 'json',
-            },
-            options.signal,
-          )
           list = Array.isArray(fallbackRes.data) ? fallbackRes.data : []
         }
 
         const category = classifyExtension(suffix)
 
         for (const raw of list) {
-          const mapped = toJunkFileItem(raw, category, `匹配后缀 .${suffix}`)
+          const mapped = toJunkFileItem(raw, category, `匹配后缀 .${suffix}`, suffix)
           if (mapped && !byFid.has(mapped.fid))
             byFid.set(mapped.fid, mapped)
         }
