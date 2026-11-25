@@ -33,10 +33,20 @@
       class="flex min-h-[50vh] flex-col items-center justify-center gap-3"
     >
       <Empty
-        :description="emptyDescription"
+        :description="store.filter.view === 'cinema' && store.cinemaCount === 0 ? '尚未配置院线影视目录' : emptyDescription"
         size="lg"
       />
-      <div v-if="store.entries.length > 0" class="flex flex-wrap items-center justify-center gap-2">
+      <div v-if="store.filter.view === 'cinema' && store.cinemaCount === 0" class="flex flex-wrap items-center justify-center gap-2">
+        <Button
+          color="primary"
+          size="sm"
+          class="rounded-full"
+          @click="store.configureIndexRootFolders()"
+        >
+          选择院线影视目录
+        </Button>
+      </div>
+      <div v-else-if="store.entries.length > 0" class="flex flex-wrap items-center justify-center gap-2">
         <Button
           v-if="store.visibleEntryCount > 0"
           variant="soft"
@@ -115,7 +125,10 @@
       </section>
 
       <!-- 底部分页切换与每页数量控制 -->
-      <div class="mt-4 flex flex-col items-center gap-3">
+      <div
+        v-if="entries.length >= WALL_PAGE_SIZE_OPTIONS[0]"
+        class="mt-4 flex flex-col items-center gap-3"
+      >
         <Pagination
           surface="floating"
           :current-page="store.wallPage"

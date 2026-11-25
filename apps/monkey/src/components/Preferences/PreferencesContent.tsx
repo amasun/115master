@@ -173,6 +173,7 @@ const PreferencesContent = defineComponent({
     const enableFanzaSource = useUserSetting('enableFanzaSource')
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
     const indexRootFolders = useUserSetting('indexRootFolders')
+    const tmdbApiKey = useUserSetting('tmdbApiKey')
     const backupBusy = shallowRef(false)
     const backupStatus = shallowRef<{ kind: 'success' | 'error', text: string } | null>(null)
     const backupFileInputRef = ref<HTMLInputElement | null>(null)
@@ -183,6 +184,14 @@ const PreferencesContent = defineComponent({
       })
       if (picked !== null)
         indexRootFolders.value = picked
+    }
+
+    const handleToggleIndexFolderCategory = (cid: string) => {
+      indexRootFolders.value = normalizeIndexRootFolders(indexRootFolders.value).map(item =>
+        item.cid === cid
+          ? { ...item, category: item.category === 'cinema' ? 'jav' : 'cinema' }
+          : item,
+      )
     }
 
     const handleRemoveIndexFolder = (cid: string) => {
@@ -434,17 +443,28 @@ const PreferencesContent = defineComponent({
           </Card>
 
           <Card title="索引与刮削目录" hint="限定影视库与超级搜索的扫描范围，未选择时默认全盘" icon={I.FOLDER_OPEN}>
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col gap-2.5">
               {indexRootFolders.value.length > 0
                 ? (
                     <div class="flex flex-wrap gap-1.5">
                       {indexRootFolders.value.map(folder => (
                         <span
                           key={folder.cid}
-                          class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                          class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-1.5 text-[11px]"
                           title={folder.path}
                         >
-                          <span class="max-w-36 truncate">{folder.name}</span>
+                          <button
+                            type="button"
+                            class={[
+                              'badge badge-xs cursor-pointer border-none font-semibold',
+                              folder.category === 'cinema' ? 'badge-secondary' : 'badge-primary',
+                            ]}
+                            title="点击切换 AV / 院线影视"
+                            onClick={() => handleToggleIndexFolderCategory(folder.cid)}
+                          >
+                            {folder.category === 'cinema' ? '院线' : 'AV'}
+                          </button>
+                          <span class="max-w-28 truncate">{folder.name}</span>
                           <button
                             type="button"
                             class="hover:bg-primary/20 rounded-full p-0.5"
@@ -459,7 +479,7 @@ const PreferencesContent = defineComponent({
                   )
                 : (
                     <p class="text-base-content/60 text-xs">
-                      当前范围：全盘（根目录）
+                      当前范围：全盘（根目录，默认 AV）
                     </p>
                   )}
               <div class="flex gap-2">
@@ -481,6 +501,21 @@ const PreferencesContent = defineComponent({
                   </button>
                 )}
               </div>
+              <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                  <span class="text-base-content/80 font-medium">TMDB API Key（院线影视）</span>
+                  <span class="text-base-content/45 text-[11px]">留空走豆瓣免 Key 兜底</span>
+                </div>
+                <input
+                  id="tmdb-api-key-input"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="可选，支持 v3 API Key 或 v4 Read Token"
+                  class="input input-bordered input-xs bg-base-100/80 w-full rounded-xl font-mono"
+                  value={tmdbApiKey.value}
+                  onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
+                />
+              </label>
             </div>
           </Card>
 

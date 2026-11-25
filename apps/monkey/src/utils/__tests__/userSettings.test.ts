@@ -19,6 +19,7 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 const {
+  getConfiguredIndexRootCategoryMap,
   getConfiguredIndexRootCids,
   normalizeIndexRootFolders,
   userSettings,
@@ -73,6 +74,7 @@ describe('useUserSetting', () => {
 
   it('规范化索引根目录列表并在未配置时默认回退全盘', () => {
     expect(userSettings.value.indexRootFolders).toEqual([])
+    expect(userSettings.value.tmdbApiKey).toBe('')
     expect(getConfiguredIndexRootCids([])).toEqual(['0'])
 
     const normalized = normalizeIndexRootFolders([
@@ -80,12 +82,16 @@ describe('useUserSetting', () => {
       { cid: ' 123 ', name: ' 影视库 ', path: ' 根目录 / 影视库 ' },
       { cid: '123', name: '重复忽略', path: '重复忽略' },
       { cid: '', name: '空', path: '空' },
-      { cid: '456', name: 'OnlyFans', path: '' },
+      { cid: '456', name: '电影合集', path: '', category: 'cinema' },
     ])
     expect(normalized).toEqual([
-      { cid: '123', name: '影视库', path: '根目录 / 影视库' },
-      { cid: '456', name: 'OnlyFans', path: 'OnlyFans' },
+      { cid: '123', name: '影视库', path: '根目录 / 影视库', category: 'jav' },
+      { cid: '456', name: '电影合集', path: '电影合集', category: 'cinema' },
     ])
     expect(getConfiguredIndexRootCids(normalized)).toEqual(['123', '456'])
+    expect(getConfiguredIndexRootCategoryMap(normalized)).toEqual(new Map([
+      ['123', 'jav'],
+      ['456', 'cinema'],
+    ]))
   })
 })

@@ -3,6 +3,7 @@ import type {
   ActorFacetStat,
   AdVideoDetectOptions,
   AdVideoMatchMode,
+  CollectionCustomMeta,
   DuplicateGroup,
   IndexedVideo,
   IndexedVideoLabel,
@@ -28,6 +29,7 @@ import {
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
+import { folderPathResolver } from '@/utils/driveFolderPath'
 import { getAvNumber } from '@/utils/getNumber'
 import { appLogger } from '@/utils/logger'
 import {
@@ -38,6 +40,7 @@ import {
   clampAdMaxSizeMB,
   clearAllScrapeMissed,
   clearScrapeMissed,
+  COLLECTION_CUSTOM_META_STORAGE_KEY,
   compressCustomAvatar,
   compressCustomCover,
   DEFAULT_LIBRARY_AD_MATCH_MODE,
@@ -50,20 +53,25 @@ import {
   markScrapeMissed,
   normalizeAdMatchMode,
   readActiveScrapeMissKeys,
+  readAllCachedCinemaMeta,
   readAllCachedJavMeta,
   readAllCustomMediaKeys,
   removeCustomAvatar,
   removeCustomCover,
   requestPersistentStorage,
+  sanitizeCollectionCustomMeta,
   saveCustomAvatar,
   saveCustomCover,
   saveVideoIndexSnapshot,
+  scrapeCinemaMetaDetailed,
   scrapeJavMetaDetailed,
   syncDriveVideoIndex,
+  UNGROUPED_COLLECTION_CIDS_STORAGE_KEY,
 } from '@/utils/mediaIndex'
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
 import { getAllCachedActorWorks } from '@/utils/superSearch'
 import {
+  getConfiguredIndexRootCategoryMap,
   getConfiguredIndexRootCids,
   normalizeIndexRootFolders,
   useUserSetting,
@@ -177,6 +185,9 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
   const favoriteActorKeys = useStorage<string[]>('115Master_library_favorite_actors', [])
   const favoriteActorKeySet = computed(() => new Set(favoriteActorKeys.value))
+  const customCollections = useStorage<Record<string, CollectionCustomMeta>>(COLLECTION_CUSTOM_META_STORAGE_KEY, {})
+  const ungroupedCollectionCids = useStorage<string[]>(UNGROUPED_COLLECTION_CIDS_STORAGE_KEY, [])
+  const ungroupedCollectionCidSet = computed(() => new Set(ungroupedCollectionCids.value))
   const indexRootFolders = useUserSetting('indexRootFolders')
   const scrollTop = shallowRef(0)
   const tagRailOpen = ref(false)
@@ -201,6 +212,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   const attemptedScrapeKeys = new Set<string>()
   const checkedAvatarActors = new Set<string>()
+  const prefetchedCollectionCids = new Set<string>()
   const scrapeScheduler = new Scheduler<ScrapeResult>({
     maxConcurrent: 2,
     maxQueueLength: 200,
@@ -328,13 +340,62 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   }
 
   function rebuildEntries() {
-    const nextEntries = aggregateLibraryEntries(videos.value, metaMap.value, markerDocs.value)
+    const excludedRootCids = new Set(getConfiguredIndexRootCids(indexRootFolders.value))
+    const nextEntries = aggregateLibraryEntries(videos.value, metaMap.value, markerDocs.value, {
+      excludedRootCids,
+      ungroupedCids: ungroupedCollectionCidSet.value,
+      customCollections: customCollections.value,
+      folderNameLookup: cid => folderPathResolver.getCached(cid)?.name,
+    })
     const nextIndex = buildLibraryIndex(nextEntries, actorWorks.value)
     entries.value = nextEntries
     libraryIndex.value = nextIndex
     duplicateStale.value = true
     void matchActorAvatars(nextIndex.actorStats)
     scheduleBackgroundDuplicateAnalysis()
+
+    const missingCollectionCids: string[] = []
+    for (const item of nextEntries) {
+      if (item.kind !== 'collection')
+        continue
+      const cid = item.mediaKey.slice('collection:'.length)
+      if (!cid || prefetchedCollectionCids.has(cid) || folderPathResolver.getCached(cid))
+        continue
+      prefetchedCollectionCids.add(cid)
+      missingCollectionCids.push(cid)
+    }
+    if (missingCollectionCids.length > 0)
+      folderPathResolver.prefetch(missingCollectionCids)
+  }
+
+  watch(
+    () => folderPathResolver.version.value,
+    () => {
+      const hasResolvableCollection = entries.value.some((item) => {
+        if (item.kind !== 'collection')
+          return false
+        const cid = item.mediaKey.slice('collection:'.length)
+        const cachedName = folderPathResolver.getCached(cid)?.name?.trim()
+        if (!cachedName)
+          return false
+        const customTitle = customCollections.value[cid]?.title?.trim()
+        return !customTitle && item.meta?.title !== cachedName
+      })
+      if (hasResolvableCollection)
+        rebuildEntries()
+    },
+  )
+
+  async function loadAllCachedMeta(): Promise<Map<string, UnifiedMediaMeta>> {
+    const [javMeta, cinemaMeta] = await Promise.all([
+      readAllCachedJavMeta(),
+      readAllCachedCinemaMeta(),
+    ])
+    const merged = new Map(javMeta)
+    cinemaMeta.forEach((meta, key) => {
+      merged.set(key, meta)
+    })
+    return merged
   }
 
   async function syncIndex(mode: 'full' | 'incremental' = 'incremental', overrideRootCids?: string[]) {
@@ -344,6 +405,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
     const resolvedMode = videos.value.length > 0 ? mode : 'full'
     const targetRootCids = overrideRootCids ?? getConfiguredIndexRootCids(indexRootFolders.value)
+    const rootCategories = getConfiguredIndexRootCategoryMap(indexRootFolders.value)
     indexing.value = true
     indexError.value = null
     indexProgress.value = {
@@ -358,12 +420,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
         syncDriveVideoIndex({
           mode: resolvedMode,
           rootCids: targetRootCids,
+          rootCategories,
           signal: controller.signal,
           onProgress: (progress) => {
             indexProgress.value = progress
           },
         }),
-        readAllCachedJavMeta(),
+        loadAllCachedMeta(),
         getAllCachedActorWorks(),
         markerStore.getAllDocs(),
       ])
@@ -426,7 +489,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       if (added.length > 0) {
         let queuedScrapeCount = 0
         for (const entry of added) {
-          if (entry.meta === null && entry.kind === 'jav') {
+          if (entry.meta === null && (entry.kind === 'jav' || entry.kind === 'movie' || entry.kind === 'tv')) {
             enqueueScrape(entry.mediaKey)
             queuedScrapeCount += 1
           }
@@ -451,7 +514,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   async function refreshLocalContext() {
     const [cachedMeta, cachedActorWorks, markers] = await Promise.all([
-      readAllCachedJavMeta(),
+      loadAllCachedMeta(),
       getAllCachedActorWorks(),
       markerStore.getAllDocs(),
     ])
@@ -468,6 +531,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   }
 
   async function configureIndexRootFolders(options: { resyncIfChanged?: boolean } = {}) {
+    const prevMap = getConfiguredIndexRootCategoryMap(indexRootFolders.value)
     const prevCids = getConfiguredIndexRootCids(indexRootFolders.value)
     const picked = await openIndexFolderPicker({
       initialFolders: indexRootFolders.value,
@@ -475,9 +539,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     if (picked === null)
       return false
     indexRootFolders.value = picked
+    const nextMap = getConfiguredIndexRootCategoryMap(picked)
     const nextCids = getConfiguredIndexRootCids(picked)
     const changed = prevCids.length !== nextCids.length
-      || prevCids.some(cid => !nextCids.includes(cid))
+      || prevCids.some(cid => !nextCids.includes(cid) || prevMap.get(cid) !== nextMap.get(cid))
     if (changed && options.resyncIfChanged !== false)
       await syncIndex('full', nextCids)
     return true
@@ -486,7 +551,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   async function reloadFromCache() {
     const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
       loadVideoIndexSnapshot(),
-      readAllCachedJavMeta(),
+      loadAllCachedMeta(),
       getAllCachedActorWorks(),
       markerStore.getAllDocs(),
     ])
@@ -520,7 +585,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
         void requestPersistentStorage()
         const [snapshot, cachedMeta, cachedActorWorks, markers, activeMissKeys, customMedia] = await Promise.all([
           loadVideoIndexSnapshot(),
-          readAllCachedJavMeta(),
+          loadAllCachedMeta(),
           getAllCachedActorWorks(),
           markerStore.getAllDocs(),
           readActiveScrapeMissKeys(),
@@ -600,9 +665,30 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     void clearScrapeMissed(mediaKey)
   }
 
+  function isCinemaEntry(entry: LibraryEntry): boolean {
+    return entry.kind === 'movie' || entry.kind === 'tv'
+  }
+
+  function isScrapableEntry(entry: LibraryEntry): boolean {
+    return (entry.kind === 'jav' && Boolean(entry.externalId)) || isCinemaEntry(entry)
+  }
+
+  function scrapeEntryByKind(entry: LibraryEntry, customQuery?: string): Promise<ScrapeResult> {
+    if (isCinemaEntry(entry)) {
+      return scrapeCinemaMetaDetailed({
+        mediaKey: entry.mediaKey,
+        filename: entry.files[0]?.name ?? '',
+        customQuery,
+        kindHint: entry.kind as 'movie' | 'tv',
+      })
+    }
+    const targetAv = (customQuery?.trim() || entry.externalId || '').toUpperCase()
+    return scrapeJavMetaDetailed(targetAv)
+  }
+
   function enqueueScrape(mediaKey: string) {
     const entry = libraryIndex.value.entryMap.get(mediaKey)
-    if (!entry || entry.meta !== null || entry.kind !== 'jav' || !entry.externalId)
+    if (!entry || entry.meta !== null || !isScrapableEntry(entry))
       return
     if (
       attemptedScrapeKeys.has(mediaKey)
@@ -612,12 +698,12 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       return
     }
 
-    const avNumber = entry.externalId
+    const missRef = entry.externalId || entry.files[0]?.name || mediaKey
     updateScrapingKeys(mediaKey, true)
     updateViewportScrapingKeys(mediaKey, true)
 
     void scrapeScheduler.add(
-      () => scrapeJavMetaDetailed(avNumber),
+      () => scrapeEntryByKind(entry),
       { id: mediaKey, immediate: true, action: 'push' },
     ).then((result) => {
       attemptedScrapeKeys.add(mediaKey)
@@ -632,7 +718,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
         return
       }
       if (result.status === 'not_found')
-        addMissedScrapeKey(mediaKey, avNumber)
+        addMissedScrapeKey(mediaKey, missRef)
     }).catch((error) => {
       updateScrapingKeys(mediaKey, false)
       updateViewportScrapingKeys(mediaKey, false)
@@ -652,20 +738,25 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     }
   }
 
-  async function rescrape(mediaKey: string, customAvNumber?: string): Promise<UnifiedMediaMeta | null> {
+  async function rescrape(mediaKey: string, customInput?: string): Promise<UnifiedMediaMeta | null> {
     const entry = libraryIndex.value.entryMap.get(mediaKey)
-    const targetAv = (customAvNumber?.trim() || entry?.externalId || '').toUpperCase()
-    if (!targetAv)
+    if (!entry)
+      return null
+    const cinema = isCinemaEntry(entry)
+    const targetQuery = cinema
+      ? (customInput?.trim() || entry.files[0]?.name || '')
+      : (customInput?.trim() || entry.externalId || '').toUpperCase()
+    if (!targetQuery)
       return null
 
     attemptedScrapeKeys.delete(mediaKey)
     removeMissedScrapeKey(mediaKey)
     updateScrapingKeys(mediaKey, true)
     try {
-      const result = await scrapeJavMetaDetailed(targetAv)
+      const result = await scrapeEntryByKind(entry, customInput)
       if (result.status !== 'ok') {
         if (result.status === 'not_found')
-          addMissedScrapeKey(mediaKey, targetAv)
+          addMissedScrapeKey(mediaKey, targetQuery)
         return null
       }
       const patched: UnifiedMediaMeta = { ...result.meta, mediaKey }
@@ -700,7 +791,12 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       ? entries.value.filter(entry => !adEntryKeySet.value.has(entry.mediaKey))
       : entries.value,
   )
-  const visibleEntryCount = computed(() => visibleEntries.value.length)
+  const visibleEntryCount = computed(() =>
+    visibleEntries.value.filter(entry => !isCinemaEntry(entry)).length,
+  )
+  const cinemaCount = computed(() =>
+    visibleEntries.value.filter(entry => isCinemaEntry(entry)).length,
+  )
 
   function commitAdThresholds(next?: { maxDurationSec?: unknown, maxSizeMB?: unknown, matchMode?: unknown }) {
     const duration = clampAdMaxDurationSec(
@@ -724,8 +820,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   function getNextBackgroundCandidate(): LibraryEntry | undefined {
     return visibleEntries.value.find(entry =>
-      entry.kind === 'jav'
-      && Boolean(entry.externalId)
+      isScrapableEntry(entry)
       && entry.meta === null
       && !missedScrapeKeys.value.has(entry.mediaKey)
       && !scrapingKeys.value.has(entry.mediaKey)
@@ -756,18 +851,19 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
           break
 
         const candidate = getNextBackgroundCandidate()
-        if (!candidate || !candidate.externalId) {
+        if (!candidate) {
           flushRebuilds()
           bgScrapeState.value = 'done'
           bgScrapeReason.value = ''
           break
         }
 
-        const { mediaKey, externalId } = candidate
+        const { mediaKey } = candidate
+        const missRef = candidate.externalId || candidate.files[0]?.name || mediaKey
         updateScrapingKeys(mediaKey, true)
         let result: ScrapeResult
         try {
-          result = await scrapeJavMetaDetailed(externalId)
+          result = await scrapeEntryByKind(candidate)
         }
         catch (error) {
           result = {
@@ -802,7 +898,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
         else if (result.status === 'not_found') {
           consecutiveBlocks = 0
           attemptedScrapeKeys.add(mediaKey)
-          addMissedScrapeKey(mediaKey, externalId)
+          addMissedScrapeKey(mediaKey, missRef)
         }
         else if (result.status === 'challenge') {
           flushRebuilds()
@@ -1141,6 +1237,42 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     playerOverlayPickCode.value = null
   }
 
+  function saveCollectionMeta(
+    cid: string,
+    patch: {
+      title?: string
+      overview?: string
+      genres?: string[]
+      actors?: string[]
+    },
+  ) {
+    const sanitized = sanitizeCollectionCustomMeta(cid, patch)
+    const next = { ...customCollections.value }
+    if (sanitized)
+      next[sanitized.cid] = sanitized
+    else
+      delete next[cid.trim()]
+    customCollections.value = next
+    rebuildEntries()
+  }
+
+  function isCollectionUngrouped(cid: string): boolean {
+    return ungroupedCollectionCidSet.value.has(cid.trim())
+  }
+
+  function setCollectionUngrouped(cid: string, ungrouped: boolean) {
+    const normalizedCid = cid.trim()
+    if (!normalizedCid)
+      return
+    const next = new Set(ungroupedCollectionCids.value)
+    if (ungrouped)
+      next.add(normalizedCid)
+    else
+      next.delete(normalizedCid)
+    ungroupedCollectionCids.value = Array.from(next)
+    rebuildEntries()
+  }
+
   function bumpCustomCoverVersion(mediaKey: string) {
     customCoverVersions.value = {
       ...customCoverVersions.value,
@@ -1262,8 +1394,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const missedScrapeCount = computed(() => missedScrapeKeys.value.size)
   const bgScrapePendingCount = computed(() =>
     visibleEntries.value.filter(entry =>
-      entry.kind === 'jav'
-      && Boolean(entry.externalId)
+      isScrapableEntry(entry)
       && entry.meta === null
       && !missedScrapeKeys.value.has(entry.mediaKey),
     ).length,
@@ -1304,6 +1435,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     adFilterOptions,
     adEntryCount,
     visibleEntryCount,
+    cinemaCount,
     commitAdThresholds,
     hiddenActorKeys,
     hiddenActorKeySet,
@@ -1375,6 +1507,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     closeImagePicker,
     openPlayerOverlay,
     closePlayerOverlay,
+    customCollections,
+    ungroupedCollectionCids,
+    saveCollectionMeta,
+    isCollectionUngrouped,
+    setCollectionUngrouped,
     applyCustomCover,
     resetCustomCover,
     applyCustomAvatar,

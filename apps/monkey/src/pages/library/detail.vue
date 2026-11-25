@@ -36,25 +36,57 @@
         <div class="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-6 sm:px-8 sm:py-7">
           <!-- 顶部操作栏 -->
           <div class="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              variant="glass-floating"
-              size="sm"
-              class="gap-1.5 rounded-full px-3.5 text-xs"
-              :disabled="isScraping"
-              @click="handleRescrape()"
-            >
-              <Icon :name="isScraping ? I.LOADING : I.RESTART" class="text-sm" :class="isScraping && 'animate-spin'" />
-              <span>{{ isScraping ? '刮削中...' : '重新刮削' }}</span>
-            </Button>
-            <Button
-              variant="glass-floating"
-              size="sm"
-              class="gap-1.5 rounded-full px-3.5 text-xs"
-              @click="toggleManualAv"
-            >
-              <Icon :name="I.RENAME" class="text-sm" />
-              <span>指定番号</span>
-            </Button>
+            <template v-if="isCollection">
+              <Button
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                @click="toggleEditCollection"
+              >
+                <Icon :name="I.RENAME" class="text-sm" />
+                <span>{{ editingCollection ? '收起编辑' : '编辑合集' }}</span>
+              </Button>
+              <Button
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                @click="handleUngroupCollection"
+              >
+                <Icon :name="I.FOLDER_OPEN" class="text-sm" />
+                <span>拆分为独立视频</span>
+              </Button>
+            </template>
+            <template v-else>
+              <Button
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                :disabled="isScraping"
+                @click="handleRescrape()"
+              >
+                <Icon :name="isScraping ? I.LOADING : I.RESTART" class="text-sm" :class="isScraping && 'animate-spin'" />
+                <span>{{ isScraping ? '刮削中...' : '重新刮削' }}</span>
+              </Button>
+              <Button
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                @click="toggleManualAv"
+              >
+                <Icon :name="I.RENAME" class="text-sm" />
+                <span>{{ entry.kind === 'movie' || entry.kind === 'tv' ? '指定片名' : '指定番号' }}</span>
+              </Button>
+              <Button
+                v-if="canRestoreCollection"
+                variant="glass-floating"
+                size="sm"
+                class="gap-1.5 rounded-full px-3.5 text-xs"
+                @click="handleRestoreCollection"
+              >
+                <Icon :name="I.FOLDER_OPEN" class="text-sm" />
+                <span>恢复为目录合集</span>
+              </Button>
+            </template>
             <Button
               variant="glass-floating"
               size="sm"
@@ -75,6 +107,71 @@
             </a>
           </div>
 
+          <!-- 自定义编辑合集面板 -->
+          <form
+            v-if="isCollection && editingCollection"
+            class="ui-glass-surface flex flex-col gap-3 rounded-2xl p-4"
+            @submit.prevent="saveCollectionEdit"
+          >
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="flex flex-col gap-1 text-xs">
+                <span class="text-base-content/70 font-medium">合集标题</span>
+                <input
+                  v-model="collectionForm.title"
+                  type="text"
+                  placeholder="留空则自动使用目录名称"
+                  class="input input-sm input-bordered bg-base-100/80 rounded-xl text-xs"
+                >
+              </label>
+              <label class="flex flex-col gap-1 text-xs">
+                <span class="text-base-content/70 font-medium">标签 / 题材（逗号分隔）</span>
+                <input
+                  v-model="collectionForm.genresText"
+                  type="text"
+                  placeholder="例如：自拍, 系列, 收藏"
+                  class="input input-sm input-bordered bg-base-100/80 rounded-xl text-xs"
+                >
+              </label>
+            </div>
+            <label class="flex flex-col gap-1 text-xs">
+              <span class="text-base-content/70 font-medium">关联创作者 / 演员（逗号分隔，可选）</span>
+              <input
+                v-model="collectionForm.actorsText"
+                type="text"
+                placeholder="例如：创作者A, 创作者B"
+                class="input input-sm input-bordered bg-base-100/80 rounded-xl text-xs"
+              >
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              <span class="text-base-content/70 font-medium">合集简介</span>
+              <textarea
+                v-model="collectionForm.overview"
+                rows="3"
+                placeholder="输入合集备注或简介..."
+                class="textarea textarea-bordered bg-base-100/80 rounded-xl text-xs"
+              />
+            </label>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="rounded-full text-xs"
+                @click="editingCollection = false"
+              >
+                取消
+              </Button>
+              <Button
+                type="submit"
+                color="primary"
+                size="sm"
+                class="rounded-full px-4 text-xs"
+              >
+                保存修改
+              </Button>
+            </div>
+          </form>
+
           <!-- 手动指定番号面板 -->
           <form
             v-if="showManualAv"
@@ -84,7 +181,7 @@
             <input
               v-model="manualAvInput"
               type="text"
-              placeholder="输入正确的番号（例如 SSIS-001）"
+              :placeholder="entry.kind === 'movie' || entry.kind === 'tv' ? '输入正确的片名（可附年份，如 流浪地球2 2023）' : '输入正确的番号（例如 SSIS-001）'"
               class="input input-sm input-bordered bg-base-100/80 min-w-48 flex-1 rounded-full font-mono text-xs"
             >
             <Button
@@ -129,8 +226,9 @@
                   v-else-if="!thumbUrl"
                   class="text-base-content/35 flex size-full flex-col items-center justify-center gap-2"
                 >
-                  <Icon :name="I.LIBRARY" class="text-4xl" />
-                  <span v-if="entry.externalId" class="font-mono text-xs">{{ entry.externalId }}</span>
+                  <Icon :name="isCollection ? I.FOLDER_OPEN : I.LIBRARY" class="text-4xl" />
+                  <span v-if="isCollection" class="text-primary text-xs font-medium">合集 · {{ entry.files.length }} 个视频</span>
+                  <span v-else-if="entry.externalId" class="font-mono text-xs">{{ entry.externalId }}</span>
                 </div>
               </template>
               <button
@@ -150,15 +248,24 @@
               <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap items-center gap-2">
                   <span
-                    v-if="entry.externalId"
+                    v-if="isCollection"
+                    class="badge badge-primary badge-soft text-xs font-semibold"
+                  >
+                    目录合集
+                  </span>
+                  <span
+                    v-else-if="entry.externalId"
                     class="badge badge-primary badge-soft font-mono text-xs font-semibold"
                   >
                     {{ entry.externalId }}
                   </span>
-                  <span v-if="entry.meta?.source" class="badge badge-neutral badge-soft text-xs">
+                  <span v-if="!isCollection && entry.meta?.source" class="badge badge-neutral badge-soft text-xs">
                     {{ entry.meta.source }}
                   </span>
-                  <span v-if="entry.files.length > 1" class="badge badge-accent badge-soft text-xs">
+                  <span v-if="isCollection" class="badge badge-accent badge-soft text-xs">
+                    {{ entry.files.length }} 个视频
+                  </span>
+                  <span v-else-if="entry.files.length > 1" class="badge badge-accent badge-soft text-xs">
                     {{ entry.files.length }} 个版本
                   </span>
                   <span
@@ -184,6 +291,12 @@
                 <h1 class="text-base-content text-xl leading-snug font-bold sm:text-2xl">
                   {{ displayTitle }}
                 </h1>
+                <p
+                  v-if="entry.meta?.overview"
+                  class="text-base-content/75 line-clamp-4 text-xs leading-relaxed sm:text-sm"
+                >
+                  {{ entry.meta.overview }}
+                </p>
               </div>
 
               <!-- 关键指标 -->
@@ -312,39 +425,6 @@
                 </span>
                 <span class="pr-1 text-sm font-medium">{{ actor.name }}</span>
               </button>
-              <button
-                type="button"
-                :title="isActorFavorite(actor.name) ? '取消收藏演员' : '收藏演员'"
-                :aria-label="isActorFavorite(actor.name) ? '取消收藏演员' : '收藏演员'"
-                class="btn btn-ghost btn-circle btn-xs transition-opacity"
-                :class="isActorFavorite(actor.name)
-                  ? 'text-error opacity-100'
-                  : 'text-base-content/50 hover:text-error opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'"
-                @click.stop="handleToggleActorFavorite(actor.name)"
-              >
-                <Icon :name="isActorFavorite(actor.name) ? I.HEART_FILL : I.HEART" class="text-xs" />
-              </button>
-              <button
-                type="button"
-                :title="isActorHidden(actor.name) ? '取消隐藏演员' : '隐藏演员'"
-                :aria-label="isActorHidden(actor.name) ? '取消隐藏演员' : '隐藏演员'"
-                class="btn btn-ghost btn-circle btn-xs transition-opacity"
-                :class="isActorHidden(actor.name)
-                  ? 'text-warning opacity-100'
-                  : 'text-base-content/50 hover:text-warning opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'"
-                @click.stop="handleToggleActorHidden(actor.name)"
-              >
-                <Icon :name="isActorHidden(actor.name) ? I.VIEW : I.PREVIEW_OFF" class="text-xs" />
-              </button>
-              <button
-                type="button"
-                title="更换演员头像"
-                aria-label="更换演员头像"
-                class="btn btn-ghost btn-circle btn-xs text-base-content/50 hover:text-base-content opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-                @click.stop="store.openAvatarPicker({ name: actor.name, avatarUrl: actor.avatarUrl })"
-              >
-                <Icon :name="I.RENAME" class="text-xs" />
-              </button>
             </div>
           </div>
         </section>
@@ -354,9 +434,9 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="text-base-content text-base font-semibold">
-                网盘文件版本 ({{ entry.files.length }})
+                {{ isCollection ? `合集视频列表 (${displayedFiles.length})` : `网盘文件版本 (${displayedFiles.length})` }}
               </h2>
-              <template v-if="entry.files.length > 1">
+              <template v-if="!isCollection && entry.files.length > 1">
                 <span
                   v-if="hasExactSha1Duplicate"
                   class="badge badge-error badge-soft badge-xs rounded-full"
@@ -378,8 +458,28 @@
               </template>
             </div>
 
+            <div v-if="isCollection" class="flex items-center gap-2">
+              <select
+                v-model="collectionSortBy"
+                aria-label="合集视频排序"
+                class="select select-xs select-bordered bg-base-200/70 rounded-full text-xs"
+              >
+                <option value="name">
+                  按文件名排序
+                </option>
+                <option value="mtime">
+                  按最近更新
+                </option>
+                <option value="size">
+                  按文件体积
+                </option>
+                <option value="duration">
+                  按视频时长
+                </option>
+              </select>
+            </div>
             <Button
-              v-if="entry.files.length > 1"
+              v-else-if="entry.files.length > 1"
               size="xs"
               :variant="dedupeMode ? 'soft' : 'ghost'"
               :color="dedupeMode ? 'primary' : 'neutral'"
@@ -392,15 +492,15 @@
 
           <div class="flex flex-col gap-2">
             <div
-              v-for="(file, index) in entry.files"
+              v-for="(file, index) in displayedFiles"
               :key="file.fid"
               class="border-base-content/8 flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors"
               :class="dedupeMode
                 ? (keepFileFids.has(file.fid) ? 'bg-success/8 border-success/30' : 'bg-error/10 border-error/30')
-                : (index === activeFileIndex
+                : (file.fid === activeFile?.fid
                   ? 'bg-primary/8 border-primary/35'
                   : 'bg-base-200/40 hover:bg-base-200/70')"
-              @click="dedupeMode ? toggleKeepDetailFile(file.fid) : (activeFileIndex = index)"
+              @click="dedupeMode ? toggleKeepDetailFile(file.fid) : selectActiveFile(file)"
             >
               <div class="flex min-w-0 flex-1 items-center gap-3">
                 <label
@@ -422,11 +522,11 @@
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <div class="flex flex-wrap items-center gap-2">
                     <span
-                      v-if="entry.files.length > 1"
+                      v-if="displayedFiles.length > 1"
                       class="badge badge-xs rounded-full"
-                      :class="index === activeFileIndex ? 'badge-primary' : 'badge-ghost'"
+                      :class="file.fid === activeFile?.fid ? 'badge-primary' : 'badge-ghost'"
                     >
-                      版本 {{ index + 1 }}
+                      {{ isCollection ? `#${index + 1}` : `版本 ${index + 1}` }}
                     </span>
                     <span
                       v-if="dedupeMode && dedupeScoreByFid.get(file.fid)?.recommendedKeep"
@@ -667,7 +767,7 @@ import { format } from '@115master/utils'
 import { useTitle } from '@vueuse/core'
 import PhotoSwipe from 'photoswipe'
 import PhotoSwipeLightbox from 'photoswipe/lightbox'
-import { computed, h, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, h, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppDialog } from '@/app/dialog'
 import { useToast } from '@/components'
@@ -690,6 +790,7 @@ import {
   isSuspectedMultiPartGroup,
   loadCustomFullCoverUrl,
   loadPosterThumbUrl,
+  normalizeCollectionTags,
   safeDeleteFiles,
   scoreEntryFilesForDedupe,
 } from '@/utils/mediaIndex'
@@ -707,6 +808,26 @@ const previewCountSetting = useUserSetting('filelistPreviewCount')
 
 const mediaKey = computed(() => String(route.params.mediaKey ?? ''))
 const entry = computed(() => store.getEntry(mediaKey.value))
+const isCollection = computed(() => entry.value?.kind === 'collection')
+const collectionCid = computed(() =>
+  isCollection.value ? mediaKey.value.slice('collection:'.length) : '',
+)
+
+const collectionSortBy = shallowRef<'name' | 'mtime' | 'size' | 'duration'>('name')
+const displayedFiles = computed(() => {
+  const files = entry.value?.files ?? []
+  if (!isCollection.value)
+    return files
+  return [...files].sort((a, b) => {
+    if (collectionSortBy.value === 'mtime')
+      return b.mtime - a.mtime || b.size - a.size
+    if (collectionSortBy.value === 'size')
+      return b.size - a.size || b.mtime - a.mtime
+    if (collectionSortBy.value === 'duration')
+      return b.duration - a.duration || b.mtime - a.mtime
+    return a.name.localeCompare(b.name, 'zh-CN', { numeric: true })
+  })
+})
 
 watch(
   () => entry.value?.files,
@@ -718,7 +839,86 @@ watch(
 )
 
 const activeFileIndex = shallowRef(0)
-const activeFile = computed(() => entry.value?.files[activeFileIndex.value] ?? entry.value?.files[0])
+const activeFile = computed(() => displayedFiles.value[activeFileIndex.value] ?? displayedFiles.value[0])
+
+function selectActiveFile(file: LibraryFileItem) {
+  const idx = displayedFiles.value.findIndex(item => item.fid === file.fid)
+  activeFileIndex.value = idx >= 0 ? idx : 0
+}
+
+const editingCollection = shallowRef(false)
+const collectionForm = reactive({
+  title: '',
+  overview: '',
+  genresText: '',
+  actorsText: '',
+})
+
+function toggleEditCollection() {
+  editingCollection.value = !editingCollection.value
+  if (!editingCollection.value || !isCollection.value)
+    return
+  const custom = store.customCollections[collectionCid.value]
+  collectionForm.title = custom?.title ?? ''
+  collectionForm.overview = custom?.overview ?? ''
+  collectionForm.genresText = (custom?.genres ?? []).join(', ')
+  collectionForm.actorsText = (custom?.actors ?? []).join(', ')
+}
+
+function saveCollectionEdit() {
+  if (!collectionCid.value)
+    return
+  store.saveCollectionMeta(collectionCid.value, {
+    title: collectionForm.title,
+    overview: collectionForm.overview,
+    genres: normalizeCollectionTags(collectionForm.genresText),
+    actors: normalizeCollectionTags(collectionForm.actorsText),
+  })
+  editingCollection.value = false
+  toast.success('已保存合集信息')
+}
+
+async function handleUngroupCollection() {
+  if (!collectionCid.value)
+    return
+  const confirmed = await dialog.confirm({
+    title: '拆分为独立视频',
+    content: '确定将该目录合集拆分为独立视频卡片吗？拆分后可在任意视频详情页随时恢复合集。',
+    confirmText: '确认拆分',
+    cancelText: '取消',
+  })
+  if (!confirmed)
+    return
+  const firstFid = displayedFiles.value[0]?.fid
+  store.setCollectionUngrouped(collectionCid.value, true)
+  toast.success('已拆分为独立视频')
+  if (firstFid && store.getEntry(`file:${firstFid}`)) {
+    void router.replace({ name: 'library-detail', params: { mediaKey: `file:${firstFid}` } })
+    return
+  }
+  void router.push({ name: 'library' })
+}
+
+const canRestoreCollection = computed(() => {
+  if (isCollection.value)
+    return false
+  const cid = activeFile.value?.cid
+  return Boolean(cid && store.isCollectionUngrouped(cid))
+})
+
+function handleRestoreCollection() {
+  const cid = activeFile.value?.cid
+  if (!cid)
+    return
+  store.setCollectionUngrouped(cid, false)
+  const nextKey = `collection:${cid}`
+  if (store.getEntry(nextKey)) {
+    toast.success('已恢复为目录合集')
+    void router.replace({ name: 'library-detail', params: { mediaKey: nextKey } })
+    return
+  }
+  toast.info('已取消该目录的拆分标记')
+}
 
 /** 详情页内嵌多源去重状态 */
 const dedupeMode = shallowRef(false)

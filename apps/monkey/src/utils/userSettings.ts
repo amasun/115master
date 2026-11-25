@@ -7,11 +7,15 @@ import { appLogger } from './logger'
 /** 原生 115 目录跳转目标版本 */
 export type NativeFolderTarget = 'new' | 'legacy'
 
+/** 索引与刮削目录归属分类 */
+export type IndexRootCategory = 'jav' | 'cinema'
+
 /** 索引与刮削根目录项 */
 export interface IndexRootFolder {
   cid: string
   name: string
   path: string
+  category?: IndexRootCategory
 }
 
 /** 用户设置接口 */
@@ -36,6 +40,8 @@ export interface Settings {
   nativeFolderTarget: NativeFolderTarget
   /** 指定索引与刮削根目录（空数组表示全盘） */
   indexRootFolders: IndexRootFolder[]
+  /** TMDB API Key（可选，支持 v3 Key 或 v4 Bearer Token；留空时自动用豆瓣免 Key 兜底） */
+  tmdbApiKey: string
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
 }
@@ -54,6 +60,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableFanzaSource: false,
   nativeFolderTarget: 'new',
   indexRootFolders: [],
+  tmdbApiKey: '',
   theme: 'system',
 }
 
@@ -209,7 +216,8 @@ export function normalizeIndexRootFolders(raw: unknown): IndexRootFolder[] {
     const path = typeof record.path === 'string' && record.path.trim()
       ? record.path.trim()
       : name
-    result.push({ cid, name, path })
+    const category: IndexRootCategory = record.category === 'cinema' ? 'cinema' : 'jav'
+    result.push({ cid, name, path, category })
   }
   return result
 }
@@ -220,6 +228,16 @@ export function getConfiguredIndexRootCids(
 ): string[] {
   const normalized = normalizeIndexRootFolders(folders)
   return normalized.length > 0 ? normalized.map(folder => folder.cid) : ['0']
+}
+
+/** 获取生效的索引根目录分类映射（cid -> 'jav' | 'cinema'） */
+export function getConfiguredIndexRootCategoryMap(
+  folders: ReadonlyArray<IndexRootFolder> = userSettings.value.indexRootFolders,
+): Map<string, IndexRootCategory> {
+  const map = new Map<string, IndexRootCategory>()
+  for (const folder of normalizeIndexRootFolders(folders))
+    map.set(folder.cid, folder.category ?? 'jav')
+  return map
 }
 
 /** 根据用户设置构造原生 115 目录跳转链接 */

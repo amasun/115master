@@ -46,6 +46,22 @@
         <button
           type="button"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          :class="isCinemaActive
+            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
+            : 'hover:bg-base-content/5 text-base-content/75'"
+          @click="selectView('cinema')"
+        >
+          <span class="flex items-center gap-2.5">
+            <Icon :name="I.FILE_VIDEO" :filled="isCinemaActive" class="text-lg" />
+            <span>院线影视</span>
+          </span>
+          <span class="text-base-content/45 text-xs tabular-nums">{{ store.cinemaCount }}</span>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isActorsActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
@@ -352,11 +368,6 @@
           :value="spacePercent"
         />
       </div>
-
-      <!-- 版本号 -->
-      <div class="text-base-content/40 flex shrink-0 justify-end px-1 text-[10px] tabular-nums select-none">
-        <span>v{{ appVersion }}</span>
-      </div>
     </div>
   </div>
 </template>
@@ -382,7 +393,6 @@ const tagStore = useTagStore()
 const spaceInfo = useDriveSpaceInfoStore()
 const cloudAction = useCloudDownloadAction()
 const toast = useToast()
-const appVersion = __115MASTER_VERSION__
 
 const spacePercent = computed(() => {
   const allUse = spaceInfo?.state?.data?.space_info?.all_use?.size ?? 0
@@ -405,6 +415,9 @@ const tagCount = computed(() =>
 )
 const isAllWorksActive = computed(() =>
   isWallRoute.value && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
+)
+const isCinemaActive = computed(() =>
+  isWallRoute.value && store.filter.view === 'cinema' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
 )
 const isStarredActive = computed(() => isWallRoute.value && store.filter.view === 'starred')
 const isMarkedActive = computed(() => isWallRoute.value && store.filter.view === 'marked')

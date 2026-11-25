@@ -1,10 +1,11 @@
 import type { Share } from '@115master/drive115'
 import type { IndexedVideo, IndexedVideoLabel, IndexProgress, VideoIndexSnapshot } from './types'
+import type { IndexRootCategory } from '@/utils/userSettings'
 import { drive115 } from '@/utils/drive115Instance'
 import { folderPathResolver } from '@/utils/driveFolderPath'
 import { appLogger } from '@/utils/logger'
 import { parseMediaIdentity } from '@/utils/mediaIdentity'
-import { getConfiguredIndexRootCids } from '@/utils/userSettings'
+import { getConfiguredIndexRootCategoryMap, getConfiguredIndexRootCids } from '@/utils/userSettings'
 import { loadVideoIndexSnapshot, saveVideoIndexSnapshot } from './videoIndexStore'
 
 const logger = appLogger.sub('DriveVideoIndexer')
@@ -17,6 +18,8 @@ const DEFAULT_PAGE_DELAY_MS = 200
 export interface SyncVideoIndexOptions {
   /** 要扫描的根目录 cid 列表，默认全盘 ['0'] */
   rootCids?: string[]
+  /** 各根目录对应的库分类（'jav' | 'cinema'），默认读取用户设置 */
+  rootCategories?: ReadonlyMap<string, IndexRootCategory>
   /** 同步模式：incremental 仅拉取比上次更新的文件，full 全量重建 */
   mode?: 'full' | 'incremental'
   /** 取消信号 */
@@ -123,7 +126,10 @@ function parseDriveTimestamp(value: number | string | undefined): number {
 }
 
 /** 将 115 文件项转换为轻量的 IndexedVideo 记录 */
-export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem): IndexedVideo | null {
+export function toIndexedVideo(
+  item: Share.Entity.FilesItem | RawDriveFileItem,
+  libraryCategory?: IndexRootCategory,
+): IndexedVideo | null {
   const raw: RawDriveFileItem = item
   if (raw.fc === 0 || raw.fc === '0')
     return null
@@ -131,8 +137,11 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
     return null
 
   const cid = String(raw.pid || raw.cid || '0')
-  const folder = cid !== '0' ? folderPathResolver.getCached(cid) : null
-  const identity = parseMediaIdentity(raw.n, folder)
+  const isCinema = libraryCategory === 'cinema'
+  const folder = !isCinema && cid !== '0' ? folderPathResolver.getCached(cid) : null
+  const identity = isCinema
+    ? { platform: 'unknown' as const, avNumber: null, creator: undefined }
+    : parseMediaIdentity(raw.n, folder)
   const size = typeof raw.s === 'number' ? raw.s : Number(raw.s) || 0
   /** tp(user_ptime) / t 为文件自身的入库/创建时间，不受移动目录影响，与同步排序字段 o: 'user_ptime' 保持一致；te / tu 仅作缺失兜底 */
   const mtime = parseDriveTimestamp(raw.tp)
@@ -151,6 +160,7 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
     name: raw.n,
     avNumber: identity.avNumber,
     ...(identity.platform !== 'unknown' ? { platform: identity.platform } : {}),
+    ...(isCinema ? { libraryCategory: 'cinema' } : {}),
     ...(identity.creator ? { creator: identity.creator } : {}),
     size,
     duration: Number(raw.play_long) || 0,
@@ -176,6 +186,7 @@ export async function syncDriveVideoIndex(
 ): Promise<VideoIndexSnapshot> {
   const existing = await loadVideoIndexSnapshot()
   const configuredRootCids = getConfiguredIndexRootCids()
+  const rootCategories = options.rootCategories ?? getConfiguredIndexRootCategoryMap()
   const rootCids = options.rootCids?.length
     ? Array.from(new Set(options.rootCids))
     : (configuredRootCids.length > 0 ? configuredRootCids : ['0'])
@@ -202,6 +213,7 @@ export async function syncDriveVideoIndex(
   let total = 0
 
   for (const rootCid of rootCids) {
+    const rootCategory = rootCategories.get(rootCid) ?? 'jav'
     let offset = 0
     let dirTotal = 0
     while (true) {
@@ -238,7 +250,7 @@ export async function syncDriveVideoIndex(
 
       let lastValidRecord: IndexedVideo | null = null
       for (const raw of list) {
-        const record = toIndexedVideo(raw)
+        const record = toIndexedVideo(raw, rootCategory)
         if (!record)
           continue
         byFid.set(record.fid, record)

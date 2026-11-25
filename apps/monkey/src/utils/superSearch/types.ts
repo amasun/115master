@@ -1,5 +1,6 @@
 import type { JavInfo } from '@/utils/jav/jav'
 import type { MediaCreator, MediaPlatform } from '@/utils/mediaIdentity'
+import type { IndexRootCategory } from '@/utils/userSettings'
 
 /** 115 网盘文件文字标签 */
 export interface IndexedVideoLabel {
@@ -24,6 +25,8 @@ export interface IndexedVideo {
   avNumber: string | null
   /** 媒体归属平台（jav / fc2 / myfans / onlyfans），未识别时省略 */
   platform?: Exclude<MediaPlatform, 'unknown'>
+  /** 所属库栏目分类（默认 jav；cinema 为院线影视目录，跳过 JAV 番号识别） */
+  libraryCategory?: IndexRootCategory
   /** 创作者信息（MyFans / OnlyFans 提取） */
   creator?: MediaCreator
   /** 文件大小（字节） */

@@ -29,6 +29,7 @@ export interface LibraryBreadcrumbContext {
 }
 
 const VIEW_LABELS: Record<Exclude<LibraryView, 'all'>, string> = {
+  cinema: '院线影视',
   starred: '星标收藏',
   marked: '有打点',
 }

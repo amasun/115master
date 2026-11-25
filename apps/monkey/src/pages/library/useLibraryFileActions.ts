@@ -115,7 +115,7 @@ export function useLibraryFileActions() {
 
   async function deleteFile(file: LibraryFileItem, hooks?: LibraryFileActionHooks): Promise<boolean> {
     const deleteEmptyParent = ref(false)
-    const confirmed = await dialog.create({
+    const confirmed = await dialog.confirm({
       title: '删除文件',
       confirmText: '移入回收站',
       cancelText: '取消',

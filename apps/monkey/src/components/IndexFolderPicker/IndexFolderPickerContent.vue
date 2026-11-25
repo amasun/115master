@@ -22,24 +22,38 @@
         </button>
       </div>
 
-      <div v-if="modelValue.length > 0" class="flex flex-wrap gap-1.5">
-        <span
-          v-for="folder in modelValue"
-          :key="folder.cid"
-          class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-1 pr-1 pl-2 text-xs"
-          :title="folder.path"
-        >
-          <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
-          <span class="max-w-52 truncate">{{ folder.name }}</span>
-          <button
-            type="button"
-            class="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-            :aria-label="`移除 ${folder.name}`"
-            @click="removeFolder(folder.cid)"
+      <div v-if="modelValue.length > 0" class="flex flex-col gap-1.5">
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="folder in modelValue"
+            :key="folder.cid"
+            class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-1 pr-1 pl-1.5 text-xs"
+            :title="folder.path"
           >
-            <Icon :name="I.CLOSE" class="text-[11px]" />
-          </button>
-        </span>
+            <button
+              type="button"
+              class="badge badge-xs cursor-pointer border-none font-semibold transition-colors"
+              :class="folder.category === 'cinema' ? 'badge-secondary' : 'badge-primary'"
+              title="点击切换该目录的刮削类型（AV / 院线影视）"
+              @click.stop="toggleFolderCategory(folder.cid)"
+            >
+              {{ folder.category === 'cinema' ? '院线' : 'AV' }}
+            </button>
+            <Icon :name="I.FOLDER_OPEN" class="shrink-0 text-xs" />
+            <span class="max-w-44 truncate">{{ folder.name }}</span>
+            <button
+              type="button"
+              class="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+              :aria-label="`移除 ${folder.name}`"
+              @click="removeFolder(folder.cid)"
+            >
+              <Icon :name="I.CLOSE" class="text-[11px]" />
+            </button>
+          </span>
+        </div>
+        <p class="text-base-content/50 text-[11px]">
+          点击已选目录上的「AV / 院线」可手动切换刮削类型（默认 AV）
+        </p>
       </div>
     </div>
 
@@ -280,8 +294,19 @@ function toggleFolder(folder: FolderItem) {
   }
   emit('update:modelValue', [
     ...props.modelValue,
-    { cid: folder.cid, name: folder.name, path: folder.path },
+    { cid: folder.cid, name: folder.name, path: folder.path, category: 'jav' },
   ])
+}
+
+function toggleFolderCategory(cid: string) {
+  emit(
+    'update:modelValue',
+    props.modelValue.map(item =>
+      item.cid === cid
+        ? { ...item, category: item.category === 'cinema' ? 'jav' : 'cinema' }
+        : item,
+    ),
+  )
 }
 
 function removeFolder(cid: string) {

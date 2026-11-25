@@ -324,8 +324,11 @@ export function shouldCropRightHalfForPortrait(
   naturalWidth: number,
   naturalHeight: number,
   externalId?: string,
+  kind?: UnifiedMediaMeta['kind'],
 ): boolean {
   if (naturalHeight <= 0 || naturalWidth <= 0)
+    return false
+  if (kind === 'movie' || kind === 'tv')
     return false
   if (externalId && isFd2PpvAvNumber(externalId))
     return false

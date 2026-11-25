@@ -1,6 +1,7 @@
 import type { AdVideoDetectOptions } from './junkScanner'
 import type {
   ActorFacetStat,
+  CollectionCustomMeta,
   DriveLabelFacetCount,
   FacetCount,
   IndexedVideo,
@@ -14,7 +15,20 @@ import type { MarkerDoc } from '@/utils/markers/types'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
+import { parseCinemaTitle } from './cinemaTitleParser'
 import { isAdLibraryEntry } from './junkScanner'
+import { PROTECTED_FOLDER_NAMES } from './safeDelete'
+
+export interface AggregateLibraryOptions {
+  /** 用户配置的扫描根目录 CID，避免将整颗扫描根文件夹聚合为单一合集 */
+  excludedRootCids?: ReadonlySet<string>
+  /** 用户手动拆分为独立视频的目录 CID */
+  ungroupedCids?: ReadonlySet<string>
+  /** 用户自定义的合集元数据（按 cid 索引） */
+  customCollections?: Readonly<Record<string, CollectionCustomMeta>>
+  /** 目录名称反查函数（优先从本地目录路径缓存读取） */
+  folderNameLookup?: (cid: string) => string | undefined
+}
 
 export interface YearFacetCount {
   year: number
@@ -96,12 +110,59 @@ function countDocMarkers(doc?: MarkerDoc): number {
   return doc.markers.filter(marker => !marker.deleted).length
 }
 
-function resolveMediaKey(video: IndexedVideo): string {
+function resolveAutoCollectionCids(
+  videos: IndexedVideo[],
+  options?: AggregateLibraryOptions,
+): Set<string> {
+  const stats = new Map<string, { total: number, hasAvNumber: boolean }>()
+
+  for (const video of videos) {
+    if (video.libraryCategory === 'cinema')
+      continue
+    const cid = video.cid?.trim()
+    if (!cid || cid === '0')
+      continue
+    if (options?.excludedRootCids?.has(cid) || options?.ungroupedCids?.has(cid))
+      continue
+
+    const hasAv = Boolean(video.avNumber && normalizeAvNumber(video.avNumber))
+    const current = stats.get(cid)
+    if (current) {
+      current.total += 1
+      if (hasAv)
+        current.hasAvNumber = true
+    }
+    else {
+      stats.set(cid, { total: 1, hasAvNumber: hasAv })
+    }
+  }
+
+  const result = new Set<string>()
+  stats.forEach((stat, cid) => {
+    if (stat.total < 2 || stat.hasAvNumber)
+      return
+    const folderName = options?.folderNameLookup?.(cid)?.trim().toLowerCase()
+    if (folderName && PROTECTED_FOLDER_NAMES.has(folderName))
+      return
+    result.add(cid)
+  })
+  return result
+}
+
+function resolveMediaKey(video: IndexedVideo, collectionCids: ReadonlySet<string>): string {
+  if (video.libraryCategory === 'cinema') {
+    const parsed = parseCinemaTitle(video.name)
+    return parsed.mediaType === 'movie' && parsed.year
+      ? `movie:${parsed.normalizedKey}:${parsed.year}`
+      : `${parsed.mediaType}:${parsed.normalizedKey}`
+  }
   if (video.avNumber) {
     const normalized = normalizeAvNumber(video.avNumber)
     if (normalized)
       return `jav:${normalized}`
   }
+  if (video.cid && collectionCids.has(video.cid))
+    return `collection:${video.cid}`
   return `file:${video.fid}`
 }
 
@@ -135,16 +196,44 @@ function collectDriveLabels(files: LibraryFileItem[]): IndexedVideoLabel[] {
   return labels
 }
 
+function buildCollectionMeta(
+  cid: string,
+  latestMtime: number,
+  options?: AggregateLibraryOptions,
+): UnifiedMediaMeta {
+  const custom = options?.customCollections?.[cid]
+  const folderName = options?.folderNameLookup?.(cid)?.trim()
+  const title = custom?.title?.trim() || folderName || `合集 #${cid}`
+  const overview = custom?.overview?.trim() || undefined
+  const genres = custom?.genres ?? []
+  const actors = (custom?.actors ?? []).map(name => ({ name }))
+
+  return {
+    mediaKey: `collection:${cid}`,
+    kind: 'collection',
+    externalId: cid,
+    title,
+    ...(overview ? { overview } : {}),
+    directors: [],
+    actors,
+    genres,
+    source: 'collection',
+    updatedAt: custom?.updatedAt ?? latestMtime,
+  }
+}
+
 /** 聚合网盘视频文件、统一元数据与本地打点计数 */
 export function aggregateLibraryEntries(
   videos: IndexedVideo[],
   metaMap: Map<string, UnifiedMediaMeta>,
   markerDocs: Record<string, MarkerDoc>,
+  options?: AggregateLibraryOptions,
 ): LibraryEntry[] {
+  const collectionCids = resolveAutoCollectionCids(videos, options)
   const groups = new Map<string, { videos: IndexedVideo[], externalId?: string }>()
 
   videos.forEach((video) => {
-    const mediaKey = resolveMediaKey(video)
+    const mediaKey = resolveMediaKey(video, collectionCids)
     const group = groups.get(mediaKey)
     if (group) {
       group.videos.push(video)
@@ -159,12 +248,21 @@ export function aggregateLibraryEntries(
   })
 
   return Array.from(groups.entries()).map(([mediaKey, group]) => {
+    const isCollection = mediaKey.startsWith('collection:')
     const sortedVideos = [...group.videos].sort((a, b) => b.mtime - a.mtime || b.size - a.size)
     const files = sortedVideos.map(toLibraryFile)
-    const meta = metaMap.get(mediaKey) ?? null
-    const externalId = meta?.externalId ?? group.externalId
-    const kind = meta?.kind ?? (externalId ? 'jav' : 'unknown')
     const latestMtime = files.reduce((max, file) => Math.max(max, file.mtime), 0)
+    const meta = isCollection
+      ? buildCollectionMeta(mediaKey.slice('collection:'.length), latestMtime, options)
+      : (metaMap.get(mediaKey) ?? null)
+    const externalId = isCollection ? undefined : (meta?.externalId ?? group.externalId)
+    const kind = isCollection
+      ? 'collection'
+      : mediaKey.startsWith('movie:')
+        ? 'movie'
+        : mediaKey.startsWith('tv:')
+          ? 'tv'
+          : (meta?.kind ?? (externalId ? 'jav' : 'unknown'))
     const totalSize = files.reduce((sum, file) => sum + file.size, 0)
     const maxDuration = files.reduce((max, file) => Math.max(max, file.duration), 0)
     const markerCount = files.reduce((sum, file) => sum + countDocMarkers(markerDocs[file.pickCode]), 0)
@@ -363,34 +461,36 @@ export function buildLibraryIndex(
     if (!entry.meta)
       return
 
-    entry.meta.actors.forEach((actor) => {
-      const rawName = cleanActorName(actor.name)
-      if (!rawName)
-        return
-      const key = resolveActorKey(rawName)
-      if (!key)
-        return
+    if (entry.kind !== 'movie' && entry.kind !== 'tv') {
+      entry.meta.actors.forEach((actor) => {
+        const rawName = cleanActorName(actor.name)
+        if (!rawName)
+          return
+        const key = resolveActorKey(rawName)
+        if (!key)
+          return
 
-      addToIndex(byActorKey, key, entry.mediaKey)
-      addSetValue(actorKeysByMedia, entry.mediaKey, key)
-      addSetValue(rawAliasesByKey, key, rawName)
+        addToIndex(byActorKey, key, entry.mediaKey)
+        addSetValue(actorKeysByMedia, entry.mediaKey, key)
+        addSetValue(rawAliasesByKey, key, rawName)
 
-      const counts = nameCountsByKey.get(key) ?? new Map<string, number>()
-      counts.set(rawName, (counts.get(rawName) ?? 0) + 1)
-      nameCountsByKey.set(key, counts)
+        const counts = nameCountsByKey.get(key) ?? new Map<string, number>()
+        counts.set(rawName, (counts.get(rawName) ?? 0) + 1)
+        nameCountsByKey.set(key, counts)
 
-      if (actor.avatarUrl && !avatarByKey.has(key))
-        avatarByKey.set(key, actor.avatarUrl)
+        if (actor.avatarUrl && !avatarByKey.has(key))
+          avatarByKey.set(key, actor.avatarUrl)
 
-      if (actor.sex === 1 || actor.sex === 0) {
-        const votes = sexVotesByKey.get(key) ?? { female: 0, male: 0 }
-        if (actor.sex === 1)
-          votes.female += 1
-        else
-          votes.male += 1
-        sexVotesByKey.set(key, votes)
-      }
-    })
+        if (actor.sex === 1 || actor.sex === 0) {
+          const votes = sexVotesByKey.get(key) ?? { female: 0, male: 0 }
+          if (actor.sex === 1)
+            votes.female += 1
+          else
+            votes.male += 1
+          sexVotesByKey.set(key, votes)
+        }
+      })
+    }
 
     entry.meta.genres.forEach(genre => addToIndex(byGenre, genre, entry.mediaKey))
     entry.meta.directors.forEach(director => addToIndex(byDirector, director, entry.mediaKey))
@@ -525,6 +625,10 @@ export function buildLibraryIndex(
       if (options?.excludeKeys?.has(entry.mediaKey))
         return false
       if (options?.hideAdVideos && isAdLibraryEntry(entry, options.adFilterOptions))
+        return false
+      if (filter.view === 'all' && (entry.kind === 'movie' || entry.kind === 'tv'))
+        return false
+      if (filter.view === 'cinema' && entry.kind !== 'movie' && entry.kind !== 'tv')
         return false
       if ((filter.view === 'starred' || filter.onlyStarred) && !entry.starred)
         return false

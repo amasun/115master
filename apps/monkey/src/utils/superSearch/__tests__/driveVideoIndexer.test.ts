@@ -272,6 +272,10 @@ describe('syncDriveVideoIndex', () => {
     const snap = await syncDriveVideoIndex({
       mode: 'incremental',
       rootCids: ['dirA', 'dirB'],
+      rootCategories: new Map([
+        ['dirA', 'jav'],
+        ['dirB', 'cinema'],
+      ]),
       pageDelayMs: 0,
     })
 
@@ -288,6 +292,9 @@ describe('syncDriveVideoIndex', () => {
     )
     expect(snap.rootCids).toEqual(['dirA', 'dirB'])
     expect(snap.items.map(item => item.fid)).toEqual(['b1', 'a1'])
+    expect(snap.items[0]!.libraryCategory).toBe('cinema')
+    expect(snap.items[0]!.avNumber).toBeNull()
+    expect(snap.items[1]!.avNumber).toBe('SSIS-101')
   })
 })
 

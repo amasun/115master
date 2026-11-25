@@ -96,7 +96,12 @@ const MobileSider = defineComponent({
                 <Icon class="text-lg" name={I.LEFT} />
                 <span>返回原生 115</span>
               </Button>
-              <SiderMenuButton beforeOpen={prepare} />
+              <div class="flex items-center justify-between">
+                <SiderMenuButton beforeOpen={prepare} />
+                <span class="text-base-content/40 px-1 text-[10px] tabular-nums select-none">
+                  {`v${__115MASTER_VERSION__}`}
+                </span>
+              </div>
             </div>
           </div>
         </Drawer>

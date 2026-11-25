@@ -29,19 +29,25 @@
         class="text-base-content/35 flex size-full flex-col items-center justify-center gap-2 px-3 text-center"
       >
         <Icon
-          :name="isScraping ? I.LOADING : I.LIBRARY"
+          :name="isScraping ? I.LOADING : (isCollection ? I.FOLDER_OPEN : I.LIBRARY)"
           class="text-3xl"
           :class="isScraping && 'text-primary animate-spin'"
         />
         <span
-          v-if="entry.externalId"
+          v-if="isCollection"
+          class="bg-primary/15 text-primary max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+        >
+          合集 · {{ entry.files.length }} 个视频
+        </span>
+        <span
+          v-else-if="entry.externalId"
           class="bg-base-content/8 text-base-content/70 max-w-full truncate rounded-full px-2.5 py-0.5 font-mono text-[11px]"
         >
           {{ entry.externalId }}
         </span>
       </div>
 
-      <!-- 左上角：星标、多版本与打点角标 -->
+      <!-- 左上角：星标、多版本/合集与打点角标 -->
       <div class="pointer-events-none absolute top-2 left-2 flex flex-wrap gap-1">
         <span
           v-if="entry.starred"
@@ -51,7 +57,13 @@
           <Icon :name="I.STAR_FILL" class="text-[11px]" />
         </span>
         <span
-          v-if="entry.files.length > 1"
+          v-if="isCollection"
+          class="ui-glass-overlay text-primary inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+        >
+          合集 · {{ entry.files.length }}
+        </span>
+        <span
+          v-else-if="entry.files.length > 1"
           class="ui-glass-overlay text-base-content inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
         >
           {{ entry.files.length }} 版本
@@ -113,7 +125,10 @@
       </div>
 
       <div class="text-base-content/55 flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4">
-        <span v-if="entry.externalId" class="truncate font-mono">
+        <span v-if="isCollection" class="text-primary/80 truncate font-medium">
+          合集 · {{ entry.files.length }} 个视频
+        </span>
+        <span v-else-if="entry.externalId" class="truncate font-mono">
           {{ entry.externalId }}
         </span>
         <span v-else class="truncate">未识别番号</span>
@@ -181,6 +196,7 @@ function openContextMenu(event: MouseEvent) {
   menuPosition.value = { x: event.clientX, y: event.clientY }
   menuOpen.value = true
 }
+const isCollection = computed(() => props.entry.kind === 'collection')
 const isScraping = computed(() => store.scrapingKeys.has(props.entry.mediaKey))
 const visibleGenres = computed(() => props.entry.meta?.genres.slice(0, 3) ?? [])
 
@@ -218,6 +234,7 @@ function handleThumbLoad(event: Event) {
     image.naturalWidth,
     image.naturalHeight,
     props.entry.externalId,
+    props.entry.kind,
   )
 }
 

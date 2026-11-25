@@ -12,9 +12,18 @@ export type {
   VideoIndexSnapshot,
 }
 
-export type MediaKind = 'jav' | 'movie' | 'tv' | 'unknown'
+export type MediaKind = 'jav' | 'movie' | 'tv' | 'collection' | 'unknown'
 
-export type LibraryView = 'all' | 'starred' | 'marked'
+export interface CollectionCustomMeta {
+  cid: string
+  title?: string
+  overview?: string
+  genres?: string[]
+  actors?: string[]
+  updatedAt: number
+}
+
+export type LibraryView = 'all' | 'cinema' | 'starred' | 'marked'
 
 export type LibrarySortBy = 'mtime' | 'releaseDate' | 'duration' | 'size' | 'title'
 

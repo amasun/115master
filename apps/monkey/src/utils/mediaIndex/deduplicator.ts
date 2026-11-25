@@ -450,7 +450,7 @@ export function analyzeDuplicateGroups(
 
   const avBuckets = groupByKey(videos, (video) => {
     const entryKey = fidToMediaKey.get(video.fid)
-    if (entryKey && !entryKey.startsWith('file:'))
+    if (entryKey && !entryKey.startsWith('file:') && !entryKey.startsWith('collection:'))
       return entryKey
     if (video.avNumber) {
       const normalized = normalizeAvNumber(video.avNumber)
@@ -576,7 +576,7 @@ export async function analyzeDuplicateGroupsAsync(
 
     const entryKey = fidToMediaKey.get(video.fid)
     let avKey: string | null = null
-    if (entryKey && !entryKey.startsWith('file:')) {
+    if (entryKey && !entryKey.startsWith('file:') && !entryKey.startsWith('collection:')) {
       avKey = entryKey
     }
     else if (video.avNumber) {

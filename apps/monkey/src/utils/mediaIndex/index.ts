@@ -7,6 +7,20 @@ export {
 } from './actorProfileFetcher'
 export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
 export {
+  cinemaCache,
+  readAllCachedCinemaMeta,
+  saveCinemaMeta,
+  scrapeCinemaMetaDetailed,
+} from './cinemaScraper'
+export { parseCinemaTitle } from './cinemaTitleParser'
+export type { ParsedCinemaTitle } from './cinemaTitleParser'
+export {
+  COLLECTION_CUSTOM_META_STORAGE_KEY,
+  normalizeCollectionTags,
+  sanitizeCollectionCustomMeta,
+  UNGROUPED_COLLECTION_CIDS_STORAGE_KEY,
+} from './collectionStore'
+export {
   analyzeDuplicateGroups,
   analyzeDuplicateGroupsAsync,
   hasUniformSha1,
@@ -46,7 +60,12 @@ export type {
   JunkScannerDriveApi,
 } from './junkScanner'
 export { aggregateLibraryEntries, buildLibraryIndex } from './libraryAggregator'
-export type { LibraryIndex, LibraryQueryOptions, YearFacetCount } from './libraryAggregator'
+export type {
+  AggregateLibraryOptions,
+  LibraryIndex,
+  LibraryQueryOptions,
+  YearFacetCount,
+} from './libraryAggregator'
 export {
   collectLocalAvatarCandidates,
   collectLocalCoverCandidates,
@@ -87,6 +106,7 @@ export {
 export type { PosterThumbResource, ScrapeResult } from './scraperRegistry'
 export type {
   ActorFacetStat,
+  CollectionCustomMeta,
   DriveLabelFacetCount,
   FacetCount,
   IndexedVideo,
