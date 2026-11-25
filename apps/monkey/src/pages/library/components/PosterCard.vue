@@ -1,5 +1,6 @@
 <template>
   <article
+    ref="cardRef"
     class="group bg-base-200/45 border-base-content/5 hover:border-primary/40 hover:bg-base-200/75 flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-200"
     tabindex="0"
     @click="openDetail"
@@ -13,8 +14,11 @@
     >
       <img
         v-if="thumbUrl"
+        ref="imgRef"
         :src="thumbUrl"
         :alt="displayTitle"
+        loading="lazy"
+        decoding="async"
         class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         :class="aspectMode === 'portrait' && isRightHalfPortrait ? 'object-right' : 'object-center'"
         draggable="false"
@@ -133,7 +137,8 @@
 <script setup lang="ts">
 import type { LibraryEntry, PosterThumbResource } from '@/utils/mediaIndex'
 import { ActionMenu } from '@115master/ui'
-import { computed, onUnmounted, shallowRef, watch } from 'vue'
+import { useIntersectionObserver } from '@vueuse/core'
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
@@ -150,6 +155,9 @@ const router = useRouter()
 const store = useMediaLibraryStore()
 const fileActions = useLibraryFileActions()
 
+const cardRef = ref<HTMLElement>()
+const imgRef = ref<HTMLImageElement>()
+const hasEnteredViewport = shallowRef(typeof IntersectionObserver === 'undefined')
 const thumbUrl = shallowRef('')
 const isRightHalfPortrait = shallowRef(false)
 const menuOpen = shallowRef(false)
@@ -194,6 +202,8 @@ const durationLabel = computed(() => {
 function cleanupResource() {
   activeController?.abort()
   activeController = null
+  if (imgRef.value)
+    imgRef.value.removeAttribute('src')
   activeResource?.dispose()
   activeResource = null
   thumbUrl.value = ''
@@ -213,13 +223,16 @@ function handleThumbLoad(event: Event) {
 
 async function refreshThumb() {
   cleanupResource()
+  if (!hasEnteredViewport.value)
+    return
+
   const controller = new AbortController()
   activeController = controller
 
   const candidates = getCoverCandidates(props.entry.meta)
   try {
     const resource = await loadPosterThumbUrl(props.entry.mediaKey, candidates, controller.signal)
-    if (controller.signal.aborted) {
+    if (controller.signal.aborted || activeController !== controller) {
       resource?.dispose()
       return
     }
@@ -233,20 +246,45 @@ async function refreshThumb() {
   }
 }
 
+const { stop: stopObserving } = useIntersectionObserver(
+  cardRef,
+  (entries) => {
+    if (!entries.some(item => item.isIntersecting))
+      return
+    hasEnteredViewport.value = true
+    stopObserving()
+  },
+  { rootMargin: '240px 0px' },
+)
+
 watch(
   [
+    hasEnteredViewport,
     () => props.entry.mediaKey,
     () => props.entry.meta?.coverUrl,
     () => props.entry.meta?.updatedAt,
     () => store.customCoverVersions[props.entry.mediaKey],
   ],
-  () => {
+  ([visible]) => {
+    if (!visible)
+      return
     void refreshThumb()
   },
   { immediate: true },
 )
 
+watch(
+  [hasEnteredViewport, () => props.entry.mediaKey, () => props.entry.meta],
+  ([visible, mediaKey, meta]) => {
+    if (visible && meta === null && props.entry.kind === 'jav')
+      store.enqueueScrape(mediaKey)
+  },
+  { immediate: true },
+)
+
 onUnmounted(() => {
+  stopObserving()
+  store.cancelScrape(props.entry.mediaKey)
   cleanupResource()
 })
 

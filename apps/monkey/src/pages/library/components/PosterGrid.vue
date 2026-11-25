@@ -67,55 +67,85 @@
       </Button>
     </div>
 
-    <!-- 虚拟滚动海报网格 -->
-    <div ref="trackRef" class="w-full">
-      <div
-        v-if="entries.length > 0"
-        class="relative w-full"
-        :style="{ height: `${totalSize}px` }"
+    <!-- 分页海报网格 -->
+    <div v-else ref="trackRef" class="flex w-full flex-col gap-6">
+      <section
+        v-for="section in sections"
+        :key="`${store.wallPage}:${section.key}`"
+        class="flex w-full flex-col gap-3"
       >
         <div
-          v-for="row in virtualRows"
-          :key="String(row.key)"
-          class="absolute top-0 left-0 w-full"
-          :class="rows[row.index]?.kind === 'section' ? 'flex items-center gap-3' : 'grid'"
-          :style="rows[row.index]?.kind === 'section'
-            ? {
-              transform: `translateY(${row.start - scrollMargin}px)`,
-              height: `${SECTION_HEADER_HEIGHT}px`,
-            }
-            : {
-              transform: `translateY(${row.start - scrollMargin}px)`,
-              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-              gap: `${gap}px`,
-              height: `${rowHeight}px`,
-            }"
+          v-if="section.title"
+          class="flex h-10 items-center gap-3"
         >
-          <template v-if="rows[row.index]?.kind === 'section'">
-            <div class="flex shrink-0 items-center gap-2">
-              <span
-                v-if="rows[row.index]?.kind === 'section' && (rows[row.index] as Extract<GridRow, { kind: 'section' }>).badge"
-                class="badge badge-primary badge-soft badge-xs rounded-full font-medium"
+          <div class="flex shrink-0 items-center gap-2">
+            <span
+              v-if="section.badge"
+              class="badge badge-primary badge-soft badge-xs rounded-full font-medium"
+            >
+              {{ section.badge }}
+            </span>
+            <span class="text-base-content text-sm font-semibold">
+              {{ section.title }}
+            </span>
+            <span
+              v-if="section.count !== undefined"
+              class="text-base-content/45 text-xs tabular-nums"
+            >
+              {{ section.count }} 部
+            </span>
+          </div>
+          <div class="bg-base-content/10 h-px flex-1" />
+        </div>
+
+        <div
+          class="grid w-full"
+          :style="{
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: `${gap}px`,
+          }"
+        >
+          <PosterCard
+            v-for="entry in section.entries"
+            :key="entry.mediaKey"
+            :entry="entry"
+            :aspect-mode="store.aspectMode"
+          />
+        </div>
+      </section>
+
+      <!-- 底部分页切换与每页数量控制 -->
+      <div class="mt-4 flex flex-col items-center gap-3">
+        <Pagination
+          surface="floating"
+          :current-page="store.wallPage"
+          :current-page-size="store.wallPageSize"
+          :total="entries.length"
+          :page-size-options="WALL_PAGE_SIZE_OPTIONS"
+          :show-size-changer="true"
+          :labels="paginationLabels"
+          :on-current-page-change="handlePageChange"
+          :on-page-size-change="handlePageSizeChange"
+        />
+        <div class="text-base-content/55 flex flex-wrap items-center justify-center gap-3 text-xs tabular-nums">
+          <span>第 {{ store.wallPage }} / {{ store.wallTotalPages }} 页 · 共 {{ entries.length }} 部</span>
+          <label class="inline-flex items-center gap-1.5 md:hidden">
+            <span>每页</span>
+            <select
+              :value="store.wallPageSize"
+              aria-label="每页显示数量"
+              class="select select-ghost select-xs bg-base-200/70 rounded-full"
+              @change="handleMobilePageSizeChange"
+            >
+              <option
+                v-for="size in WALL_PAGE_SIZE_OPTIONS"
+                :key="size"
+                :value="size"
               >
-                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).badge }}
-              </span>
-              <span class="text-base-content text-sm font-semibold">
-                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).title }}
-              </span>
-              <span class="text-base-content/45 text-xs tabular-nums">
-                {{ (rows[row.index] as Extract<GridRow, { kind: 'section' }>).count }} 部
-              </span>
-            </div>
-            <div class="bg-base-content/10 h-px flex-1" />
-          </template>
-          <template v-else-if="rows[row.index]?.kind === 'cards'">
-            <PosterCard
-              v-for="entry in (rows[row.index] as Extract<GridRow, { kind: 'cards' }>).entries"
-              :key="entry.mediaKey"
-              :entry="entry"
-              :aspect-mode="store.aspectMode"
-            />
-          </template>
+                {{ size }} 部
+              </option>
+            </select>
+          </label>
         </div>
       </div>
     </div>
@@ -123,22 +153,36 @@
 </template>
 
 <script setup lang="ts">
-import type { LibraryEntry } from '@/utils/mediaIndex'
-import { Button, Empty, Progress, StatusFeedback } from '@115master/ui'
-import { useWindowVirtualizer } from '@tanstack/vue-virtual'
+import type { PaginationLabels } from '@115master/ui'
+import { Button, Empty, Pagination, Progress, StatusFeedback } from '@115master/ui'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { errorFeedback } from '@/utils/errorFeedback'
 import PosterCard from './PosterCard.vue'
+import {
+  buildWallPageSections,
+  sliceWallPage,
+  WALL_PAGE_SIZE_OPTIONS,
+} from './wallPagination'
 
 const store = useMediaLibraryStore()
 const trackRef = ref<HTMLElement>()
 const containerWidth = shallowRef(960)
-const scrollMargin = shallowRef(0)
 
 const entries = computed(() => store.filteredEntries)
+const pagedEntries = computed(() =>
+  sliceWallPage(entries.value, store.wallPage, store.wallPageSize),
+)
+
+const paginationLabels: PaginationLabels = {
+  previousPage: '上一页',
+  nextPage: '下一页',
+  jumpToPage: '跳转页码',
+  pageSize: '每页显示数量',
+  pageSizeUnit: '部 / 页',
+}
 
 const emptyDescription = computed(() => {
   if (store.entries.length === 0)
@@ -164,137 +208,64 @@ const columns = computed(() => {
   return Math.max(1, Math.floor((width + gap.value) / (targetWidth + gap.value)))
 })
 
-const rowHeight = computed(() => {
-  const width = Math.max(280, containerWidth.value)
-  const cardWidth = (width - gap.value * (columns.value - 1)) / columns.value
-  const coverHeight = store.aspectMode === 'portrait' ? cardWidth * 1.5 : cardWidth * (2 / 3)
-  return Math.ceil(coverHeight + 114)
-})
-
-const RECENT_30_DAYS_SEC = 30 * 24 * 60 * 60
-const SECTION_HEADER_HEIGHT = 40
-
-type GridRow
-  = | { kind: 'section', key: string, title: string, count: number, badge?: string }
-    | { kind: 'cards', key: string, entries: LibraryEntry[] }
-
-function chunkCards(list: LibraryEntry[], cols: number): GridRow[] {
-  const result: GridRow[] = []
-  for (let i = 0; i < list.length; i += cols) {
-    const slice = list.slice(i, i + cols)
-    if (slice.length > 0)
-      result.push({ kind: 'cards', key: slice[0]!.mediaKey, entries: slice })
-  }
-  return result
-}
-
-const rows = computed<GridRow[]>(() => {
-  const cols = columns.value
-  const list = entries.value
-  if (list.length === 0)
-    return []
-
-  if (store.filter.view === 'all' && store.filter.sortBy === 'mtime') {
-    const cutoffSec = Math.floor(Date.now() / 1000) - RECENT_30_DAYS_SEC
-    const recentEntries = list.filter(entry => entry.latestMtime >= cutoffSec)
-    const olderEntries = list.filter(entry => entry.latestMtime < cutoffSec)
-
-    if (recentEntries.length > 0) {
-      const recentBlock: GridRow[] = [
-        {
-          kind: 'section',
-          key: 'section:recent30',
-          title: '最近 30 天入库',
-          count: recentEntries.length,
-          badge: '近 30 天',
-        },
-        ...chunkCards(recentEntries, cols),
-      ]
-      const olderBlock: GridRow[] = olderEntries.length > 0
-        ? [
-            {
-              kind: 'section',
-              key: 'section:older',
-              title: '更早入库',
-              count: olderEntries.length,
-            },
-            ...chunkCards(olderEntries, cols),
-          ]
-        : []
-      return store.filter.sortAsc ? [...olderBlock, ...recentBlock] : [...recentBlock, ...olderBlock]
-    }
-  }
-
-  return chunkCards(list, cols)
-})
+const sections = computed(() =>
+  buildWallPageSections({
+    allEntries: entries.value,
+    pageEntries: pagedEntries.value,
+    view: store.filter.view,
+    sortBy: store.filter.sortBy,
+    sortAsc: store.filter.sortAsc,
+  }),
+)
 
 function updateMetrics() {
   if (!trackRef.value)
     return
   containerWidth.value = trackRef.value.clientWidth || window.innerWidth
-  scrollMargin.value = trackRef.value.getBoundingClientRect().top + window.scrollY
 }
 
-const virtualizerOptions = computed(() => ({
-  count: rows.value.length,
-  estimateSize: (index: number) => rows.value[index]?.kind === 'section' ? SECTION_HEADER_HEIGHT : rowHeight.value,
-  gap: gap.value,
-  overscan: 2,
-  scrollMargin: scrollMargin.value,
-  getItemKey: (index: number) => {
-    const item = rows.value[index]
-    if (!item)
-      return `${columns.value}:${index}`
-    return item.kind === 'section' ? item.key : `${columns.value}:${item.key}`
-  },
-}))
+function scrollToTop() {
+  if (typeof window !== 'undefined')
+    window.scrollTo({ top: 0, behavior: 'auto' })
+}
 
-const virtualizer = useWindowVirtualizer(virtualizerOptions)
-const virtualRows = computed(() => virtualizer.value.getVirtualItems())
-const totalSize = computed(() => virtualizer.value.getTotalSize())
+function handlePageChange(page: number) {
+  store.setWallPage(page)
+  scrollToTop()
+}
 
-watch([columns, rowHeight, () => store.filter.view, () => store.filter.sortBy, () => store.filter.sortAsc], () => {
-  void nextTick(() => {
-    virtualizer.value.measure()
-  })
-})
+function handlePageSizeChange(size: number) {
+  store.setWallPageSize(size)
+  scrollToTop()
+}
 
-let activeVisibleKeys = new Set<string>()
+function handleMobilePageSizeChange(event: Event) {
+  const value = Number((event.target as HTMLSelectElement).value)
+  handlePageSizeChange(value)
+}
+
+let activePageKeys = new Set<string>()
 
 watch(
-  [virtualRows, rows],
-  () => {
-    const nextKeys = new Set<string>()
-    virtualRows.value.forEach((row) => {
-      const rowData = rows.value[row.index]
-      if (!rowData || rowData.kind !== 'cards')
-        return
-      rowData.entries.forEach((entry) => {
-        nextKeys.add(entry.mediaKey)
-        if (entry.meta === null && entry.kind === 'jav')
-          store.enqueueScrape(entry.mediaKey)
-      })
-    })
-
-    activeVisibleKeys.forEach((key) => {
+  pagedEntries,
+  (list) => {
+    const nextKeys = new Set(list.map(entry => entry.mediaKey))
+    activePageKeys.forEach((key) => {
       if (!nextKeys.has(key))
         store.cancelScrape(key)
     })
-    activeVisibleKeys = nextKeys
+    activePageKeys = nextKeys
   },
-  { immediate: true, flush: 'post' },
+  { immediate: true },
 )
 
 onMounted(() => {
   updateMetrics()
-  void nextTick(() => {
-    virtualizer.value.measure()
-  })
 })
 
 onUnmounted(() => {
-  activeVisibleKeys.forEach(key => store.cancelScrape(key))
-  activeVisibleKeys.clear()
+  activePageKeys.forEach(key => store.cancelScrape(key))
+  activePageKeys.clear()
 })
 
 useResizeObserver(trackRef, updateMetrics)

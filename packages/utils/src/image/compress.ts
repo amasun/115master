@@ -19,9 +19,11 @@ export function compress(blob: Blob, options: CompressOptions = {}): Promise<Blo
   } = options
 
   return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob)
     const img = new Image()
 
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
       const canvas = document.createElement('canvas')
       const { width, height } = resize(img.width, img.height, maxWidth, maxHeight)
 
@@ -30,15 +32,18 @@ export function compress(blob: Blob, options: CompressOptions = {}): Promise<Blo
 
       const ctx = canvas.getContext('2d')
       if (!ctx) {
+        canvas.width = 0
+        canvas.height = 0
         reject(new Error('无法获取 Canvas 上下文'))
         return
       }
 
       ctx.drawImage(img, 0, 0, width, height)
-      URL.revokeObjectURL(img.src)
 
       canvas.toBlob(
         (result) => {
+          canvas.width = 0
+          canvas.height = 0
           if (result)
             resolve(result)
           else
@@ -50,9 +55,10 @@ export function compress(blob: Blob, options: CompressOptions = {}): Promise<Blo
     }
 
     img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
       reject(new Error('图片加载失败'))
     }
 
-    img.src = URL.createObjectURL(blob)
+    img.src = objectUrl
   })
 }

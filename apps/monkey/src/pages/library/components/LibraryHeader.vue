@@ -142,6 +142,28 @@
         </button>
       </div>
 
+      <!-- 每页显示数量 -->
+      <div
+        v-if="!isActors && !isCleanup && !isDetail"
+        class="ui-glass-floating hidden h-9 items-center rounded-full px-2 md:inline-flex"
+        title="海报墙每页显示数量"
+      >
+        <select
+          :value="store.wallPageSize"
+          aria-label="每页显示数量"
+          class="text-base-content cursor-pointer bg-transparent px-1 text-xs outline-none"
+          @change="handleWallPageSizeChange"
+        >
+          <option
+            v-for="size in WALL_PAGE_SIZE_OPTIONS"
+            :key="size"
+            :value="size"
+          >
+            {{ size }} / 页
+          </option>
+        </select>
+      </div>
+
       <!-- 横版 / 竖版比例 -->
       <Tooltip
         v-if="!isActors && !isCleanup"
@@ -197,6 +219,7 @@ import { useTagStore } from '@/store/tagList'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { buildLibraryBreadcrumbs } from './breadcrumb'
 import { resolveDriveLabelName } from './tagRail'
+import { WALL_PAGE_SIZE_OPTIONS } from './wallPagination'
 
 defineProps<{
   showFilters: boolean
@@ -373,6 +396,13 @@ const densityLabel = computed(() => {
     return '宽松'
   return '标准'
 })
+
+function handleWallPageSizeChange(event: Event) {
+  const value = Number((event.target as HTMLSelectElement).value)
+  store.setWallPageSize(value)
+  if (typeof window !== 'undefined')
+    window.scrollTo({ top: 0, behavior: 'auto' })
+}
 
 function toggleAspect() {
   store.aspectMode = store.aspectMode === 'landscape' ? 'portrait' : 'landscape'

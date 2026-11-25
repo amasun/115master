@@ -17,7 +17,13 @@ import type {
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import {
+  clampWallPage,
+  DEFAULT_WALL_PAGE_SIZE,
+  getWallTotalPages,
+  normalizeWallPageSize,
+} from '@/pages/library/components/wallPagination'
 import { actressFaceDB } from '@/utils/actressFaceDB'
 import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
@@ -141,6 +147,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   const aspectMode = useStorage<'landscape' | 'portrait'>('115Master_library_aspect', 'landscape')
   const density = useStorage<'compact' | 'comfortable' | 'relaxed'>('115Master_library_density', 'comfortable')
+  const wallPageSize = useStorage<number>('115Master_library_wall_page_size', DEFAULT_WALL_PAGE_SIZE)
+  const initialWallPageSize = normalizeWallPageSize(wallPageSize.value)
+  if (wallPageSize.value !== initialWallPageSize)
+    wallPageSize.value = initialWallPageSize
+  const wallPage = shallowRef(1)
   const hideAdVideos = useStorage<boolean>('115Master_library_hide_ad_videos', true)
   const adMaxDurationSec = useStorage<number>('115Master_library_ad_max_duration_sec', DEFAULT_LIBRARY_AD_MAX_DURATION_SEC)
   const adMaxSizeMB = useStorage<number>('115Master_library_ad_max_size_mb', DEFAULT_LIBRARY_AD_MAX_SIZE_MB)
@@ -1158,6 +1169,55 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : undefined,
     ),
   )
+  const wallTotalPages = computed(() =>
+    getWallTotalPages(filteredEntries.value.length, wallPageSize.value),
+  )
+
+  function setWallPage(page: number) {
+    const next = clampWallPage(page, filteredEntries.value.length, wallPageSize.value)
+    if (wallPage.value !== next)
+      wallPage.value = next
+    scrollTop.value = 0
+  }
+
+  function setWallPageSize(size: number) {
+    const next = normalizeWallPageSize(size)
+    if (wallPageSize.value !== next)
+      wallPageSize.value = next
+    wallPage.value = 1
+    scrollTop.value = 0
+  }
+
+  watch(
+    [
+      () => filter.view,
+      () => filter.keyword,
+      () => filter.actor,
+      () => filter.genre,
+      () => filter.director,
+      () => filter.year,
+      () => filter.driveLabel,
+      () => filter.scrapeStatus,
+      () => filter.onlyStarred,
+      () => filter.onlyMarked,
+      () => filter.sortBy,
+      () => filter.sortAsc,
+      hideAdVideos,
+      adMaxDurationSec,
+      adMaxSizeMB,
+      adMatchMode,
+    ],
+    () => {
+      wallPage.value = 1
+      scrollTop.value = 0
+    },
+  )
+
+  watch(wallTotalPages, (total) => {
+    if (wallPage.value > total)
+      wallPage.value = total
+  })
+
   const scrapedCount = computed(() => visibleEntries.value.filter(item => item.meta !== null).length)
   const starredCount = computed(() => visibleEntries.value.filter(item => item.starred).length)
   const markedCount = computed(() => visibleEntries.value.filter(item => item.markerCount > 0).length)
@@ -1195,6 +1255,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter,
     aspectMode,
     density,
+    wallPage,
+    wallPageSize,
+    wallTotalPages,
+    setWallPage,
+    setWallPageSize,
     hideAdVideos,
     adMaxDurationSec,
     adMaxSizeMB,
