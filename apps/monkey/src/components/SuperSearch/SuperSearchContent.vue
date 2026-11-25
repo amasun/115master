@@ -148,6 +148,16 @@
             <span>索引目录</span>
           </button>
           <button
+            v-if="snapshot"
+            type="button"
+            class="btn btn-xs btn-ghost rounded-lg"
+            title="选择索引与刮削根目录（支持多选，不选默认全盘）"
+            @click="configureRootFolders"
+          >
+            <Icon :name="I.FOLDER_OPEN" class="text-xs" />
+            <span>{{ indexRootFolders.length > 0 ? `${indexRootFolders.length} 个目录` : '全盘' }}</span>
+          </button>
+          <button
             type="button"
             class="btn btn-xs btn-primary rounded-lg"
             @click="startSync(snapshot ? 'incremental' : 'full')"
@@ -654,6 +664,7 @@ import type {
 import { GM_openInTab } from '$'
 import { format } from '@115master/utils'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { openIndexFolderPicker } from '@/components/IndexFolderPicker'
 import { MASTER_BASE_URL } from '@/constants'
 import { I, Icon } from '@/icons'
 import { actressFaceDB } from '@/utils/actressFaceDB'
@@ -670,6 +681,11 @@ import {
   searchIndexedVideos,
   syncDriveVideoIndex,
 } from '@/utils/superSearch'
+import {
+  getConfiguredIndexRootCids,
+  normalizeIndexRootFolders,
+  useUserSetting,
+} from '@/utils/userSettings'
 
 const emit = defineEmits<{
   close: []
@@ -691,6 +707,7 @@ const folderSyncing = ref(false)
 const folderProgress = ref<FolderSyncProgress | null>(null)
 let folderAbortController: AbortController | null = null
 const platformFilter = ref<PlatformFilter>('all')
+const indexRootFolders = useUserSetting('indexRootFolders')
 
 const actressDbReady = ref(false)
 const inputFocused = ref(false)
@@ -1168,9 +1185,33 @@ async function refreshLocalData() {
   javMap.value = loadedJavMap
 }
 
+async function configureRootFolders() {
+  const prevCids = getConfiguredIndexRootCids(indexRootFolders.value)
+  const picked = await openIndexFolderPicker({
+    initialFolders: indexRootFolders.value,
+  })
+  if (picked === null)
+    return
+  indexRootFolders.value = picked
+  const nextCids = getConfiguredIndexRootCids(picked)
+  const changed = prevCids.length !== nextCids.length
+    || prevCids.some(cid => !nextCids.includes(cid))
+  if (changed && snapshot.value)
+    await startSync('full')
+}
+
 async function startSync(mode: 'full' | 'incremental') {
   if (syncing.value)
     return
+  if (!snapshot.value && normalizeIndexRootFolders(indexRootFolders.value).length === 0) {
+    const picked = await openIndexFolderPicker({
+      title: '选择初次索引与刮削目录',
+      description: '可多选一个或多个影视目录以加快索引并减少杂项误刮削；不选择直接确认（或取消）将默认扫描全盘。',
+      initialFolders: [],
+    })
+    if (picked !== null)
+      indexRootFolders.value = picked
+  }
   errorMessage.value = ''
   syncing.value = true
   progress.value = { pages: 0, fetched: 0, total: 0, mode }
@@ -1178,6 +1219,7 @@ async function startSync(mode: 'full' | 'incremental') {
   try {
     snapshot.value = await syncDriveVideoIndex({
       mode,
+      rootCids: getConfiguredIndexRootCids(indexRootFolders.value),
       signal: abortController.signal,
       onProgress: (nextProgress) => {
         progress.value = nextProgress

@@ -190,7 +190,7 @@
             <Tooltip placement="right">
               <template #content>
                 <span class="block max-w-56 text-left leading-relaxed">
-                  全量重建索引：重扫全盘视频清单，清理已删除文件并刷新老文件番号、标签与入库时间；不会删除已刮削的图文与封面。
+                  全量重建索引：重扫已配置目录视频清单，清理已删除文件并刷新老文件番号、标签与入库时间；不会删除已刮削的图文与封面。
                 </span>
               </template>
               <Button
@@ -209,6 +209,23 @@
               </Button>
             </Tooltip>
           </div>
+
+          <Button
+            variant="ghost"
+            size="xs"
+            class="bg-base-content/4 hover:bg-base-content/8 h-7 w-full justify-between rounded-xl px-2.5 text-[11px] font-normal"
+            :disabled="store.indexing"
+            title="选择索引与刮削根目录（支持多选，不选默认全盘）"
+            @click="store.configureIndexRootFolders()"
+          >
+            <span class="text-base-content/65 flex items-center gap-1.5">
+              <Icon :name="I.FOLDER_OPEN" class="text-xs" />
+              <span>扫描目录</span>
+            </span>
+            <span class="text-base-content/85 font-medium tabular-nums">
+              {{ store.indexRootFolders.length > 0 ? `${store.indexRootFolders.length} 个目录` : '全盘' }}
+            </span>
+          </Button>
         </div>
 
         <!-- 元数据刮削分组（后台刮削 + 重试未命中） -->

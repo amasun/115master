@@ -18,6 +18,7 @@ import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { openIndexFolderPicker } from '@/components/IndexFolderPicker'
 import {
   clampWallPage,
   DEFAULT_WALL_PAGE_SIZE,
@@ -62,6 +63,11 @@ import {
 } from '@/utils/mediaIndex'
 import { Scheduler, SchedulerError, TaskStatus } from '@/utils/scheduler'
 import { getAllCachedActorWorks } from '@/utils/superSearch'
+import {
+  getConfiguredIndexRootCids,
+  normalizeIndexRootFolders,
+  useUserSetting,
+} from '@/utils/userSettings'
 
 const logger = appLogger.sub('MediaLibraryStore')
 
@@ -171,6 +177,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
   const favoriteActorKeys = useStorage<string[]>('115Master_library_favorite_actors', [])
   const favoriteActorKeySet = computed(() => new Set(favoriteActorKeys.value))
+  const indexRootFolders = useUserSetting('indexRootFolders')
   const scrollTop = shallowRef(0)
   const tagRailOpen = ref(false)
   const actorAvatars = shallowRef<Record<string, string>>({})
@@ -330,12 +337,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     scheduleBackgroundDuplicateAnalysis()
   }
 
-  async function syncIndex(mode: 'full' | 'incremental' = 'incremental') {
+  async function syncIndex(mode: 'full' | 'incremental' = 'incremental', overrideRootCids?: string[]) {
     syncController?.abort()
     const controller = new AbortController()
     syncController = controller
 
     const resolvedMode = videos.value.length > 0 ? mode : 'full'
+    const targetRootCids = overrideRootCids ?? getConfiguredIndexRootCids(indexRootFolders.value)
     indexing.value = true
     indexError.value = null
     indexProgress.value = {
@@ -349,6 +357,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
         syncDriveVideoIndex({
           mode: resolvedMode,
+          rootCids: targetRootCids,
           signal: controller.signal,
           onProgress: (progress) => {
             indexProgress.value = progress
@@ -458,6 +467,22 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       rebuildEntries()
   }
 
+  async function configureIndexRootFolders(options: { resyncIfChanged?: boolean } = {}) {
+    const prevCids = getConfiguredIndexRootCids(indexRootFolders.value)
+    const picked = await openIndexFolderPicker({
+      initialFolders: indexRootFolders.value,
+    })
+    if (picked === null)
+      return false
+    indexRootFolders.value = picked
+    const nextCids = getConfiguredIndexRootCids(picked)
+    const changed = prevCids.length !== nextCids.length
+      || prevCids.some(cid => !nextCids.includes(cid))
+    if (changed && options.resyncIfChanged !== false)
+      await syncIndex('full', nextCids)
+    return true
+  }
+
   async function reloadFromCache() {
     const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
       loadVideoIndexSnapshot(),
@@ -527,6 +552,15 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
           rebuildEntries()
         }
         else {
+          if (normalizeIndexRootFolders(indexRootFolders.value).length === 0) {
+            const picked = await openIndexFolderPicker({
+              title: '选择初次索引与刮削目录',
+              description: '可多选一个或多个影视目录以加快索引并减少杂项误刮削；不选择直接确认（或取消）将默认扫描全盘。',
+              initialFolders: [],
+            })
+            if (picked !== null)
+              indexRootFolders.value = picked
+          }
           await syncIndex('full')
         }
 
@@ -1300,6 +1334,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     markedCount,
     init,
     syncIndex,
+    indexRootFolders,
+    configureIndexRootFolders,
     scheduleOfflineIncrementalSync,
     refreshLocalContext,
     reloadFromCache,

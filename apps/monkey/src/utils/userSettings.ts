@@ -7,6 +7,13 @@ import { appLogger } from './logger'
 /** 原生 115 目录跳转目标版本 */
 export type NativeFolderTarget = 'new' | 'legacy'
 
+/** 索引与刮削根目录项 */
+export interface IndexRootFolder {
+  cid: string
+  name: string
+  path: string
+}
+
 /** 用户设置接口 */
 export interface Settings {
   /** 启动文件列表预览 */
@@ -27,6 +34,8 @@ export interface Settings {
   enableFanzaSource: boolean
   /** 原生 115 目录跳转目标（新版 / 旧版） */
   nativeFolderTarget: NativeFolderTarget
+  /** 指定索引与刮削根目录（空数组表示全盘） */
+  indexRootFolders: IndexRootFolder[]
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
 }
@@ -44,6 +53,7 @@ const DEFAULT_SETTINGS: Settings = {
   syncMarkersToFileDesc: true,
   enableFanzaSource: false,
   nativeFolderTarget: 'new',
+  indexRootFolders: [],
   theme: 'system',
 }
 
@@ -176,6 +186,40 @@ export function useUserSetting<K extends UserSettingKey>(key: K): ShallowRef<Set
 
   logger.info('共享用户设置状态创建完成', key)
   return state
+}
+
+/** 规范化并去重索引根目录配置（过滤无效与根目录 cid='0'） */
+export function normalizeIndexRootFolders(raw: unknown): IndexRootFolder[] {
+  if (!Array.isArray(raw))
+    return []
+
+  const seen = new Set<string>()
+  const result: IndexRootFolder[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object')
+      continue
+    const record = item as Partial<IndexRootFolder>
+    const cid = typeof record.cid === 'string' ? record.cid.trim() : ''
+    if (!cid || cid === '0' || seen.has(cid))
+      continue
+    seen.add(cid)
+    const name = typeof record.name === 'string' && record.name.trim()
+      ? record.name.trim()
+      : `目录 ${cid}`
+    const path = typeof record.path === 'string' && record.path.trim()
+      ? record.path.trim()
+      : name
+    result.push({ cid, name, path })
+  }
+  return result
+}
+
+/** 获取生效的索引根目录 cid 列表（未配置时回退全盘 ['0']） */
+export function getConfiguredIndexRootCids(
+  folders: ReadonlyArray<IndexRootFolder> = userSettings.value.indexRootFolders,
+): string[] {
+  const normalized = normalizeIndexRootFolders(folders)
+  return normalized.length > 0 ? normalized.map(folder => folder.cid) : ['0']
 }
 
 /** 根据用户设置构造原生 115 目录跳转链接 */

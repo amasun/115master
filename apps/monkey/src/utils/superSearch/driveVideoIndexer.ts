@@ -4,6 +4,7 @@ import { drive115 } from '@/utils/drive115Instance'
 import { folderPathResolver } from '@/utils/driveFolderPath'
 import { appLogger } from '@/utils/logger'
 import { parseMediaIdentity } from '@/utils/mediaIdentity'
+import { getConfiguredIndexRootCids } from '@/utils/userSettings'
 import { loadVideoIndexSnapshot, saveVideoIndexSnapshot } from './videoIndexStore'
 
 const logger = appLogger.sub('DriveVideoIndexer')
@@ -159,6 +160,13 @@ export function toIndexedVideo(item: Share.Entity.FilesItem | RawDriveFileItem):
   }
 }
 
+function hasSameRootCids(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
+  if (a.length !== b.length)
+    return false
+  const setB = new Set(b)
+  return a.every(cid => setB.has(cid))
+}
+
 /**
  * 同步 115 网盘视频索引
  * @description 使用 show_dir=0 & type=4 穿透任意层级子目录，扁平分页拉取视频文件。
@@ -167,10 +175,12 @@ export async function syncDriveVideoIndex(
   options: SyncVideoIndexOptions = {},
 ): Promise<VideoIndexSnapshot> {
   const existing = await loadVideoIndexSnapshot()
+  const configuredRootCids = getConfiguredIndexRootCids()
   const rootCids = options.rootCids?.length
-    ? options.rootCids
-    : (existing?.rootCids.length ? existing.rootCids : ['0'])
-  const canIncremental = options.mode === 'incremental' && Boolean(existing && existing.items.length > 0)
+    ? Array.from(new Set(options.rootCids))
+    : (configuredRootCids.length > 0 ? configuredRootCids : ['0'])
+  const rootChanged = Boolean(existing && !hasSameRootCids(existing.rootCids, rootCids))
+  const canIncremental = options.mode === 'incremental' && Boolean(existing && existing.items.length > 0) && !rootChanged
   const mode: 'full' | 'incremental' = canIncremental ? 'incremental' : 'full'
   const lastSyncSec = canIncremental && existing ? Math.floor(existing.lastSyncAt / 1000) : 0
   const cutoffSec = lastSyncSec > 0 ? Math.max(0, lastSyncSec - 300) : 0

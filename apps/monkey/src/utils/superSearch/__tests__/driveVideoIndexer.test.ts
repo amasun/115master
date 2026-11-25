@@ -236,6 +236,59 @@ describe('syncDriveVideoIndex', () => {
     expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(2)
     expect(stoppedSnap.items.map(item => item.fid)).toEqual(['6'])
   })
+
+  it('支持多选 rootCids 且在根目录范围变更时自动切换为全量同步', async () => {
+    storedSnapshot.current = {
+      schemaVersion: 1,
+      rootCids: ['0'],
+      lastFullSyncAt: 1_000_000,
+      lastSyncAt: 2_000_000,
+      items: [
+        {
+          fid: 'old-other',
+          cid: '999',
+          pickCode: 'pc_old',
+          name: 'OTHER-001.mp4',
+          avNumber: 'OTHER-001',
+          size: 1024,
+          duration: 3600,
+          mtime: 1500,
+        },
+      ],
+    }
+
+    getFilesWithFallbackMock
+      .mockResolvedValueOnce({
+        state: true,
+        count: 1,
+        data: [makeFile('a1', 'SSIS-101.mp4', 1000, 'dirA')],
+      })
+      .mockResolvedValueOnce({
+        state: true,
+        count: 1,
+        data: [makeFile('b1', 'IPX-202.mp4', 1200, 'dirB')],
+      })
+
+    const snap = await syncDriveVideoIndex({
+      mode: 'incremental',
+      rootCids: ['dirA', 'dirB'],
+      pageDelayMs: 0,
+    })
+
+    expect(getFilesWithFallbackMock).toHaveBeenCalledTimes(2)
+    expect(getFilesWithFallbackMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ cid: 'dirA' }),
+      undefined,
+    )
+    expect(getFilesWithFallbackMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ cid: 'dirB' }),
+      undefined,
+    )
+    expect(snap.rootCids).toEqual(['dirA', 'dirB'])
+    expect(snap.items.map(item => item.fid)).toEqual(['b1', 'a1'])
+  })
 })
 
 describe('toIndexedVideo', () => {

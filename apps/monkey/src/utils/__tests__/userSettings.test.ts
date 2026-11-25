@@ -18,7 +18,12 @@ vi.mock('@/utils/logger', () => ({
   },
 }))
 
-const { userSettings, useUserSetting } = await import('../userSettings')
+const {
+  getConfiguredIndexRootCids,
+  normalizeIndexRootFolders,
+  userSettings,
+  useUserSetting,
+} = await import('../userSettings')
 
 describe('useUserSetting', () => {
   beforeEach(() => {
@@ -64,5 +69,23 @@ describe('useUserSetting', () => {
     expect(second.value).toBe(true)
 
     testLogger.info('共享用户设置状态验证完成')
+  })
+
+  it('规范化索引根目录列表并在未配置时默认回退全盘', () => {
+    expect(userSettings.value.indexRootFolders).toEqual([])
+    expect(getConfiguredIndexRootCids([])).toEqual(['0'])
+
+    const normalized = normalizeIndexRootFolders([
+      { cid: '0', name: '根目录', path: '根目录' },
+      { cid: ' 123 ', name: ' 影视库 ', path: ' 根目录 / 影视库 ' },
+      { cid: '123', name: '重复忽略', path: '重复忽略' },
+      { cid: '', name: '空', path: '空' },
+      { cid: '456', name: 'OnlyFans', path: '' },
+    ])
+    expect(normalized).toEqual([
+      { cid: '123', name: '影视库', path: '根目录 / 影视库' },
+      { cid: '456', name: 'OnlyFans', path: 'OnlyFans' },
+    ])
+    expect(getConfiguredIndexRootCids(normalized)).toEqual(['123', '456'])
   })
 })

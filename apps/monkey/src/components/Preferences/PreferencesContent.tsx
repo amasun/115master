@@ -4,6 +4,7 @@ import { GM_info } from '$'
 import { format } from '@115master/utils'
 import { defineComponent, ref, shallowRef } from 'vue'
 import PKG from '@/../package.json'
+import { openIndexFolderPicker } from '@/components/IndexFolderPicker'
 import ThemeToggle from '@/components/ThemeToggle'
 import { useDriveListMode } from '@/hooks/useDriveListMode'
 import { I, Icon } from '@/icons'
@@ -15,7 +16,7 @@ import {
   parseCacheBackup,
   summarizeCacheBackup,
 } from '@/utils/cacheBackup'
-import { useUserSetting } from '@/utils/userSettings'
+import { normalizeIndexRootFolders, useUserSetting } from '@/utils/userSettings'
 import AccountPreferences from './AccountPreferences'
 
 /** 分类卡片：使用 UI Glass 表面与统一间距，支持右上角附属徽章与自定义表面样式 */
@@ -171,9 +172,26 @@ const PreferencesContent = defineComponent({
     const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
     const enableFanzaSource = useUserSetting('enableFanzaSource')
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
+    const indexRootFolders = useUserSetting('indexRootFolders')
     const backupBusy = shallowRef(false)
     const backupStatus = shallowRef<{ kind: 'success' | 'error', text: string } | null>(null)
     const backupFileInputRef = ref<HTMLInputElement | null>(null)
+
+    const handlePickIndexFolders = async () => {
+      const picked = await openIndexFolderPicker({
+        initialFolders: indexRootFolders.value,
+      })
+      if (picked !== null)
+        indexRootFolders.value = picked
+    }
+
+    const handleRemoveIndexFolder = (cid: string) => {
+      indexRootFolders.value = normalizeIndexRootFolders(indexRootFolders.value).filter(item => item.cid !== cid)
+    }
+
+    const handleResetIndexFolders = () => {
+      indexRootFolders.value = []
+    }
 
     const handleExportBackup = async () => {
       if (backupBusy.value)
@@ -412,6 +430,57 @@ const PreferencesContent = defineComponent({
                   <option value="legacy">旧版 115</option>
                 </select>
               </label>
+            </div>
+          </Card>
+
+          <Card title="索引与刮削目录" hint="限定影视库与超级搜索的扫描范围，未选择时默认全盘" icon={I.FOLDER_OPEN}>
+            <div class="flex flex-col gap-2">
+              {indexRootFolders.value.length > 0
+                ? (
+                    <div class="flex flex-wrap gap-1.5">
+                      {indexRootFolders.value.map(folder => (
+                        <span
+                          key={folder.cid}
+                          class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                          title={folder.path}
+                        >
+                          <span class="max-w-36 truncate">{folder.name}</span>
+                          <button
+                            type="button"
+                            class="hover:bg-primary/20 rounded-full p-0.5"
+                            aria-label={`移除 ${folder.name}`}
+                            onClick={() => handleRemoveIndexFolder(folder.cid)}
+                          >
+                            <Icon name={I.CLOSE} size="xs" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )
+                : (
+                    <p class="text-base-content/60 text-xs">
+                      当前范围：全盘（根目录）
+                    </p>
+                  )}
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-soft btn-primary flex-1 gap-1.5 rounded-xl"
+                  onClick={handlePickIndexFolders}
+                >
+                  <Icon name={I.FOLDER_OPEN} size="sm" />
+                  <span>选择目录（多选）</span>
+                </button>
+                {indexRootFolders.value.length > 0 && (
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-ghost rounded-xl"
+                    onClick={handleResetIndexFolders}
+                  >
+                    恢复全盘
+                  </button>
+                )}
+              </div>
             </div>
           </Card>
 
