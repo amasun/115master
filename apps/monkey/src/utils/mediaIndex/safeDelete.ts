@@ -189,7 +189,8 @@ function extractApiErrorMessage(res: unknown): string {
   return typeof raw === 'string' && raw.trim() ? raw.trim() : '115 接口返回失败'
 }
 
-export const DEFAULT_DELETE_BATCH_SIZE = 200
+export const DEFAULT_DELETE_BATCH_SIZE = 500
+const FALLBACK_DELETE_BATCH_SIZE = 200
 
 /**
  * 安全删除指定文件（移入回收站），并在开启 deleteEmptyParent 时安全清理空父目录
@@ -259,23 +260,42 @@ export async function safeDeleteFiles(
 
   const deleteBySingleCid = async (group: SafeDeleteFileInput[], cid: string) => {
     const fids = group.map(item => item.fid)
+    let succeeded = false
     try {
       const res = await api.deleteFiles(buildDeletePayload(fids, cid))
       if (res.state) {
         deletedFileIds.push(...fids)
         affectedCids.add(cid)
         await options.onBatchDeleted?.(fids)
+        succeeded = true
       }
       else {
-        failedFileIds.push(...fids)
         lastError = extractApiErrorMessage(res)
       }
     }
     catch (error) {
-      failedFileIds.push(...fids)
       lastError = error instanceof Error ? error.message : String(error)
     }
 
+    if (succeeded) {
+      markProcessedFiles(group)
+      emitProgress('files')
+      return
+    }
+
+    // 单目录超过 200 项被拒时，自动折半回退为 200/批重试
+    if (group.length > FALLBACK_DELETE_BATCH_SIZE) {
+      for (let subOffset = 0; subOffset < group.length; subOffset += FALLBACK_DELETE_BATCH_SIZE) {
+        if (options.signal?.aborted) {
+          aborted = true
+          break
+        }
+        await deleteBySingleCid(group.slice(subOffset, subOffset + FALLBACK_DELETE_BATCH_SIZE), cid)
+      }
+      return
+    }
+
+    failedFileIds.push(...fids)
     markProcessedFiles(group)
     emitProgress('files')
   }

@@ -43,23 +43,6 @@
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.visibleEntryCount }}</span>
         </button>
       </li>
-      <li v-if="store.enableCinemaLibrary">
-        <button
-          type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
-          :class="isCinemaActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
-          @click="selectView('cinema')"
-          @contextmenu.prevent="openNavMenu($event, { kind: 'cinema' })"
-        >
-          <span class="flex items-center gap-2.5">
-            <Icon :name="I.FILE_VIDEO" :filled="isCinemaActive" class="text-lg" />
-            <span>院线影视</span>
-          </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.cinemaCount }}</span>
-        </button>
-      </li>
       <li
         v-for="section in store.customSections"
         :key="section.id"
@@ -181,6 +164,30 @@
         </button>
       </li>
     </ul>
+
+    <!-- 院线影视独立分组（与 AV 导航视觉隔离） -->
+    <template v-if="store.enableCinemaLibrary">
+      <div class="bg-base-content/8 my-2 h-px w-full shrink-0" />
+      <ul class="flex shrink-0 flex-col gap-0.5">
+        <li>
+          <button
+            type="button"
+            class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+            :class="isCinemaActive
+              ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
+              : 'hover:bg-base-content/5 text-base-content/75'"
+            @click="selectView('cinema')"
+            @contextmenu.prevent="openNavMenu($event, { kind: 'cinema' })"
+          >
+            <span class="flex items-center gap-2.5">
+              <Icon :name="I.FILE_VIDEO" :filled="isCinemaActive" class="text-lg" />
+              <span>院线影视</span>
+            </span>
+            <span class="text-base-content/45 text-xs tabular-nums">{{ store.cinemaCount }}</span>
+          </button>
+        </li>
+      </ul>
+    </template>
 
     <div class="mt-auto pt-3">
       <div class="bg-base-content/5 mb-2 h-px w-full shrink-0" />

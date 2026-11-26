@@ -1414,7 +1414,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   }
 
   function setView(view: LibraryView) {
+    const prevView = filter.view
     filter.view = view
+    if (view === 'cinema' || prevView === 'cinema' || view.startsWith('section:')) {
+      filter.actor = undefined
+      filter.keyword = ''
+      resetSubFilters()
+    }
     if (view === 'starred')
       filter.onlyStarred = false
     if (view === 'marked')
