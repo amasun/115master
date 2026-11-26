@@ -13,6 +13,7 @@ import { videoTokenPage } from './pages/video'
 import { checkUserAgent } from './utils/checkUserAgent'
 import { debugInfo } from './utils/debugInfo'
 import { appLogger } from './utils/logger'
+import { installNativeDeleteCapture } from './utils/mediaIndex/nativeDeleteSync'
 
 const routerLogger = appLogger.sub('Router')
 
@@ -34,9 +35,11 @@ debugInfo.bootstrapInfo()
 /** 检查用户代理 */
 checkUserAgent()
 
-/** 新版文件接口必须在页面应用首个 fetch 前开始捕获。 */
-if (window.top === window.self && window.location.hostname === '115.com')
+/** 新版文件接口与原生删除联动必须在页面应用首个请求前开始捕获。 */
+if (window.top === window.self && window.location.hostname === '115.com') {
   installOfficialFileCapture()
+  installNativeDeleteCapture()
+}
 
 /** 路由匹配 */
 const routeMatch = [

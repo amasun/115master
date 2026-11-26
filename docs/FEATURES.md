@@ -92,6 +92,7 @@
 
 ### 2.7 跨设备缓存同步与设置/工程增强
 - **跨设备缓存导入导出（`.115bak` 单文件归档）**：在偏好设置「缓存与数据同步」中支持将本地视频索引、JAV 与院线刮削元数据、刮削未命中负缓存、演员个人资料、播放打点、目录路径缓存（2 万条）及可选的自定义封面/头像与海报墙 WebP 缩略图打包为单个 `.115bak` 二进制归档（Manifest gzip 压缩 + Blob 零拷贝拼接，无碎片文件），并在其他设备上安全合并导入（同时兼容旧版 `.json` 备份）。
+- **原生 115 删除联动与孤立刮削缓存清理**：在 115 原生页面拦截 `/rb/delete` 请求，删除文件或目录后立即同步移除本地视频索引并跨标签通知影视库刷新；设置页支持一键比对本地索引清理已删除影片残留的孤立 JAV/院线元数据、未命中记录与海报缩略图缓存。
 - **原生 115 目录跳转版本切换**：支持在偏好设置中选择「打开所在目录」默认跳转到 **新版 115** 或 **旧版 115**（当旧版触发风控刷不出时可无缝切至新版）。
 - **离线图标子集与一键发布工作流**：全量迁移至 Phosphor 图标库并在构建期生成离线 SVG 子集；提供 `pnpm ship` 一键完成暂存提交、rebase、userscript 构建校验与 `v2` 自动发版推送。
 - **关键代码**：`apps/monkey/src/utils/cacheBackup.ts`、`apps/monkey/src/utils/userSettings.ts`、`apps/monkey/src/components/Preferences/PreferencesContent.tsx`、`apps/monkey/plugins/phosphorIcons.ts`、`scripts/push-and-build.mjs`

@@ -89,6 +89,11 @@ export {
 } from './mediaPicker'
 export type { ImageCandidateItem } from './mediaPicker'
 export {
+  installNativeDeleteCapture,
+  NATIVE_DELETE_SYNC_STORAGE_KEY,
+  removeFidsFromVideoIndex,
+} from './nativeDeleteSync'
+export {
   COMPANION_OR_JUNK_EXTENSIONS,
   evaluateParentFolderSafety,
   PROTECTED_FOLDER_NAMES,

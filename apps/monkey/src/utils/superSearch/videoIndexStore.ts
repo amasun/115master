@@ -48,9 +48,9 @@ export function buildAvNumberMap(items: IndexedVideo[]): Map<string, IndexedVide
   return map
 }
 
-/** 读取网盘视频索引快照（优先命中内存，并在规则升级时自动重算番号） */
-export async function loadVideoIndexSnapshot(): Promise<VideoIndexSnapshot | null> {
-  if (memorySnapshot)
+/** 读取网盘视频索引快照（优先命中内存，forceRefresh 时强制从 IndexedDB 刷新） */
+export async function loadVideoIndexSnapshot(forceRefresh = false): Promise<VideoIndexSnapshot | null> {
+  if (!forceRefresh && memorySnapshot)
     return memorySnapshot
 
   const entry = await cache.get(SNAPSHOT_KEY)

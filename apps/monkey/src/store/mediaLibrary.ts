@@ -55,6 +55,7 @@ import {
   loadVideoIndexSnapshot,
   MANUAL_AV_BINDINGS_STORAGE_KEY,
   markScrapeMissed,
+  NATIVE_DELETE_SYNC_STORAGE_KEY,
   needsCinemaFolderFallback,
   normalizeAdMatchMode,
   normalizeManualAvNumber,
@@ -679,7 +680,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
 
   async function reloadFromCache() {
     const [snapshot, cachedMeta, cachedActorWorks, markers] = await Promise.all([
-      loadVideoIndexSnapshot(),
+      loadVideoIndexSnapshot(true),
       loadAllCachedMeta(),
       getAllCachedActorWorks(),
       markerStore.getAllDocs(),
@@ -711,7 +712,21 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       rebuildEntries()
   }
 
+  let nativeDeleteListenerInstalled = false
+
+  function ensureNativeDeleteSyncListener() {
+    if (nativeDeleteListenerInstalled || typeof window === 'undefined')
+      return
+    nativeDeleteListenerInstalled = true
+    window.addEventListener('storage', (event: StorageEvent) => {
+      if (event.key !== NATIVE_DELETE_SYNC_STORAGE_KEY || !initialized.value)
+        return
+      void reloadFromCache()
+    })
+  }
+
   async function init() {
+    ensureNativeDeleteSyncListener()
     if (initialized.value) {
       void refreshLocalContext()
       return

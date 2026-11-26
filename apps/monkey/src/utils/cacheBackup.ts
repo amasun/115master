@@ -11,8 +11,10 @@ import type { Settings } from '@/utils/userSettings'
 import { javCache } from '@/utils/cache/javCache'
 import { markerStore } from '@/utils/cache/markerStore'
 import { folderPathResolver } from '@/utils/driveFolderPath'
+import { normalizeAvNumber } from '@/utils/jav/jav'
 import { actorProfileCache } from '@/utils/mediaIndex/actorProfileFetcher'
 import { cinemaCache } from '@/utils/mediaIndex/cinemaScraper'
+import { aggregateLibraryEntries } from '@/utils/mediaIndex/libraryAggregator'
 import {
   customMediaCache,
   posterThumbCache,
@@ -772,4 +774,156 @@ export async function importInspectedBackup(
   }
 
   return summarizeCacheBackup({ data: manifest.data }, manifest.blobs)
+}
+
+export interface OrphanCachePruneResult {
+  removedJavMeta: number
+  removedCinemaMeta: number
+  removedScrapeMisses: number
+  removedPosterThumbs: number
+  totalRemoved: number
+  freedBytes: number
+}
+
+function safeReadJsonObject<T extends Record<string, unknown>>(storageKey: string): T | undefined {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw)
+      return undefined
+    const parsed = JSON.parse(raw) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as T : undefined
+  }
+  catch {
+    return undefined
+  }
+}
+
+function safeReadStringArray(storageKey: string): string[] | undefined {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw)
+      return undefined
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : undefined
+  }
+  catch {
+    return undefined
+  }
+}
+
+function estimateJsonBytes(value: unknown): number {
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).length
+  }
+  catch {
+    return 0
+  }
+}
+
+/** 比对当前本地视频索引，清理已删除影片残留的孤立刮削缓存与缩略图 */
+export async function pruneOrphanScrapeCache(
+  onProgress?: (text: string) => void,
+): Promise<OrphanCachePruneResult> {
+  onProgress?.('正在读取本地视频索引…')
+  const snapshot = await loadVideoIndexSnapshot(true)
+  if (!snapshot || snapshot.items.length === 0)
+    throw new Error('当前尚未建立本地视频索引，已跳过清理以防误删缓存')
+
+  const manualBindings = safeReadJsonObject<Record<string, string>>('115Master_library_manual_av_bindings_v1')
+  const customCollections = safeReadJsonObject<Record<string, never>>('115Master_library_collection_meta_v1')
+  const ungroupedCids = safeReadStringArray('115Master_library_ungrouped_collections_v1')
+  const entries = aggregateLibraryEntries(snapshot.items, new Map(), {}, {
+    manualAvBindings: manualBindings,
+    customCollections,
+    ungroupedCids: ungroupedCids ? new Set(ungroupedCids) : undefined,
+  })
+
+  const activeMediaKeys = new Set<string>()
+  const activeAvNumbers = new Set<string>()
+  const addAvKey = (raw?: string | null) => {
+    if (!raw)
+      return
+    const trimmed = raw.trim()
+    if (!trimmed)
+      return
+    activeAvNumbers.add(trimmed.toUpperCase())
+    const normalized = normalizeAvNumber(trimmed)
+    if (normalized)
+      activeAvNumbers.add(normalized)
+  }
+
+  for (const entry of entries) {
+    activeMediaKeys.add(entry.mediaKey)
+    addAvKey(entry.externalId)
+  }
+  for (const video of snapshot.items)
+    addAvKey(video.avNumber)
+  if (manualBindings) {
+    for (const av of Object.values(manualBindings))
+      addAvKey(av)
+  }
+
+  let freedBytes = 0
+
+  onProgress?.('正在检查孤立 JAV 刮削缓存…')
+  const orphanJavKeys: string[] = []
+  await javCache.storage.iterate<CacheValue<JavInfo> | null, void>((entry: CacheValue<JavInfo> | null, key: string) => {
+    if (!entry?.value)
+      return
+    const suffix = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key
+    const rawAv = entry.value.avNumber || suffix
+    const normalized = normalizeAvNumber(rawAv) || rawAv.trim().toUpperCase()
+    if (normalized && !activeAvNumbers.has(normalized)) {
+      orphanJavKeys.push(key)
+      freedBytes += estimateJsonBytes(entry.value)
+    }
+  })
+  await Promise.all(orphanJavKeys.map(key => javCache.remove(key)))
+
+  onProgress?.('正在检查孤立院线刮削缓存…')
+  const orphanCinemaKeys: string[] = []
+  await cinemaCache.storage.iterate<CacheValue<UnifiedMediaMeta> | null, void>((entry: CacheValue<UnifiedMediaMeta> | null, key: string) => {
+    if (!entry?.value)
+      return
+    const mediaKey = entry.value.mediaKey || key
+    if (!activeMediaKeys.has(mediaKey)) {
+      orphanCinemaKeys.push(key)
+      freedBytes += estimateJsonBytes(entry.value)
+    }
+  })
+  await Promise.all(orphanCinemaKeys.map(key => cinemaCache.remove(key)))
+
+  onProgress?.('正在检查孤立未命中记录…')
+  const orphanMissKeys: string[] = []
+  await scrapeMissCache.storage.iterate<CacheValue<ScrapeMissEntry> | null, void>((entry: CacheValue<ScrapeMissEntry> | null, key: string) => {
+    if (!entry?.value)
+      return
+    if (!activeMediaKeys.has(key)) {
+      orphanMissKeys.push(key)
+      freedBytes += estimateJsonBytes(entry.value)
+    }
+  })
+  await Promise.all(orphanMissKeys.map(key => scrapeMissCache.remove(key)))
+
+  onProgress?.('正在检查孤立海报缩略图…')
+  const orphanThumbKeys: string[] = []
+  await posterThumbCache.storage.iterate<CacheValue<Blob> | null, void>((entry: CacheValue<Blob> | null, key: string) => {
+    if (!entry?.value)
+      return
+    if (!activeMediaKeys.has(key)) {
+      orphanThumbKeys.push(key)
+      freedBytes += entry.value.size
+    }
+  })
+  await Promise.all(orphanThumbKeys.map(key => posterThumbCache.remove(key)))
+
+  const totalRemoved = orphanJavKeys.length + orphanCinemaKeys.length + orphanMissKeys.length + orphanThumbKeys.length
+  return {
+    removedJavMeta: orphanJavKeys.length,
+    removedCinemaMeta: orphanCinemaKeys.length,
+    removedScrapeMisses: orphanMissKeys.length,
+    removedPosterThumbs: orphanThumbKeys.length,
+    totalRemoved,
+    freedBytes,
+  }
 }

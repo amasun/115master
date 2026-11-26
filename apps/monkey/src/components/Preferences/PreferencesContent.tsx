@@ -15,6 +15,7 @@ import {
   exportCacheArchive,
   importInspectedBackup,
   inspectBackupFile,
+  pruneOrphanScrapeCache,
 } from '@/utils/cacheBackup'
 import {
   getIndexFoldersByCategory,
@@ -298,6 +299,51 @@ const PreferencesContent = defineComponent({
         backupStatus.value = {
           kind: 'error',
           text: `导入失败：${error instanceof Error ? error.message : '文件解析失败'}`,
+        }
+      }
+      finally {
+        backupBusy.value = false
+      }
+    }
+
+    const handlePruneOrphanCache = async () => {
+      if (backupBusy.value)
+        return
+      const confirmed = window.confirm(
+        '将根据当前本地视频索引，清理已删除影片残留的孤立刮削元数据与缩略图缓存（不会影响现有网盘影片）。是否继续？',
+      )
+      if (!confirmed)
+        return
+
+      backupBusy.value = true
+      backupStatus.value = { kind: 'info', text: '正在扫描孤立刮削缓存…' }
+      try {
+        const result = await pruneOrphanScrapeCache((text) => {
+          backupStatus.value = { kind: 'info', text }
+        })
+        if (result.totalRemoved > 0) {
+          try {
+            await useMediaLibraryStore().reloadFromCache()
+          }
+          catch {
+            // 非 Pinia 挂载上下文中忽略即时 store 刷新
+          }
+          backupStatus.value = {
+            kind: 'success',
+            text: `已清理孤立缓存 ${result.totalRemoved} 条（JAV ${result.removedJavMeta} · 院线 ${result.removedCinemaMeta} · 未命中 ${result.removedScrapeMisses} · 缩略图 ${result.removedPosterThumbs}，约释放 ${format.fileSize(result.freedBytes)}）`,
+          }
+        }
+        else {
+          backupStatus.value = {
+            kind: 'info',
+            text: '未发现孤立缓存，无需清理',
+          }
+        }
+      }
+      catch (error) {
+        backupStatus.value = {
+          kind: 'error',
+          text: `清理失败：${error instanceof Error ? error.message : '未知错误'}`,
         }
       }
       finally {
@@ -659,6 +705,15 @@ const PreferencesContent = defineComponent({
                 <span>导入备份</span>
               </button>
             </div>
+            <button
+              type="button"
+              class="btn btn-xs pref-surface-2-interactive text-base-content w-full gap-1.5 rounded-lg border font-medium shadow-none"
+              disabled={backupBusy.value}
+              onClick={handlePruneOrphanCache}
+            >
+              <Icon name={I.DELETE} size="xs" />
+              <span>清理孤立刮削缓存</span>
+            </button>
             {backupStatus.value && (
               <p
                 class={[
