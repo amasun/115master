@@ -1125,6 +1125,21 @@ watch(() => route.query.tab, (tab) => {
     activeTab.value = tab
 })
 
+watch(activeTab, (tab) => {
+  if (route.name !== 'library-cleanup')
+    return
+  const currentTab = route.query.tab === 'junk' ? 'junk' : undefined
+  const targetTab = tab === 'junk' ? 'junk' : undefined
+  if (currentTab === targetTab)
+    return
+  const nextQuery = { ...route.query }
+  if (targetTab)
+    nextQuery.tab = targetTab
+  else
+    delete nextQuery.tab
+  void router.replace({ name: 'library-cleanup', query: nextQuery })
+})
+
 function refreshAdVideosAsync() {
   if (adScanTimer)
     clearTimeout(adScanTimer)

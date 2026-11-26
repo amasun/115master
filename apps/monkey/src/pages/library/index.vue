@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import type { LibraryView } from '@/utils/mediaIndex'
 import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { Layout, Main, Sider, useToast } from '@/components'
@@ -49,6 +50,50 @@ const toast = useToast()
 const showFilters = shallowRef(false)
 const isWall = computed(() => route.name === 'library')
 const isTags = computed(() => route.name === 'library-tags')
+
+function parseRouteView(raw: unknown): LibraryView {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value === 'all' || value === 'starred' || value === 'marked')
+    return value
+  if (value === 'cinema')
+    return store.enableCinemaLibrary ? 'cinema' : 'all'
+  if (typeof value === 'string' && value.startsWith('section:')) {
+    const id = value.slice('section:'.length)
+    if (store.customSections.some(s => s.id === id))
+      return value as LibraryView
+  }
+  return 'all'
+}
+
+watch(
+  [() => route.name, () => route.query.view],
+  ([name, view]) => {
+    if (name !== 'library')
+      return
+    const nextView = parseRouteView(view)
+    if (store.filter.view !== nextView)
+      store.setView(nextView)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => store.filter.view,
+  (view) => {
+    if (route.name !== 'library')
+      return
+    const targetView = view === 'all' ? undefined : view
+    const currentView = Array.isArray(route.query.view) ? route.query.view[0] : route.query.view
+    if (currentView === targetView)
+      return
+    const nextQuery = { ...route.query }
+    if (targetView)
+      nextQuery.view = targetView
+    else
+      delete nextQuery.view
+    void router.replace({ name: 'library', query: nextQuery })
+  },
+)
 
 function handleToggleFilters() {
   if (!isWall.value) {

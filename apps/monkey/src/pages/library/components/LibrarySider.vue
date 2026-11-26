@@ -199,12 +199,40 @@
             <span v-if="store.indexing" class="text-primary tabular-nums">
               同步 {{ store.indexProgress.fetched }}/{{ store.indexProgress.total || '...' }}
             </span>
-            <span
-              v-else
-              class="tabular-nums"
-              :title="store.hideAdVideos && store.adEntryCount > 0 ? `共索引 ${store.entries.length} 部，已隐藏 ${store.adEntryCount} 部疑似广告` : undefined"
-            >
-              {{ store.visibleEntryCount }} 部
+            <span v-else class="inline-flex items-center gap-1 tabular-nums">
+              <span
+                :title="store.hideAdVideos && store.adEntryCount > 0 ? `共索引 ${store.entries.length} 部，已隐藏 ${store.adEntryCount} 部疑似广告` : undefined"
+              >
+                {{ store.visibleEntryCount }} 部
+              </span>
+              <Tooltip placement="right">
+                <template #content>
+                  <div class="flex min-w-52 flex-col gap-1.5 text-left text-xs leading-relaxed">
+                    <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-1 font-medium">
+                      <span>预估总时长</span>
+                      <span class="tabular-nums">{{ libraryDurationStats.totalLabel }}</span>
+                    </div>
+                    <div
+                      v-for="item in libraryDurationStats.categories"
+                      :key="item.key"
+                      class="flex items-center justify-between gap-4 text-[11px] opacity-85"
+                    >
+                      <span>{{ item.label }} ({{ item.count }})</span>
+                      <span class="tabular-nums">{{ item.durationLabel }}</span>
+                    </div>
+                    <p v-if="libraryDurationStats.missingCount > 0" class="border-t border-white/10 pt-1 text-[10px] opacity-60">
+                      另有 {{ libraryDurationStats.missingCount }} 部未返回时长元数据
+                    </p>
+                  </div>
+                </template>
+                <button
+                  type="button"
+                  class="text-base-content/45 hover:text-base-content inline-flex items-center justify-center rounded-full transition-colors"
+                  aria-label="查看各分类预估总时长"
+                >
+                  <Icon :name="I.ABOUT" class="text-xs" />
+                </button>
+              </Tooltip>
             </span>
           </div>
 
@@ -410,7 +438,7 @@
 
 <script setup lang="ts">
 import type { ActionMenuGroup } from '@115master/ui'
-import type { LibraryView } from '@/utils/mediaIndex'
+import type { LibraryEntry, LibraryView } from '@/utils/mediaIndex'
 import type { CustomScrapeMode } from '@/utils/userSettings'
 import { ActionMenu, Button, Tooltip } from '@115master/ui'
 import { format } from '@115master/utils'
@@ -436,6 +464,89 @@ const spacePercent = computed(() => {
   const allUse = spaceInfo?.state?.data?.space_info?.all_use?.size ?? 0
   const allTotal = spaceInfo?.state?.data?.space_info?.all_total?.size ?? 1
   return Number((allUse / allTotal * 100).toFixed(2))
+})
+
+function formatTotalDuration(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0)
+    return '0 分钟'
+  const totalMinutes = Math.round(totalSeconds / 60)
+  if (totalMinutes < 60)
+    return `${Math.max(1, totalMinutes)} 分钟`
+  const hours = Math.floor(totalMinutes / 60)
+  const mins = totalMinutes % 60
+  const base = mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`
+  if (hours >= 24)
+    return `${base}（约 ${(hours / 24).toFixed(1)} 天）`
+  return base
+}
+
+function estimateEntryDuration(entry: LibraryEntry): number {
+  if (entry.kind === 'tv' || entry.kind === 'collection') {
+    const filesSum = entry.files.reduce((sum, file) => sum + (file.duration > 0 ? file.duration : 0), 0)
+    if (filesSum > 0)
+      return filesSum
+  }
+  return entry.maxDuration > 0 ? entry.maxDuration : (entry.meta?.duration ?? 0)
+}
+
+const libraryDurationStats = computed(() => {
+  const buckets = new Map<string, { label: string, count: number, seconds: number }>()
+  const sectionLabelById = new Map(store.customSections.map(section => [section.id, section.name]))
+
+  const addBucket = (key: string, label: string, seconds: number) => {
+    const existing = buckets.get(key)
+    if (existing) {
+      existing.count += 1
+      existing.seconds += seconds
+      return
+    }
+    buckets.set(key, { label, count: 1, seconds })
+  }
+
+  let totalSeconds = 0
+  let missingCount = 0
+
+  for (const entry of store.entries) {
+    const sec = estimateEntryDuration(entry)
+    if (sec > 0)
+      totalSeconds += sec
+    else
+      missingCount += 1
+
+    if (entry.sectionId) {
+      addBucket(`section:${entry.sectionId}`, sectionLabelById.get(entry.sectionId) ?? '自定义栏目', sec)
+    }
+    else if (entry.kind === 'jav') {
+      addBucket('jav', 'AV 作品', sec)
+    }
+    else if (entry.kind === 'movie' || entry.kind === 'tv') {
+      addBucket('cinema', '院线影视', sec)
+    }
+    else {
+      addBucket('other', '合集 / 其他', sec)
+    }
+  }
+
+  const orderedKeys = ['jav', 'cinema', 'other', ...store.customSections.map(section => `section:${section.id}`)]
+  const categories = orderedKeys
+    .map((key) => {
+      const item = buckets.get(key)
+      if (!item || item.count === 0)
+        return null
+      return {
+        key,
+        label: item.label,
+        count: item.count,
+        durationLabel: formatTotalDuration(item.seconds),
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+
+  return {
+    totalLabel: formatTotalDuration(totalSeconds),
+    categories,
+    missingCount,
+  }
 })
 
 const isWallRoute = computed(() => route.name === 'library')
@@ -581,24 +692,31 @@ const navMenuGroups = computed<ActionMenuGroup[]>(() => {
 const isStarredActive = computed(() => isWallRoute.value && store.filter.view === 'starred')
 const isMarkedActive = computed(() => isWallRoute.value && store.filter.view === 'marked')
 
-function ensureLibraryWall() {
-  if (route.name !== 'library') {
-    store.scrollTop = 0
-    void router.push({ name: 'library' })
+function ensureLibraryWall(view: LibraryView = 'all') {
+  const targetView = view === 'all' ? undefined : view
+  const currentView = Array.isArray(route.query.view) ? route.query.view[0] : route.query.view
+  if (route.name !== 'library' || currentView !== targetView) {
+    if (route.name !== 'library')
+      store.scrollTop = 0
+    void router.push({
+      name: 'library',
+      query: targetView ? { view: targetView } : {},
+    })
+    return
   }
+  if (store.filter.view !== view)
+    store.setView(view)
 }
 
 function selectAllWorks() {
-  store.setView('all')
   store.selectActor(undefined)
   store.selectGenre(undefined)
   store.selectDriveLabel(undefined)
-  ensureLibraryWall()
+  ensureLibraryWall('all')
 }
 
 function selectView(view: LibraryView) {
-  store.setView(view)
-  ensureLibraryWall()
+  ensureLibraryWall(view)
 }
 
 function openActorsWall() {
