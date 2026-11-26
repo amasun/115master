@@ -4,6 +4,7 @@ import type { ThemeMode } from '@/utils/theme'
 import { defineComponent, ref } from 'vue'
 import { I, Icon } from '@/icons'
 import { clsx } from '@/utils/clsx'
+import { setThemeMode } from '@/utils/theme'
 import { userSettings } from '@/utils/userSettings'
 
 interface ThemeOption {
@@ -24,6 +25,7 @@ const currentMode = ref<ThemeMode>(userSettings.value.theme)
 function pickMode(mode: ThemeMode) {
   currentMode.value = mode
   userSettings.value.theme = mode
+  setThemeMode(mode)
 }
 
 const slots = {} as SlotsType<{ default: () => void }>

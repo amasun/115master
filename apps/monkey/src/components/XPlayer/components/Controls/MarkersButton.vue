@@ -42,6 +42,12 @@
         >
           <Icon :name="I.PLUS" class="size-4" />
           <span>在当前位置打点</span>
+          <kbd
+            v-if="addMarkerKey"
+            class="rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] leading-none"
+          >
+            {{ addMarkerKey }}
+          </kbd>
         </Button>
       </div>
 
@@ -124,6 +130,20 @@
           </template>
         </li>
       </ul>
+
+      <!-- 快捷键提示 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-[11px] text-white/55">
+        <span
+          v-for="hint in markerShortcutHints"
+          :key="hint.label"
+          class="inline-flex items-center gap-1"
+        >
+          <kbd class="rounded border border-white/15 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/85">
+            {{ hint.key }}
+          </kbd>
+          <span>{{ hint.label }}</span>
+        </span>
+      </div>
     </div>
   </Popup>
 </template>
@@ -203,6 +223,21 @@ const markerTip = computed(() => {
   const tip = shortcuts.getShortcutsTip('addMarker')
   return `${NAME}${tip}`
 })
+
+function formatShortcutKey(keys: string[] | undefined, fallback: string): string {
+  const first = keys?.[0]?.trim() || fallback
+  return first.length === 1 && /^[a-z]$/i.test(first) ? first.toUpperCase() : first
+}
+
+const addMarkerKey = computed(() =>
+  formatShortcutKey(shortcuts.mergedActionKeyBindings?.value?.addMarker, 'b'),
+)
+
+const markerShortcutHints = computed(() => [
+  { key: addMarkerKey.value, label: '打点' },
+  { key: formatShortcutKey(shortcuts.mergedActionKeyBindings?.value?.prevMarker, ','), label: '上一个' },
+  { key: formatShortcutKey(shortcuts.mergedActionKeyBindings?.value?.nextMarker, '.'), label: '下一个' },
+])
 
 /** 切换菜单 */
 function toggleMenu() {

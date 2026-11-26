@@ -221,6 +221,7 @@ import { formatTime } from '@/components/XPlayer/utils/time'
 import { useMoveAction } from '@/hooks/useDriveAction/useMoveAction'
 import { useLockFn } from '@/hooks/useLockFn'
 import { I, Icon } from '@/icons'
+import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { subtitlePreference } from '@/utils/cache/subtitlePreference'
 import { clsx } from '@/utils/clsx'
 import { drive115 } from '@/utils/drive115Instance'
@@ -335,27 +336,62 @@ const DataMarkers = useDataMarkers(params.pickCode, DataFileInfo)
 /** 移动操作 */
 const moveAction = useMoveAction()
 
+function findLibraryEntryByPickCode(pickCode: string) {
+  if (!pickCode)
+    return undefined
+  try {
+    return useMediaLibraryStore().entries.find(entry => entry.files.some(file => file.pickCode === pickCode))
+  }
+  catch {
+    return undefined
+  }
+}
+
 /** 同步影片详情数据。 */
 function syncMovieInfo(
   avNumber = getAvNumber(DataFileInfo.state.file_name),
 ) {
-  /*
-   * ================================================================================
-   * 步骤1：同步播放页影片详情
-   * ================================================================================
-   * 目标：用运行时设置替代 Plus 编译门控，并避免关闭时请求外部资料源。
-   * 操作：
-   * 1) 关闭或无标识时清理上一文件资料
-   * 2) 普通番号加载三个来源，FC2 增加 FD2PPV 来源
-   */
   logger.info('开始同步播放页影片详情', avNumber)
 
-  if (showMovieInfo.value && avNumber)
-    DataMovieInfo.load(avNumber)
-  else
+  if (!showMovieInfo.value) {
     DataMovieInfo.clear()
+    return
+  }
 
-  logger.info('播放页影片详情同步完成', avNumber)
+  const pickCode = toValue(params.pickCode) || DataFileInfo.state.pick_code
+  const fileName = DataFileInfo.state.file_name || ''
+  const playlistPaths = DataPlaylist.state?.path
+  const parentFolderName = Array.isArray(playlistPaths) && playlistPaths.length > 0
+    ? playlistPaths[playlistPaths.length - 1]?.name
+    : undefined
+  const entry = findLibraryEntryByPickCode(pickCode)
+
+  if (entry && (entry.kind === 'movie' || entry.kind === 'tv' || entry.customScrapeMode === 'cinema')) {
+    DataMovieInfo.loadCinema({
+      meta: entry.meta,
+      mediaKey: entry.mediaKey,
+      kind: entry.kind === 'tv' ? 'tv' : 'movie',
+      fileName,
+      parentFolderName,
+    })
+    return
+  }
+
+  if (avNumber) {
+    DataMovieInfo.load(avNumber)
+    return
+  }
+
+  if (fileName) {
+    DataMovieInfo.loadCinema({
+      fileName,
+      parentFolderName,
+      cacheOnly: true,
+    })
+    return
+  }
+
+  DataMovieInfo.clear()
 }
 /** 是否正在切换视频 */
 const changeing = shallowRef(false)

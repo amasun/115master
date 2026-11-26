@@ -1,6 +1,8 @@
 import { Dialog, Drawer, NavigationStack } from '@115master/ui'
 import { useMediaQuery } from '@vueuse/core'
 import { defineComponent, ref } from 'vue'
+import { setThemeMode, userResolvedTheme } from '@/utils/theme'
+import { userSettings } from '@/utils/userSettings'
 import PreferencesContent from './PreferencesContent'
 
 const open = ref(false)
@@ -20,6 +22,7 @@ export const PreferencesDialog = defineComponent({
 
   setup() {
     const desktop = useMediaQuery('(min-width: 640px)')
+    setThemeMode(userSettings.value.theme)
 
     function update(value: boolean) {
       open.value = value
@@ -45,6 +48,7 @@ export const PreferencesDialog = defineComponent({
             label="偏好设置"
             size="xl"
             class="preferences-solid-dialog"
+            data-theme={userResolvedTheme.value}
             onUpdate:open={update}
           >
             {navigation}
@@ -57,6 +61,7 @@ export const PreferencesDialog = defineComponent({
             placement="bottom"
             size="lg"
             class="preferences-solid-drawer"
+            data-theme={userResolvedTheme.value}
             style="--ui-drawer-size: min(75dvh, 44rem)"
             onUpdate:open={update}
           >

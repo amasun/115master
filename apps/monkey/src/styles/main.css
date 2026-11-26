@@ -7,6 +7,7 @@
 /* 偏好设置弹窗：无透明实体面板 + 层级明度递进（暗色模式下越底层越暗，越上层越亮） */
 .preferences-solid-dialog,
 .preferences-solid-drawer {
+  color-scheme: light;
   --pref-surface-0: #ffffff;
   --pref-surface-1: #f4f5f7;
   --pref-surface-2: #ffffff;
@@ -20,8 +21,9 @@
   --pref-thumb: #ffffff;
 }
 
-[data-theme='dark'] .preferences-solid-dialog,
-[data-theme='dark'] .preferences-solid-drawer {
+.preferences-solid-dialog[data-theme='dark'],
+.preferences-solid-drawer[data-theme='dark'] {
+  color-scheme: dark;
   --pref-surface-0: #111111;
   --pref-surface-1: #1b1b1b;
   --pref-surface-2: #252525;
@@ -45,8 +47,8 @@
   backdrop-filter: none;
 }
 
-[data-theme='dark'] .preferences-solid-dialog [data-ui-dialog-panel],
-[data-theme='dark'] .preferences-solid-drawer [data-ui-drawer-panel] {
+.preferences-solid-dialog[data-theme='dark'] [data-ui-dialog-panel],
+.preferences-solid-drawer[data-theme='dark'] [data-ui-drawer-panel] {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
 }
 

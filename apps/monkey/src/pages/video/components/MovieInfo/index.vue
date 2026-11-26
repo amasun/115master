@@ -1,6 +1,132 @@
 <template>
   <div :class="styles.container.main">
-    <div :class="styles.container.content">
+    <!-- 院线影视（TMDB / 豆瓣）信息视图 -->
+    <div v-if="showCinemaView" :class="styles.container.content">
+      <div class="flex flex-wrap items-center justify-end gap-1.5">
+        <span
+          v-if="cinemaInfo?.source"
+          class="badge badge-primary badge-soft badge-sm rounded-full"
+        >
+          {{ cinemaInfo.source }}
+        </span>
+        <span
+          v-if="cinemaInfo"
+          class="badge badge-neutral badge-soft badge-sm rounded-full"
+        >
+          {{ cinemaInfo.kind === 'tv' ? '剧集' : '电影' }}
+        </span>
+        <span
+          v-if="cinemaInfo?.rating"
+          class="badge badge-warning badge-soft badge-sm rounded-full tabular-nums"
+        >
+          {{ `★ ${cinemaInfo.rating.toFixed(1)}` }}
+        </span>
+      </div>
+
+      <template v-if="cinemaError">
+        <StatusFeedback
+          :class="styles.states.error"
+          status="error"
+          v-bind="errorFeedback(cinemaError)"
+        />
+      </template>
+
+      <template v-else-if="cinemaLoading">
+        <div :class="styles.header.container">
+          <div :class="styles.header.title">
+            <div :class="styles.skeleton.title" />
+          </div>
+        </div>
+        <div :class="styles.content.container">
+          <div v-for="i in 5" :key="i" :class="styles.content.item">
+            <div :class="styles.skeleton.contentLine" />
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="cinemaInfo">
+        <div :class="styles.header.container">
+          <div :class="styles.header.title">
+            <span>{{ cinemaInfo.title }}</span>
+          </div>
+          <p
+            v-if="cinemaInfo.originalTitle && cinemaInfo.originalTitle !== cinemaInfo.title"
+            class="text-base-content/55 mt-1 text-sm"
+          >
+            {{ cinemaInfo.originalTitle }}
+          </p>
+        </div>
+
+        <p
+          v-if="cinemaInfo.overview"
+          class="text-base-content/80 text-sm leading-6"
+        >
+          {{ cinemaInfo.overview }}
+        </p>
+
+        <div v-if="cinemaInfo.actors.length > 0" :class="styles.actors.container">
+          <div v-for="actor in cinemaInfo.actors" :key="actor.name" :class="styles.actors.item">
+            <div :class="styles.actors.content">
+              <div :class="styles.actors.avatarWrapper">
+                <div :class="styles.actors.avatarContainer">
+                  <Image
+                    :src="actor.avatarUrl || DEFAULT_AVATAR"
+                    :alt="actor.name"
+                    :loader="actor.avatarUrl ? createGMImageFallbackLoader([{ url: actor.avatarUrl, referer: actor.avatarReferer }]) : undefined"
+                    :fallback="h('img', { src: DEFAULT_AVATAR, alt: actor.name, class: 'size-full object-cover' })"
+                    class="aspect-square w-full rounded-full"
+                    fit="cover"
+                  />
+                </div>
+              </div>
+              <span :class="styles.actors.name">
+                {{ actor.name }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div :class="styles.content.container">
+          <div class="text-sm" :class="styles.content.item">
+            <span :class="styles.content.label">上映</span>
+            <span :class="styles.content.value">
+              {{ cinemaInfo.releaseDate || (cinemaInfo.year ? String(cinemaInfo.year) : '-') }}
+            </span>
+          </div>
+          <div v-if="cinemaInfo.duration" :class="styles.content.item">
+            <span :class="styles.content.label">时长</span>
+            <span :class="styles.content.value">
+              {{ format.duration(cinemaInfo.duration) ?? '-' }}
+            </span>
+          </div>
+          <div :class="styles.content.item">
+            <span :class="styles.content.label">导演</span>
+            <span :class="styles.content.value">
+              {{ cinemaInfo.directors.length > 0 ? cinemaInfo.directors.join(' / ') : '-' }}
+            </span>
+          </div>
+          <div :class="styles.content.item">
+            <span :class="styles.content.label">类型</span>
+            <span v-if="cinemaInfo.genres.length === 0" :class="styles.content.value">-</span>
+            <span v-else :class="styles.content.value">
+              <span v-for="genre in cinemaInfo.genres" :key="genre" :class="styles.content.badge">
+                {{ genre }}
+              </span>
+            </span>
+          </div>
+          <div v-if="cinemaInfo.detailUrl" :class="styles.content.item">
+            <span :class="styles.content.label">详情</span>
+            <span :class="styles.content.value">
+              <a :href="cinemaInfo.detailUrl" target="_blank" rel="noreferrer" :class="styles.content.link">
+                {{ cinemaInfo.source || '查看来源' }}
+              </a>
+            </span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div v-else :class="styles.container.content">
       <!-- 源切换 Tab -->
       <div :class="styles.tabs.container">
         <a
@@ -49,7 +175,7 @@
       <template v-else-if="!movieInfo.state.value">
         <Empty
           :class="styles.states.empty"
-          description="暂无影片信息，可能番号无法识别"
+          :description="cinemaMode ? '暂无院线影视信息' : '暂无影片信息，可能番号无法识别'"
           size="2xl"
         />
       </template>
@@ -340,6 +466,13 @@ interface ActorImageData {
 }
 
 const sourceTabs = computed(() => props.movieInfos.sourceTabs.value)
+const cinemaMode = computed(() => props.movieInfos.cinemaMode.value)
+const cinemaInfo = computed(() => props.movieInfos.cinemaState.state.value)
+const cinemaLoading = computed(() => props.movieInfos.cinemaState.isLoading.value)
+const cinemaError = computed(() => props.movieInfos.cinemaState.error.value)
+const showCinemaView = computed(() =>
+  cinemaMode.value && Boolean(cinemaLoading.value || cinemaInfo.value || cinemaError.value),
+)
 
 /** 把同名演员的各资料源头像合并为有序候选。 */
 function getActorImageCandidates(actor: ActorImageData, detailUrl?: string) {

@@ -1,4 +1,5 @@
 import type { Actor } from '@/utils/jav/jav'
+import type { UnifiedMediaMeta } from '@/utils/mediaIndex'
 import { promise } from '@115master/utils'
 import { useAsyncState } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
@@ -12,7 +13,21 @@ import {
   MissAV,
 } from '@/utils/jav'
 import { appLogger } from '@/utils/logger'
+import {
+  cinemaCache,
+  parseCinemaTitle,
+  scrapeCinemaMetaDetailed,
+} from '@/utils/mediaIndex'
 import { hasActorFace, normalizeActorName } from './actorFaces'
+
+export interface CinemaLoadOptions {
+  meta?: UnifiedMediaMeta | null
+  mediaKey?: string
+  kind?: 'movie' | 'tv'
+  fileName?: string
+  parentFolderName?: string
+  cacheOnly?: boolean
+}
 
 const logger = appLogger.sub('DataMovieInfo')
 
@@ -58,6 +73,7 @@ export function useDataMovieInfo() {
   const javLibrary = new JavLibrary()
   const missAV = new MissAV()
   const specialSourceName = ref<'FD2PPV' | null>(null)
+  const cinemaMode = ref(false)
   const gfriendsActorFaces = ref<Actor[]>([])
   const missAVActorFaces = ref<Actor[]>([])
   let currentAvNumber = ''
@@ -153,6 +169,44 @@ export function useDataMovieInfo() {
       return result
     },
     undefined,
+    {
+      immediate: false,
+    },
+  )
+
+  const cinemaState = useAsyncState(
+    async (opts?: CinemaLoadOptions): Promise<UnifiedMediaMeta | null> => {
+      if (!opts)
+        return null
+      if (opts.meta)
+        return opts.meta
+
+      const parsed = opts.fileName
+        ? parseCinemaTitle(opts.fileName, opts.parentFolderName)
+        : null
+      const parsedMediaKey = parsed
+        ? (parsed.year ? `${parsed.mediaType}:${parsed.normalizedKey}:${parsed.year}` : `${parsed.mediaType}:${parsed.normalizedKey}`)
+        : ''
+      const mediaKey = opts.mediaKey || parsedMediaKey
+      if (!mediaKey)
+        return null
+
+      const cached = await cinemaCache.get(mediaKey)
+      if (cached?.value)
+        return cached.value
+
+      if (opts.cacheOnly || !opts.fileName)
+        return null
+
+      const result = await scrapeCinemaMetaDetailed({
+        mediaKey,
+        filename: opts.fileName,
+        folderName: opts.parentFolderName,
+        kindHint: opts.kind ?? parsed?.mediaType ?? 'movie',
+      })
+      return result.status === 'ok' ? result.meta : null
+    },
+    null,
     {
       immediate: false,
     },
@@ -327,8 +381,17 @@ export function useDataMovieInfo() {
     javLibraryState.state.value = null
     specialState.state.value = null
     specialSourceName.value = null
+    cinemaState.state.value = null
+    cinemaMode.value = false
 
     logger.info('播放器影片资料清理完成')
+  }
+
+  const loadCinema = (opts: CinemaLoadOptions) => {
+    logger.info('开始加载播放器院线影视资料', opts.mediaKey || opts.fileName)
+    clear()
+    cinemaMode.value = true
+    void cinemaState.execute(0, opts)
   }
 
   const load = (avNumber: string) => {
@@ -366,11 +429,14 @@ export function useDataMovieInfo() {
     javLibraryState,
     specialState,
     specialSourceName,
+    cinemaState,
+    cinemaMode,
     sourceTabs,
     gfriendsActorFaces,
     missAVActorFaces,
     clear,
     load,
+    loadCinema,
     loadActorFaces,
   }
 }
