@@ -22,17 +22,17 @@
 
 [data-theme='dark'] .preferences-solid-dialog,
 [data-theme='dark'] .preferences-solid-drawer {
-  --pref-surface-0: #0e0e11;
-  --pref-surface-1: #18181e;
-  --pref-surface-2: #22222b;
-  --pref-surface-3: #2d2d38;
-  --pref-surface-hover: #373745;
-  --pref-border-subtle: #2f2f3b;
-  --pref-border-strong: #454556;
-  --pref-text-muted: #c2c2cf;
-  --pref-text-subtle: #a1a1b2;
-  --pref-track: #101014;
-  --pref-thumb: #2d2d38;
+  --pref-surface-0: #111111;
+  --pref-surface-1: #1b1b1b;
+  --pref-surface-2: #252525;
+  --pref-surface-3: #303030;
+  --pref-surface-hover: #3b3b3b;
+  --pref-border-subtle: #303030;
+  --pref-border-strong: #474747;
+  --pref-text-muted: #c7c7c7;
+  --pref-text-subtle: #a3a3a3;
+  --pref-track: #121212;
+  --pref-thumb: #303030;
 }
 
 .preferences-solid-dialog [data-ui-dialog-panel],

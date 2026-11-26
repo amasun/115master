@@ -582,6 +582,17 @@
             全选本页 ({{ renderedJunkItems.length }})
           </Button>
           <Button
+            size="xs"
+            variant="soft"
+            color="error"
+            class="rounded-full"
+            :disabled="visibleJunkItems.length === 0"
+            title="选中当前筛选条件下的全部文件（不限分页）"
+            @click="selectAllFilteredJunk"
+          >
+            全选全部 ({{ visibleJunkItems.length }})
+          </Button>
+          <Button
             v-if="selectedJunkFids.size > 0"
             size="xs"
             variant="ghost"
@@ -688,6 +699,17 @@
               @click="selectAllVisibleJunk"
             >
               全选本页 ({{ renderedJunkItems.length }})
+            </Button>
+            <Button
+              size="xs"
+              variant="soft"
+              color="error"
+              class="rounded-full"
+              :disabled="visibleJunkItems.length === 0"
+              title="选中当前筛选条件下的全部文件（不限分页）"
+              @click="selectAllFilteredJunk"
+            >
+              全选全部 ({{ visibleJunkItems.length }})
             </Button>
             <Button
               v-if="selectedJunkFids.size > 0"
@@ -1202,18 +1224,18 @@ const renderedJunkItems = computed(() =>
   visibleJunkItems.value.slice(junkPageStart.value, junkPageStart.value + junkPageSize.value),
 )
 
-watch([junkFilterCategory, junkSearchKeyword, junkPageSize, junkSortBy], () => {
+watch([junkFilterCategory, junkSearchKeyword], () => {
   junkPage.value = 1
   selectedJunkFids.value = new Set()
+})
+
+watch([junkPageSize, junkSortBy], () => {
+  junkPage.value = 1
 })
 
 watch(junkTotalPages, (total) => {
   if (junkPage.value > total)
     junkPage.value = total
-})
-
-watch(junkPage, () => {
-  selectedJunkFids.value = new Set()
 })
 
 watch(
@@ -1249,6 +1271,10 @@ function toggleJunkFid(fid: string) {
 
 function selectAllVisibleJunk() {
   selectedJunkFids.value = new Set(renderedJunkItems.value.map(item => item.fid))
+}
+
+function selectAllFilteredJunk() {
+  selectedJunkFids.value = new Set(visibleJunkItems.value.map(item => item.fid))
 }
 
 async function startJunkScan() {
@@ -1354,7 +1380,7 @@ const activeSelectedFiles = computed(() => {
     }
     return Array.from(map.values())
   }
-  return renderedJunkItems.value
+  return visibleJunkItems.value
     .filter(item => selectedJunkFids.value.has(item.fid))
     .map(item => ({ fid: item.fid, cid: item.cid, name: item.name, size: item.size }))
 })
