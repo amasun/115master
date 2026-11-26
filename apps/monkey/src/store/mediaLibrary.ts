@@ -1421,10 +1421,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       filter.onlyMarked = false
   }
 
-  function resetFilters() {
-    filter.view = 'all'
-    filter.keyword = ''
-    filter.actor = undefined
+  function resetSubFilters() {
     filter.genre = undefined
     filter.director = undefined
     filter.year = undefined
@@ -1432,6 +1429,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.scrapeStatus = 'all'
     filter.onlyStarred = false
     filter.onlyMarked = false
+  }
+
+  function resetFilters() {
+    filter.view = 'all'
+    filter.keyword = ''
+    filter.actor = undefined
+    resetSubFilters()
   }
 
   function getEntry(mediaKey: string): LibraryEntry | undefined {
@@ -1764,6 +1768,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     setTagRailOpen,
     toggleTagRail,
     setView,
+    resetSubFilters,
     resetFilters,
     getEntry,
     resolveActorStorageKey,

@@ -163,11 +163,8 @@ const PreferencesContent = defineComponent({
 
   setup(_, { emit }) {
     const mode = useDriveListMode()
-    const preview = useUserSetting('enableFilelistPreview')
     const previewCount = useUserSetting('filelistPreviewCount')
-    const avInfo = useUserSetting('enableAvInfo')
     const compactAvInfo = useUserSetting('compactAvInfo')
-    const actressFaces = useUserSetting('enableActressFaces')
     const playerMovieInfo = useUserSetting('enablePlayerMovieInfo')
     const syncMarkersToFileDesc = useUserSetting('syncMarkersToFileDesc')
     const enableFanzaSource = useUserSetting('enableFanzaSource')
@@ -402,51 +399,27 @@ const PreferencesContent = defineComponent({
 
           <Card title="功能增强" hint="各功能可单独开关，立即生效" icon={I.EXTENSION}>
             <div class="-mx-1 flex flex-col divide-y divide-[var(--pref-border-subtle)]">
-              <div class="pb-1">
-                <SettingToggle
-                  icon={I.FILE_VIDEO}
-                  label="视频截图预览"
-                  description="在视频文件下方显示时间轴截图"
-                  modelValue={preview.value}
-                  onUpdate:modelValue={value => preview.value = value}
-                />
-
-                <div class="pref-divider ml-5 border-l pl-3">
-                  <label
-                    class={[
-                      'pref-surface-2 flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 transition-opacity',
-                      preview.value ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
-                    ]}
-                    for="filelist-preview-count"
-                  >
-                    <span class="pref-text-muted text-xs font-medium">截图张数</span>
-                    <select
-                      id="filelist-preview-count"
-                      class="select select-bordered select-xs pref-input-3 w-20 rounded-md"
-                      value={previewCount.value}
-                      disabled={!preview.value}
-                      onChange={event => previewCount.value = Number((event.target as HTMLSelectElement).value)}
-                    >
-                      {[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} 张`}</option>)}
-                    </select>
-                  </label>
+              <label
+                class="hover:bg-base-content/[0.06] flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors"
+                for="filelist-preview-count"
+              >
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <Icon name={I.FILE_VIDEO} size="sm" class="text-base-content shrink-0" />
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-base-content text-sm leading-5 font-medium">视频截图张数</span>
+                    <span class="pref-text-subtle text-xs leading-4">时间轴预览与详情页分段截图数量</span>
+                  </div>
                 </div>
-              </div>
+                <select
+                  id="filelist-preview-count"
+                  class="select select-bordered select-xs pref-input-2 w-20 shrink-0 rounded-md"
+                  value={previewCount.value}
+                  onChange={event => previewCount.value = Number((event.target as HTMLSelectElement).value)}
+                >
+                  {[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} 张`}</option>)}
+                </select>
+              </label>
 
-              <SettingToggle
-                icon={I.DOCUMENT}
-                label="番号作品资料"
-                description="识别番号并显示海报、演员、发行日期和评分"
-                modelValue={avInfo.value}
-                onUpdate:modelValue={value => avInfo.value = value}
-              />
-              <SettingToggle
-                icon={I.ACCOUNT}
-                label="演员头像替代文件夹图标"
-                description="文件夹识别为演员时，用头像代替文件夹图标"
-                modelValue={actressFaces.value}
-                onUpdate:modelValue={value => actressFaces.value = value}
-              />
               <SettingToggle
                 icon={I.PLAY}
                 label="播放页影片详情"

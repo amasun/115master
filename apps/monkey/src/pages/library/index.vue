@@ -57,7 +57,10 @@ function handleToggleFilters() {
     void router.push({ name: 'library' })
     return
   }
-  showFilters.value = !showFilters.value
+  const next = !showFilters.value
+  showFilters.value = next
+  if (!next)
+    store.resetSubFilters()
 }
 
 async function consumeOfflineUrl() {
