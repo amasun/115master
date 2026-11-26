@@ -1,9 +1,10 @@
 import type { SlotsType } from 'vue'
 import { Button, Drawer, scrollbar } from '@115master/ui'
 import { defineComponent, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useSuperSearchDialog } from '@/components/SuperSearch'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
+import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import SiderMenuButton from './SiderMenuButton'
 
 const MobileSider = defineComponent({
@@ -15,7 +16,10 @@ const MobileSider = defineComponent({
   }>,
   setup(_, { slots }) {
     const isOpen = ref(false)
-    const openSuperSearch = useSuperSearchDialog()
+    const store = useMediaLibraryStore()
+    const route = useRoute()
+    const router = useRouter()
+    const toast = useToast()
     const waiters: Array<() => void> = []
     const open = () => isOpen.value = true
     const close = () => isOpen.value = false
@@ -34,12 +38,18 @@ const MobileSider = defineComponent({
       waiters.splice(0).forEach(resolve => resolve())
     }
 
-    async function triggerSuperSearch() {
+    async function triggerCreateCustomSection() {
       await prepare()
-      openSuperSearch()
+      const created = await store.createCustomSection()
+      if (created) {
+        toast.success(`已创建栏目「${created.name}」`)
+        if (route.name !== 'library') {
+          store.scrollTop = 0
+          void router.push({ name: 'library' })
+        }
+      }
     }
 
-    const route = useRoute()
     watch(() => route.fullPath, close)
 
     return () => (
@@ -79,11 +89,11 @@ const MobileSider = defineComponent({
               <Button
                 variant="ghost"
                 class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-                onClick={triggerSuperSearch}
-                title="超级搜索 (Alt+K)"
+                onClick={triggerCreateCustomSection}
+                title="新建自定义栏目"
               >
-                <Icon class="text-lg" name={I.SEARCH} />
-                <span>超级搜索</span>
+                <Icon class="text-lg" name={I.ADD_LINK} />
+                <span>新建栏目</span>
               </Button>
               <Button
                 variant="ghost"

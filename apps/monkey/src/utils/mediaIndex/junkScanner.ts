@@ -265,6 +265,39 @@ function isAbortLikeError(error: unknown, signal?: AbortSignal): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
+function extractRawFid(item: DriveFilesItem): string {
+  const raw = item as RawJunkDriveItem
+  return raw.fid !== undefined && raw.fid !== null ? String(raw.fid).trim() : ''
+}
+
+function collectPageJunkItems(
+  list: DriveFilesItem[],
+  seenRawFids: Set<string>,
+  byFid: Map<string, JunkFileItem>,
+  category: JunkCategory,
+  reason: string,
+  expectedSuffix?: string,
+): { pageAdded: JunkFileItem[], sawNewRawFid: boolean } {
+  const pageAdded: JunkFileItem[] = []
+  let sawNewRawFid = false
+
+  for (const raw of list) {
+    const rawFid = extractRawFid(raw)
+    if (rawFid && !seenRawFids.has(rawFid)) {
+      seenRawFids.add(rawFid)
+      sawNewRawFid = true
+    }
+
+    const mapped = toJunkFileItem(raw, category, reason, expectedSuffix)
+    if (mapped && !byFid.has(mapped.fid)) {
+      byFid.set(mapped.fid, mapped)
+      pageAdded.push(mapped)
+    }
+  }
+
+  return { pageAdded, sawNewRawFid }
+}
+
 /**
  * 按指定后缀列表（及可选磁力关键词搜索）扫描网盘垃圾文件
  */
@@ -274,6 +307,7 @@ export async function scanDriveJunkFiles(options: {
   includeMagnetSearch?: boolean
   signal?: AbortSignal
   pageDelayMs?: number
+  onBatch?: (added: JunkFileItem[]) => void
   onProgress?: (p: {
     scannedSuffixes: number
     totalSuffixes: number
@@ -304,6 +338,7 @@ export async function scanDriveJunkFiles(options: {
 
     try {
       let useFallbackListing = false
+      const seenRawFids = new Set<string>()
       while (true) {
         throwIfAborted(options.signal)
 
@@ -358,17 +393,28 @@ export async function scanDriveJunkFiles(options: {
         }
 
         const category = classifyExtension(suffix)
-
-        for (const raw of list) {
-          const mapped = toJunkFileItem(raw, category, `匹配后缀 .${suffix}`, suffix)
-          if (mapped && !byFid.has(mapped.fid))
-            byFid.set(mapped.fid, mapped)
-        }
+        const { pageAdded, sawNewRawFid } = collectPageJunkItems(
+          list,
+          seenRawFids,
+          byFid,
+          category,
+          `匹配后缀 .${suffix}`,
+          suffix,
+        )
+        if (pageAdded.length > 0)
+          options.onBatch?.(pageAdded)
 
         suffixSucceeded = true
 
-        if (list.length < PAGE_LIMIT)
+        if (list.length < PAGE_LIMIT || (list.length > 0 && !sawNewRawFid))
           break
+
+        options.onProgress?.({
+          scannedSuffixes,
+          totalSuffixes,
+          currentLabel: `.${suffix}`,
+          found: byFid.size,
+        })
 
         offset += PAGE_LIMIT
         await delayWithAbort(pageDelayMs, options.signal)
@@ -402,6 +448,7 @@ export async function scanDriveJunkFiles(options: {
     let magnetSucceeded = false
 
     try {
+      const seenRawFids = new Set<string>()
       while (true) {
         throwIfAborted(options.signal)
 
@@ -420,16 +467,27 @@ export async function scanDriveJunkFiles(options: {
         )
 
         const list = Array.isArray(res.data) ? res.data : []
-        for (const raw of list) {
-          const mapped = toJunkFileItem(raw, 'textMagnet', '匹配磁力关键词搜索')
-          if (mapped && !byFid.has(mapped.fid))
-            byFid.set(mapped.fid, mapped)
-        }
+        const { pageAdded, sawNewRawFid } = collectPageJunkItems(
+          list,
+          seenRawFids,
+          byFid,
+          'textMagnet',
+          '匹配磁力关键词搜索',
+        )
+        if (pageAdded.length > 0)
+          options.onBatch?.(pageAdded)
 
         magnetSucceeded = true
 
-        if (list.length < PAGE_LIMIT)
+        if (list.length < PAGE_LIMIT || (list.length > 0 && !sawNewRawFid))
           break
+
+        options.onProgress?.({
+          scannedSuffixes,
+          totalSuffixes,
+          currentLabel: 'magnet 搜索',
+          found: byFid.size,
+        })
 
         offset += PAGE_LIMIT
         await delayWithAbort(pageDelayMs, options.signal)

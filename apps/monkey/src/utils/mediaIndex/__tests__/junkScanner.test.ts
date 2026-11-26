@@ -234,5 +234,78 @@ describe('junkScanner', () => {
         driveApi,
       })).rejects.toThrow('cancelled')
     })
+
+    it('streams page batches via onBatch so partial results survive mid-scan abort', async () => {
+      const controller = new AbortController()
+      const page1 = Array.from({ length: 200 }, (_, i) => ({
+        fc: 1,
+        fid: `h-${i}`,
+        pid: 'c1',
+        pc: `pc-${i}`,
+        n: `promo-${i}.html`,
+        s: 128,
+        t: 100,
+        tu: 200,
+        ico: 'html',
+        iv: 0,
+        play_long: 0,
+      }))
+
+      const searchFiles = vi.fn().mockImplementation(async (params: { offset?: number }) => {
+        if (params.offset === 0)
+          return { state: true, data: page1 }
+        controller.abort(new DOMException('user stopped', 'AbortError'))
+        throw new DOMException('user stopped', 'AbortError')
+      })
+
+      const driveApi = {
+        getFilesWithFallback: vi.fn(),
+        searchFiles,
+      } as unknown as JunkScannerDriveApi
+
+      const streamed: string[] = []
+      await expect(scanDriveJunkFiles({
+        suffixes: ['html'],
+        signal: controller.signal,
+        pageDelayMs: 0,
+        onBatch: added => streamed.push(...added.map(item => item.fid)),
+        driveApi,
+      })).rejects.toThrow('user stopped')
+
+      expect(streamed).toHaveLength(200)
+      expect(streamed[0]).toBe('h-0')
+      expect(streamed[199]).toBe('h-199')
+    })
+
+    it('stops pagination when API repeats the same fids across pages', async () => {
+      const repeatedPage = Array.from({ length: 200 }, (_, i) => ({
+        fc: 1,
+        fid: `dup-${i}`,
+        pid: 'c1',
+        pc: `pc-${i}`,
+        n: `dup-${i}.txt`,
+        s: 64,
+        t: 100,
+        tu: 200,
+        ico: 'txt',
+        iv: 0,
+        play_long: 0,
+      }))
+
+      const searchFiles = vi.fn().mockResolvedValue({ state: true, data: repeatedPage })
+      const driveApi = {
+        getFilesWithFallback: vi.fn(),
+        searchFiles,
+      } as unknown as JunkScannerDriveApi
+
+      const results = await scanDriveJunkFiles({
+        suffixes: ['txt'],
+        pageDelayMs: 0,
+        driveApi,
+      })
+
+      expect(results).toHaveLength(200)
+      expect(searchFiles).toHaveBeenCalledTimes(2)
+    })
   })
 })

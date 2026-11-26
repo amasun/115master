@@ -3,3 +3,35 @@
 @import './daisy-overrides.css';
 @import './app.css';
 @import './reset.css';
+
+/* 偏好设置弹窗：纯白 / 暗灰无透明实色面板，克制简洁 */
+.preferences-solid-dialog [data-ui-dialog-panel],
+.preferences-solid-drawer [data-ui-drawer-panel] {
+  background: #ffffff;
+  background-image: none;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.preferences-solid-dialog [data-ui-nav-bar],
+.preferences-solid-drawer [data-ui-nav-bar] {
+  background: #ffffff;
+  border-bottom: 1px solid #f4f4f5;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-theme='dark'] .preferences-solid-dialog [data-ui-dialog-panel],
+[data-theme='dark'] .preferences-solid-drawer [data-ui-drawer-panel] {
+  background: #18181b;
+  border-color: #27272a;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme='dark'] .preferences-solid-dialog [data-ui-nav-bar],
+[data-theme='dark'] .preferences-solid-drawer [data-ui-nav-bar] {
+  background: #18181b;
+  border-bottom-color: #27272a;
+}

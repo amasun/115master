@@ -84,16 +84,6 @@
       <li>
         <button
           type="button"
-          class="hover:bg-base-content/5 text-base-content/55 hover:text-base-content flex h-8 w-full items-center gap-2 rounded-full border border-transparent px-3.5 text-xs transition-colors"
-          @click="handleCreateCustomSection"
-        >
-          <Icon :name="I.ADD_LINK" class="text-sm" />
-          <span>新建栏目</span>
-        </button>
-      </li>
-      <li>
-        <button
-          type="button"
           class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isActorsActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
@@ -473,14 +463,6 @@ function scrapeModeLabel(mode: CustomScrapeMode): string {
   if (mode === 'folder_collection')
     return '目录合集'
   return '纯本地'
-}
-
-async function handleCreateCustomSection() {
-  const created = await store.createCustomSection()
-  if (created) {
-    toast.success(`已创建栏目「${created.name}」`)
-    ensureLibraryWall()
-  }
 }
 
 type NavMenuTarget = { kind: 'all' } | { kind: 'cinema' } | { kind: 'section', sectionId: string }

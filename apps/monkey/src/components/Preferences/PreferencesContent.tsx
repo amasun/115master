@@ -23,7 +23,7 @@ import {
 } from '@/utils/userSettings'
 import AccountPreferences from './AccountPreferences'
 
-/** 分类卡片：使用 UI Glass 表面与统一间距，支持右上角附属徽章与自定义表面样式 */
+/** 分类卡片：无透明度的纯白 / 暗灰实体卡片，克制简洁 */
 const Card = defineComponent({
   name: 'PreferenceCard',
   props: {
@@ -36,19 +36,17 @@ const Card = defineComponent({
     return () => (
       <section
         class={[
-          'ui-glass-surface flex min-w-0 flex-col gap-2.5 rounded-2xl p-3',
+          'bg-base-200 border-base-content/10 flex min-w-0 flex-col gap-3 rounded-xl border p-4',
           props.className,
         ]}
         aria-label={props.title}
       >
         <header class="flex items-center justify-between gap-2">
-          <div class="flex min-w-0 items-center gap-2.5">
-            <span class="bg-primary/12 text-primary ring-primary/15 flex size-7 shrink-0 items-center justify-center rounded-lg ring-1">
-              <Icon name={props.icon} size="sm" />
-            </span>
+          <div class="flex min-w-0 items-center gap-2">
+            <Icon name={props.icon} size="sm" class="text-base-content/55 shrink-0" />
             <div class="min-w-0">
               <h3 class="text-base-content truncate text-sm leading-5 font-semibold">{props.title}</h3>
-              {props.hint && <p class="text-base-content/55 truncate text-xs leading-4">{props.hint}</p>}
+              {props.hint && <p class="text-base-content/50 truncate text-xs leading-4">{props.hint}</p>}
             </div>
           </div>
           {slots.extra?.()}
@@ -84,22 +82,20 @@ const SettingToggle = defineComponent({
   },
   setup(props, { emit }) {
     return () => (
-      <label class="hover:bg-base-content/[0.04] flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition-colors">
+      <label class="hover:bg-base-content/[0.04] flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors">
         <div class="flex min-w-0 items-center gap-2.5">
-          <span
+          <Icon
+            name={props.icon}
+            size="sm"
             class={[
-              'flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors',
-              props.modelValue
-                ? 'bg-primary/12 text-primary'
-                : 'bg-base-content/8 text-base-content/45',
+              'shrink-0 transition-colors',
+              props.modelValue ? 'text-base-content/85' : 'text-base-content/40',
             ]}
-          >
-            <Icon name={props.icon} size="sm" />
-          </span>
+          />
           <div class="flex min-w-0 flex-col">
             <span class="text-base-content text-sm leading-5 font-medium">{props.label}</span>
             {props.description && (
-              <span class="text-base-content/55 text-xs leading-4">{props.description}</span>
+              <span class="text-base-content/50 text-xs leading-4">{props.description}</span>
             )}
           </div>
         </div>
@@ -116,11 +112,11 @@ const SettingToggle = defineComponent({
 
 /** 宽大 / 紧凑布局极简示意指示 */
 function renderLayoutWireframe(compact: boolean, active: boolean) {
-  const tone = active ? 'bg-primary/40' : 'bg-base-content/22'
-  const muted = active ? 'bg-primary/18' : 'bg-base-content/10'
+  const tone = active ? 'bg-primary/60' : 'bg-base-content/25'
+  const muted = active ? 'bg-primary/25' : 'bg-base-content/12'
   const surface = active
-    ? 'border-primary/25 bg-base-100/80'
-    : 'border-base-content/8 bg-base-content/[0.03]'
+    ? 'border-primary/40 bg-base-100'
+    : 'border-base-content/10 bg-base-100'
 
   if (!compact) {
     return (
@@ -316,22 +312,22 @@ const PreferencesContent = defineComponent({
       return (
         <label
           class={[
-            'flex cursor-pointer flex-col gap-1.5 rounded-xl border p-2 transition-all',
+            'flex cursor-pointer flex-col gap-1.5 rounded-lg border p-2.5 transition-colors',
             active
-              ? 'border-primary bg-primary/[0.08] ring-primary/25 shadow-xs ring-1'
-              : 'border-base-content/12 bg-base-100/40 hover:border-base-content/25 hover:bg-base-100/60',
+              ? 'border-primary bg-base-100 ring-primary/20 ring-1'
+              : 'border-base-content/10 bg-base-100 hover:border-base-content/25',
           ]}
         >
           {renderLayoutWireframe(compact, active)}
           <div class="flex items-start justify-between gap-2 px-0.5">
             <div class="flex min-w-0 flex-col">
-              <span class="text-base-content text-sm leading-5 font-semibold">{label}</span>
-              <span class="text-base-content/60 mt-0.5 text-xs leading-4">{text}</span>
+              <span class="text-base-content text-xs leading-4 font-semibold">{label}</span>
+              <span class="text-base-content/55 mt-0.5 text-[11px] leading-4">{text}</span>
             </div>
             <input
               type="radio"
               name="layout-mode"
-              class="radio radio-primary radio-sm mt-0.5 shrink-0"
+              class="radio radio-primary radio-xs mt-0.5 shrink-0"
               checked={active}
               onChange={() => compactAvInfo.value = compact}
             />
@@ -340,65 +336,100 @@ const PreferencesContent = defineComponent({
       )
     }
 
-    const aboutLink = (href: string, icon: IconValue, label: string, accent = false) => (
+    const aboutLink = (href: string, icon: IconValue, label: string) => (
       <a
-        class={[
-          'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-medium transition-all',
-          accent
-            ? 'border-primary/20 bg-primary/8 text-primary hover:border-primary/40 hover:bg-primary/14'
-            : 'border-base-content/12 bg-base-100/40 text-base-content hover:border-base-content/25 hover:bg-base-content/[0.06]',
-        ]}
+        class="border-base-content/12 bg-base-100 text-base-content hover:border-base-content/25 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors"
         href={href}
         target="_blank"
         rel="noreferrer"
       >
-        <Icon name={icon} size="sm" class="shrink-0" />
+        <Icon name={icon} size="sm" class="text-base-content/60 shrink-0" />
         <span class="truncate">{label}</span>
       </a>
     )
 
     return () => (
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-stretch">
-        <div class="flex min-w-0 flex-col gap-3 sm:col-span-7">
-          <Card title="布局模式" hint="番号资料卡片与截图预览的排版密度" icon={I.GRID}>
-            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {layoutOption(false, '宽大布局', '大封面与完整资料，预览图较大。')}
-              {layoutOption(true, '紧凑布局', '缩小封面与间距，一屏展示更多。')}
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+        {/* 左栏：账号 · 显示与列表 · 功能增强 */}
+        <div class="flex min-w-0 flex-col gap-4">
+          <Card title="账号" icon={I.ACCOUNT}>
+            <AccountPreferences onLoggedOut={() => emit('loggedOut')} />
+          </Card>
+
+          <Card title="显示与列表" hint="主题外观、资料卡密度与文件列表行为" icon={I.GRID}>
+            <div class="flex flex-col gap-3">
+              <ThemeToggle />
+
+              <div class="border-base-content/8 border-t pt-3">
+                <div class="grid grid-cols-2 gap-2">
+                  {layoutOption(false, '宽大布局', '大封面与完整资料')}
+                  {layoutOption(true, '紧凑布局', '小封面一屏更多')}
+                </div>
+              </div>
+
+              <div class="border-base-content/8 grid grid-cols-2 gap-2.5 border-t pt-3">
+                <label class="flex flex-col gap-1" for="drive-list-load-mode">
+                  <span class="text-base-content/65 text-xs font-medium">列表加载方式</span>
+                  <select
+                    id="drive-list-load-mode"
+                    aria-label="文件列表加载方式"
+                    class="select select-bordered select-xs bg-base-100 w-full rounded-lg"
+                    value={mode.value}
+                    onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
+                  >
+                    <option value="pagination">分页加载</option>
+                    <option value="infinite">滚动无限加载</option>
+                  </select>
+                </label>
+
+                <label class="flex flex-col gap-1" for="native-folder-target">
+                  <span class="text-base-content/65 text-xs font-medium">原生目录跳转</span>
+                  <select
+                    id="native-folder-target"
+                    aria-label="原生 115 目录跳转版本"
+                    class="select select-bordered select-xs bg-base-100 w-full rounded-lg"
+                    value={nativeFolderTarget.value}
+                    onChange={event => nativeFolderTarget.value = (event.target as HTMLSelectElement).value as typeof nativeFolderTarget.value}
+                  >
+                    <option value="new">新版 115</option>
+                    <option value="legacy">旧版 115</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </Card>
 
-          <Card title="功能增强" hint="各功能可单独开关，立即生效" icon={I.EXTENSION} className="flex-1">
-            <div class="-mx-1 flex flex-col gap-0.5">
-              <SettingToggle
-                icon={I.FILE_VIDEO}
-                label="视频截图预览"
-                description="在视频文件下方显示时间轴截图"
-                modelValue={preview.value}
-                onUpdate:modelValue={value => preview.value = value}
-              />
+          <Card title="功能增强" hint="各功能可单独开关，立即生效" icon={I.EXTENSION}>
+            <div class="divide-base-content/6 -mx-1 flex flex-col divide-y">
+              <div class="pb-1">
+                <SettingToggle
+                  icon={I.FILE_VIDEO}
+                  label="视频截图预览"
+                  description="在视频文件下方显示时间轴截图"
+                  modelValue={preview.value}
+                  onUpdate:modelValue={value => preview.value = value}
+                />
 
-              <div class="border-base-content/12 ml-5 border-l pl-3">
-                <label
-                  class={[
-                    'bg-base-content/[0.03] flex items-center justify-between gap-3 rounded-xl px-2.5 py-1.5 transition-opacity',
-                    preview.value ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
-                  ]}
-                  for="filelist-preview-count"
-                >
-                  <div class="flex min-w-0 flex-col">
-                    <span class="text-base-content text-xs font-medium">截图张数</span>
-                    <span class="text-base-content/55 text-[11px] leading-4">数量越少加载越快</span>
-                  </div>
-                  <select
-                    id="filelist-preview-count"
-                    class="select select-bordered select-xs bg-base-100/80 w-22 rounded-lg"
-                    value={previewCount.value}
-                    disabled={!preview.value}
-                    onChange={event => previewCount.value = Number((event.target as HTMLSelectElement).value)}
+                <div class="border-base-content/10 ml-5 border-l pl-3">
+                  <label
+                    class={[
+                      'bg-base-100 border-base-content/8 flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 transition-opacity',
+                      preview.value ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
+                    ]}
+                    for="filelist-preview-count"
                   >
-                    {[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} 张`}</option>)}
-                  </select>
-                </label>
+                    <span class="text-base-content/75 text-xs font-medium">截图张数</span>
+                    <select
+                      id="filelist-preview-count"
+                      class="select select-bordered select-xs bg-base-100 w-20 rounded-md"
+                      value={previewCount.value}
+                      disabled={!preview.value}
+                      onChange={event => previewCount.value = Number((event.target as HTMLSelectElement).value)}
+                    >
+                      {[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} 张`}</option>)}
+                    </select>
+                  </label>
+                </div>
               </div>
 
               <SettingToggle
@@ -440,58 +471,15 @@ const PreferencesContent = defineComponent({
           </Card>
         </div>
 
-        <div class="flex min-w-0 flex-col justify-between gap-3 sm:col-span-5">
-          <Card
-            title="账号"
-            icon={I.ACCOUNT}
-            className="from-primary/[0.06] to-secondary/[0.04] bg-gradient-to-br via-transparent"
-          >
-            <AccountPreferences onLoggedOut={() => emit('loggedOut')} />
-          </Card>
-
-          <Card title="外观主题" hint="作用于 Fusion 界面和本窗口" icon={I.THEME_LIGHT}>
-            <ThemeToggle />
-          </Card>
-
-          <Card title="文件列表" hint="作用于 Fusion 界面的文件列表" icon={I.LIST}>
-            <div class="flex flex-col gap-2.5">
-              <label class="flex items-center justify-between gap-2.5" for="drive-list-load-mode">
-                <span class="text-base-content text-sm font-medium">加载方式</span>
-                <select
-                  id="drive-list-load-mode"
-                  aria-label="文件列表加载方式"
-                  class="select select-bordered select-sm bg-base-100/80 w-32 rounded-xl"
-                  value={mode.value}
-                  onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
-                >
-                  <option value="pagination">分页加载</option>
-                  <option value="infinite">滚动无限加载</option>
-                </select>
-              </label>
-
-              <label class="flex items-center justify-between gap-2.5" for="native-folder-target">
-                <span class="text-base-content text-sm font-medium">目录跳转</span>
-                <select
-                  id="native-folder-target"
-                  aria-label="原生 115 目录跳转版本"
-                  class="select select-bordered select-sm bg-base-100/80 w-32 rounded-xl"
-                  value={nativeFolderTarget.value}
-                  onChange={event => nativeFolderTarget.value = (event.target as HTMLSelectElement).value as typeof nativeFolderTarget.value}
-                >
-                  <option value="new">新版 115</option>
-                  <option value="legacy">旧版 115</option>
-                </select>
-              </label>
-            </div>
-          </Card>
-
-          <Card title="索引与刮削目录" hint="分别配置 AV 与院线影视目录，修改后将自动重新同步" icon={I.FOLDER_OPEN}>
+        {/* 右栏：索引与刮削目录 · 缓存与数据同步 · 关于 */}
+        <div class="flex min-w-0 flex-col gap-4">
+          <Card title="索引与刮削目录" hint="分别配置 AV 与院线影视目录，修改后自动重扫" icon={I.FOLDER_OPEN}>
             <div class="flex flex-col gap-3">
               {/* AV / 番号影视目录 */}
-              <div class="border-base-content/10 bg-base-100/35 flex flex-col gap-2 rounded-xl border p-2.5">
+              <div class="border-base-content/10 bg-base-100 flex flex-col gap-2 rounded-lg border p-3">
                 <div class="flex items-center justify-between gap-2 text-xs">
                   <span class="text-base-content font-medium">AV / 番号影视目录</span>
-                  <span class="text-base-content/50 text-[11px]">
+                  <span class="text-base-content/50 text-[11px] tabular-nums">
                     {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0
                       ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'jav').length} 个`
                       : '全盘扫描'}
@@ -503,13 +491,13 @@ const PreferencesContent = defineComponent({
                         {getIndexFoldersByCategory(indexRootFolders.value, 'jav').map(folder => (
                           <span
                             key={folder.cid}
-                            class="badge badge-primary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                            class="border-base-content/12 bg-base-200 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
                             title={folder.path}
                           >
                             <span class="max-w-32 truncate">{folder.name}</span>
                             <button
                               type="button"
-                              class="hover:bg-primary/20 rounded-full p-0.5"
+                              class="text-base-content/50 hover:text-base-content rounded-sm p-0.5"
                               aria-label={`移除 ${folder.name}`}
                               onClick={() => handleRemoveCategoryFolder('jav', folder.cid)}
                             >
@@ -520,14 +508,14 @@ const PreferencesContent = defineComponent({
                       </div>
                     )
                   : (
-                      <p class="text-base-content/55 text-[11px]">
+                      <p class="text-base-content/50 text-[11px]">
                         未指定目录时默认扫描全盘（仅归入「全部作品」）。
                       </p>
                     )}
-                <div class="flex gap-2">
+                <div class="flex gap-2 pt-0.5">
                   <button
                     type="button"
-                    class="btn btn-xs btn-soft btn-primary flex-1 gap-1.5 rounded-lg"
+                    class="btn btn-xs border-base-content/15 bg-base-200 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
                     onClick={() => handlePickCategoryFolders('jav')}
                   >
                     <Icon name={I.FOLDER_OPEN} size="xs" />
@@ -549,7 +537,7 @@ const PreferencesContent = defineComponent({
               <SettingToggle
                 icon={I.FILE_VIDEO}
                 label="启用院线影视栏目"
-                description="开启后在侧边栏显示「院线影视」，支持 TMDB / 豆瓣电影剧集刮削"
+                description="开启后在侧边栏显示「院线影视」，支持 TMDB / 豆瓣刮削"
                 modelValue={enableCinemaLibrary.value}
                 onUpdate:modelValue={(value) => {
                   enableCinemaLibrary.value = value
@@ -559,10 +547,10 @@ const PreferencesContent = defineComponent({
 
               {/* 院线影视目录（开启后展示） */}
               {enableCinemaLibrary.value && (
-                <div class="border-base-content/10 bg-base-100/35 flex flex-col gap-2 rounded-xl border p-2.5">
+                <div class="border-base-content/10 bg-base-100 flex flex-col gap-2 rounded-lg border p-3">
                   <div class="flex items-center justify-between gap-2 text-xs">
                     <span class="text-base-content font-medium">院线影视目录</span>
-                    <span class="text-base-content/50 text-[11px]">
+                    <span class="text-base-content/50 text-[11px] tabular-nums">
                       {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0
                         ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length} 个`
                         : '未配置'}
@@ -574,13 +562,13 @@ const PreferencesContent = defineComponent({
                           {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').map(folder => (
                             <span
                               key={folder.cid}
-                              class="badge badge-secondary badge-soft badge-sm h-auto max-w-full gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                              class="border-base-content/12 bg-base-200 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
                               title={folder.path}
                             >
                               <span class="max-w-32 truncate">{folder.name}</span>
                               <button
                                 type="button"
-                                class="hover:bg-secondary/20 rounded-full p-0.5"
+                                class="text-base-content/50 hover:text-base-content rounded-sm p-0.5"
                                 aria-label={`移除 ${folder.name}`}
                                 onClick={() => handleRemoveCategoryFolder('cinema', folder.cid)}
                               >
@@ -591,14 +579,14 @@ const PreferencesContent = defineComponent({
                         </div>
                       )
                     : (
-                        <p class="text-base-content/55 text-[11px]">
+                        <p class="text-base-content/50 text-[11px]">
                           请选择存放电影或剧集的 115 目录，避免与 AV 混在一起。
                         </p>
                       )}
-                  <div class="flex gap-2">
+                  <div class="flex gap-2 pt-0.5">
                     <button
                       type="button"
-                      class="btn btn-xs btn-soft btn-secondary flex-1 gap-1.5 rounded-lg"
+                      class="btn btn-xs border-base-content/15 bg-base-200 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
                       onClick={() => handlePickCategoryFolders('cinema')}
                     >
                       <Icon name={I.FOLDER_OPEN} size="xs" />
@@ -616,7 +604,7 @@ const PreferencesContent = defineComponent({
                   </div>
                   <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
                     <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="text-base-content/80 font-medium">TMDB API Key（可选）</span>
+                      <span class="text-base-content/75 font-medium">TMDB API Key（可选）</span>
                       <span class="text-base-content/45 text-[11px]">留空走豆瓣免 Key 兜底</span>
                     </div>
                     <input
@@ -624,7 +612,7 @@ const PreferencesContent = defineComponent({
                       type="password"
                       autocomplete="off"
                       placeholder="支持 v3 API Key 或 v4 Read Token"
-                      class="input input-bordered input-xs bg-base-100/80 w-full rounded-xl font-mono"
+                      class="input input-bordered input-xs bg-base-200 w-full rounded-lg font-mono"
                       value={tmdbApiKey.value}
                       onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
                     />
@@ -634,7 +622,7 @@ const PreferencesContent = defineComponent({
             </div>
           </Card>
 
-          <Card title="缓存与数据同步" hint="打包为单文件 .115bak 跨设备迁移（导入兼容旧 .json）" icon={I.SORT_DATABASE}>
+          <Card title="缓存与数据同步" hint="单文件 .115bak 跨设备迁移（兼容旧 .json）" icon={I.SORT_DATABASE}>
             <input
               ref={backupFileInputRef}
               type="file"
@@ -665,7 +653,7 @@ const PreferencesContent = defineComponent({
             <div class="flex gap-2 pt-1">
               <button
                 type="button"
-                class="btn btn-sm btn-soft btn-primary flex-1 gap-1.5 rounded-xl"
+                class="btn btn-sm btn-primary flex-1 gap-1.5 rounded-lg shadow-none"
                 disabled={backupBusy.value}
                 onClick={handleExportBackup}
               >
@@ -674,7 +662,7 @@ const PreferencesContent = defineComponent({
               </button>
               <button
                 type="button"
-                class="btn btn-sm btn-soft flex-1 gap-1.5 rounded-xl"
+                class="btn btn-sm border-base-content/15 bg-base-100 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border shadow-none"
                 disabled={backupBusy.value}
                 onClick={() => backupFileInputRef.value?.click()}
               >
@@ -704,16 +692,15 @@ const PreferencesContent = defineComponent({
             icon={I.ABOUT}
             v-slots={{
               extra: () => (
-                <span class="bg-base-content/8 text-base-content/70 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
-                  v
-                  {PKG.version}
+                <span class="border-base-content/10 bg-base-100 text-base-content/70 shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums">
+                  {`v${PKG.version}`}
                 </span>
               ),
             }}
           >
             <div class="flex gap-2">
               {aboutLink('https://github.com/amasun/115master', I.GITHUB, 'GitHub 仓库')}
-              {aboutLink('https://github.com/amasun', I.SPONSOR, '赞助作者', true)}
+              {aboutLink('https://github.com/amasun', I.SPONSOR, '赞助作者')}
             </div>
           </Card>
         </div>

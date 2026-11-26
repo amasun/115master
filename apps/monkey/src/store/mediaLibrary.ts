@@ -209,6 +209,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const customAvatarUrls = shallowRef<Record<string, string>>({})
   const imagePickerTarget = shallowRef<MediaImagePickerTarget | null>(null)
   const playerOverlayPickCode = shallowRef<string | null>(null)
+  const playerOverlayStartTime = shallowRef<number | null>(null)
   const scrapingKeys = shallowRef<Set<string>>(new Set())
   const viewportScrapingKeys = shallowRef<Set<string>>(new Set())
   const missedScrapeKeys = shallowRef<Set<string>>(new Set())
@@ -1338,13 +1339,18 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     imagePickerTarget.value = null
   }
 
-  function openPlayerOverlay(pickCode: string) {
-    if (pickCode)
-      playerOverlayPickCode.value = pickCode
+  function openPlayerOverlay(pickCode: string, startTime?: number) {
+    if (!pickCode)
+      return
+    playerOverlayPickCode.value = pickCode
+    playerOverlayStartTime.value = typeof startTime === 'number' && Number.isFinite(startTime) && startTime > 0
+      ? Math.floor(startTime)
+      : null
   }
 
   function closePlayerOverlay() {
     playerOverlayPickCode.value = null
+    playerOverlayStartTime.value = null
   }
 
   function saveCollectionMeta(
@@ -1560,6 +1566,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     customAvatarUrls,
     imagePickerTarget,
     playerOverlayPickCode,
+    playerOverlayStartTime,
     scrapingKeys,
     scrapingCount,
     missedScrapeCount,

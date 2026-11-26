@@ -77,6 +77,20 @@
         </button>
       </label>
 
+      <!-- 超级搜索 -->
+      <Tooltip content="超级搜索 (Alt+K)">
+        <Button
+          variant="glass-floating"
+          size="sm"
+          class="gap-1.5 rounded-full px-3 text-xs"
+          aria-label="超级搜索"
+          @click="openSuperSearch"
+        >
+          <Icon :name="I.SEARCH" class="text-sm" />
+          <span class="hidden sm:inline">超级搜索</span>
+        </Button>
+      </Tooltip>
+
       <!-- 展开多维筛选 -->
       <Tooltip v-if="!isCleanup" content="多维筛选">
         <Button
@@ -230,6 +244,7 @@ import type { LibraryBreadcrumbItem } from './breadcrumb'
 import { Button, Header, HeaderEnd, HeaderStart, Tooltip } from '@115master/ui'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useSuperSearchDialog } from '@/components/SuperSearch'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
@@ -251,6 +266,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useMediaLibraryStore()
 const tagStore = useTagStore()
+const openSuperSearch = useSuperSearchDialog()
 const isDetail = computed(() => route.name === 'library-detail')
 const isActors = computed(() => route.name === 'library-actors')
 const isCleanup = computed(() => route.name === 'library-cleanup')

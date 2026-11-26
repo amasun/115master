@@ -1270,9 +1270,11 @@ async function startJunkScan() {
   junkController?.abort()
   const controller = new AbortController()
   junkController = controller
+  scannedDriveJunk.value = []
+  selectedJunkFids.value = new Set()
   scanningJunk.value = true
   junkScanProgress.scannedSuffixes = 0
-  junkScanProgress.totalSuffixes = suffixes.length
+  junkScanProgress.totalSuffixes = suffixes.length + (scanCategories.textMagnet ? 1 : 0)
   junkScanProgress.currentLabel = ''
   junkScanProgress.found = 0
 
@@ -1281,6 +1283,12 @@ async function startJunkScan() {
       suffixes,
       includeMagnetSearch: scanCategories.textMagnet,
       signal: controller.signal,
+      onBatch: (added) => {
+        if (junkController !== controller || added.length === 0)
+          return
+        scannedDriveJunk.value = [...scannedDriveJunk.value, ...added]
+        junkInitialized.value = true
+      },
       onProgress: (p) => {
         junkScanProgress.scannedSuffixes = p.scannedSuffixes
         junkScanProgress.totalSuffixes = p.totalSuffixes
@@ -1307,6 +1315,11 @@ async function startJunkScan() {
 function abortJunkScan() {
   junkController?.abort()
   scanningJunk.value = false
+  if (scannedDriveJunk.value.length > 0) {
+    junkInitialized.value = true
+    toast.info(`已停止扫描，已保留已发现的 ${scannedDriveJunk.value.length} 个文件`)
+    return
+  }
   toast.info('已停止扫描')
 }
 

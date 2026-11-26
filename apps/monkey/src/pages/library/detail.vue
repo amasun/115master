@@ -1606,14 +1606,6 @@ function openDriveLabelInLibrary(labelId: string) {
 
 function playAt(pickCode: string, seconds = 0) {
   const t = Math.max(0, Math.floor(seconds))
-  if (t > 0) {
-    void router.push({
-      name: 'video',
-      params: { pickCode },
-      query: { t: String(t) },
-    })
-    return
-  }
-  store.openPlayerOverlay(pickCode)
+  store.openPlayerOverlay(pickCode, t > 0 ? t : undefined)
 }
 </script>

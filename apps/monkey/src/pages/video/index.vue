@@ -245,6 +245,7 @@ import { useDataVideoSources } from './data/useVideoSource'
 const props = defineProps<{
   pickCode?: string
   overlay?: boolean
+  startTime?: number
 }>()
 
 const emit = defineEmits<{
@@ -647,9 +648,15 @@ async function loadData(isFirst = true) {
     logger.error(error)
   }
 
+  const propStartSec = typeof props.startTime === 'number' && Number.isFinite(props.startTime) && props.startTime >= 0
+    ? Math.floor(props.startTime)
+    : null
   const startRaw = Array.isArray(route.query.t) ? route.query.t[0] : route.query.t
-  const startSec = Number(startRaw)
-  if (startRaw !== undefined && startRaw !== null && startRaw !== '' && Number.isFinite(startSec) && startSec >= 0) {
+  const routeStartSec = startRaw !== undefined && startRaw !== null && startRaw !== '' && Number.isFinite(Number(startRaw)) && Number(startRaw) >= 0
+    ? Math.floor(Number(startRaw))
+    : null
+  const startSec = propStartSec ?? routeStartSec
+  if (startSec !== null) {
     DataHistory.lastTime.value = startSec
   }
 

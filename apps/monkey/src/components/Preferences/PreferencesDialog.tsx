@@ -44,6 +44,7 @@ export const PreferencesDialog = defineComponent({
             open={open.value}
             label="偏好设置"
             size="xl"
+            class="preferences-solid-dialog"
             onUpdate:open={update}
           >
             {navigation}
@@ -55,6 +56,7 @@ export const PreferencesDialog = defineComponent({
             label="偏好设置"
             placement="bottom"
             size="lg"
+            class="preferences-solid-drawer"
             style="--ui-drawer-size: min(75dvh, 44rem)"
             onUpdate:open={update}
           >
