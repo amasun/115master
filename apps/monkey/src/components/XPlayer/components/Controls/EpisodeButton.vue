@@ -2,11 +2,12 @@
   <Button
     variant="ghost"
     shape="circle"
+    :class="controlStyles.btn.root"
     :title="tip"
     :disabled="disabled"
     @click="onClick"
   >
-    <Icon :class="controlStyles.btn.icon" :name="icon" />
+    <Icon class="size-[18px]" :filled="true" :name="icon" />
   </Button>
 </template>
 

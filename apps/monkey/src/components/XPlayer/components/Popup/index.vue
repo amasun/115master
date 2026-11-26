@@ -1,8 +1,8 @@
 <template>
   <Teleport :to="portalContainer" :disabled="!portalContainer">
     <Transition
-      enter-active-class="transition-opacity duration-200 ease-[var(--ui-ease-enter)]"
-      leave-active-class="transition-opacity duration-200 ease-[var(--ui-ease-exit)]"
+      enter-active-class="transition-opacity duration-150 ease-[var(--ui-ease-enter)]"
+      leave-active-class="transition-opacity duration-150 ease-[var(--ui-ease-exit)]"
       enter-from-class="opacity-0"
       leave-to-class="opacity-0"
       @enter="onEnter"
@@ -11,8 +11,7 @@
       <div
         v-show="visibleModel"
         ref="popupRef"
-        class="ui-glass-panel"
-        :class="styles.popup"
+        :class="[surfaceClass, styles.popup]"
         :style="style"
         v-bind="$attrs"
       >
@@ -45,6 +44,7 @@ defineOptions({
 const props = withDefaults(defineProps<Props>(), {
   x: 0,
   y: 0,
+  surface: 'cinema',
   outsideStopPropagation: false,
   allowPreventControlsClose: true,
 })
@@ -59,10 +59,15 @@ const styles = clsx({
     [
       'relative',
       'x-popup',
-      'rounded-3xl',
       'overflow-hidden',
     ],
 })
+
+const surfaceClass = computed(() => (
+  props.surface === 'panel'
+    ? 'ui-glass-panel rounded-2xl'
+    : 'x-player-popup rounded-xl'
+))
 
 interface Props {
   /** 是否显示 */
@@ -77,6 +82,8 @@ interface Props {
   placement?: 'top' | 'bottom'
   /** 偏移量 */
   offset?: number
+  /** 弹层表面风格 */
+  surface?: 'cinema' | 'panel'
   /** 点击外部是否阻止冒泡 */
   outsideStopPropagation?: boolean
   /** 允许阻止控制栏关闭 */

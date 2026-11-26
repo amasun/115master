@@ -45,11 +45,11 @@ const styles = clsx({
     'transform-gpu',
   ],
   content: {
-    root: 'relative flex items-start justify-between p-6',
+    root: 'relative flex items-start justify-between gap-4 px-5 pt-4 pb-5',
   },
   bg: [
-    'absolute inset-0 bottom-[-200%]',
-    'bg-[linear-gradient(to_bottom,rgba(0,0,0,0.45)_0%,rgba(0,0,0,0.32)_22%,rgba(0,0,0,0.26)_32%,rgba(0,0,0,0.20)_42%,rgba(0,0,0,0.14)_52%,rgba(0,0,0,0.08)_62%,rgba(0,0,0,0.03)_72%,rgba(0,0,0,0)_100%)]',
+    'absolute inset-0 bottom-[-140%]',
+    'bg-[linear-gradient(to_bottom,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.42)_48%,rgba(0,0,0,0.14)_78%,rgba(0,0,0,0)_100%)]',
     'pointer-events-none',
   ],
 })

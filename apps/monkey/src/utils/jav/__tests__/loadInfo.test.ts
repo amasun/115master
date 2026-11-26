@@ -732,4 +732,32 @@ describe('loadJavInfo', () => {
     expect(sources[0].getInfo).not.toHaveBeenCalled()
     testLogger.info('番号标准化边界验证完成')
   })
+
+  it('forceRefresh 时跳过 Fusion 与单源缓存并强制联网覆写融合缓存', async () => {
+    cache.get.mockResolvedValue({
+      updatedAt: Date.now(),
+      value: info(JAV_SOURCE.JAVLIBRARY, 'FORCE-001', { title: '旧 Fusion 缓存' }),
+    })
+    const sources = [
+      source(
+        JAV_SOURCE.JAVLIBRARY,
+        info(JAV_SOURCE.JAVLIBRARY, 'FORCE-001', { title: '旧单源缓存' }),
+        info(JAV_SOURCE.JAVLIBRARY, 'FORCE-001', { title: '最新联网资料' }),
+      ),
+    ]
+
+    const result = await loadJavInfo('FORCE-001', sources, {
+      hedgeDelay: 0,
+      forceRefresh: true,
+    })
+
+    expect(cache.get).not.toHaveBeenCalled()
+    expect(sources[0].getInfoByCache).not.toHaveBeenCalled()
+    expect(sources[0].getInfo).toHaveBeenCalledWith('FORCE-001', { forceRefresh: true })
+    expect(result?.title).toBe('最新联网资料')
+    expect(cache.set).toHaveBeenCalledWith(
+      'Fusion:FORCE-001',
+      expect.objectContaining({ title: '最新联网资料' }),
+    )
+  })
 })

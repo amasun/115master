@@ -3,6 +3,7 @@
     ref="buttonRef"
     variant="ghost"
     shape="circle"
+    :class="styles.btn.root"
     title="画面变换"
     @click="toggleMenu"
   >
@@ -33,7 +34,7 @@ import TransformSettings from './TransformSettings.vue'
 const styles = clsx({
   ...controlStyles,
   popup: [
-    'p-2',
+    'p-1',
     'select-none',
   ],
 })

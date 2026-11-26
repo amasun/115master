@@ -78,6 +78,7 @@ describe('useUserSetting', () => {
   it('规范化索引根目录列表并在未配置时默认回退全盘', () => {
     expect(userSettings.value.indexRootFolders).toEqual([])
     expect(userSettings.value.tmdbApiKey).toBe('')
+    expect(userSettings.value.tmdbProxyUrl).toBe('')
     expect(getConfiguredIndexRootCids([])).toEqual(['0'])
 
     const normalized = normalizeIndexRootFolders([

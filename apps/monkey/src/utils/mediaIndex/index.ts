@@ -9,10 +9,15 @@ export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetch
 export {
   cinemaCache,
   readAllCachedCinemaMeta,
+  resolveTmdbApiBase,
   saveCinemaMeta,
   scrapeCinemaMetaDetailed,
 } from './cinemaScraper'
-export { parseCinemaTitle } from './cinemaTitleParser'
+export {
+  buildCinemaSearchQueries,
+  needsCinemaFolderFallback,
+  parseCinemaTitle,
+} from './cinemaTitleParser'
 export type { ParsedCinemaTitle } from './cinemaTitleParser'
 export {
   COLLECTION_CUSTOM_META_STORAGE_KEY,
@@ -66,6 +71,11 @@ export type {
   LibraryQueryOptions,
   YearFacetCount,
 } from './libraryAggregator'
+export {
+  MANUAL_AV_BINDINGS_STORAGE_KEY,
+  normalizeManualAvNumber,
+  sanitizeManualAvBindings,
+} from './manualMatchStore'
 export {
   collectLocalAvatarCandidates,
   collectLocalCoverCandidates,

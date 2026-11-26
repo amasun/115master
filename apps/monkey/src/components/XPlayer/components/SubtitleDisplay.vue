@@ -72,27 +72,27 @@ const emit = defineEmits<{
   download: []
 }>()
 
-/** badge 色调：选中态在 primary 底色上使用 primary-content 前景 */
+/** badge 色调：选中态使用主题高亮色，未选中态使用暗底柔光芯片 */
 const tone = computed(() => props.active
-  ? 'bg-primary-content/20 text-primary-content/80'
-  : 'bg-base-content/10 text-base-content/60')
+  ? 'bg-primary/25 text-primary'
+  : 'bg-white/10 text-white/65')
 
 const styles = clsx({
   root: 'flex w-full items-center gap-2',
   itemContent: 'flex min-w-0 flex-1 flex-col gap-1.5',
   firstLine: 'flex items-center gap-2',
   secondLine: 'flex items-center gap-1.5',
-  label: 'line-clamp-2 text-sm leading-snug font-medium break-all',
-  badge: 'rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
-  actions: 'border-base-content/15 ml-auto flex items-center gap-1 border-l pl-2',
+  label: 'line-clamp-2 text-[13px] leading-snug font-medium break-all text-white/92',
+  badge: 'rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap',
+  actions: 'ml-auto flex items-center gap-1 border-l border-white/15 pl-2',
   action: [
     'size-7 min-h-7 flex-shrink-0 p-0',
-    'border-base-content/25 bg-base-100/80 text-base-content border',
-    'hover:border-base-content/40 hover:bg-base-200',
+    'border border-white/15 bg-white/10 text-white/85',
+    'hover:border-white/30 hover:bg-white/20 hover:text-white',
   ],
   actionActive: [
-    'border-primary-content/50 bg-primary-content/15 text-primary-content',
-    'hover:bg-primary-content/25',
+    'border-primary/40 bg-primary/20 text-primary',
+    'hover:bg-primary/30',
   ],
   actionIcon: 'size-4',
 })

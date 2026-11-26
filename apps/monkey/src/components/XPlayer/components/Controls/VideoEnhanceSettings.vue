@@ -3,6 +3,7 @@
     ref="buttonRef"
     variant="ghost"
     shape="circle"
+    :class="styles.btn.root"
     title="视频色彩"
     @click="toggleMenu"
   >
@@ -18,19 +19,20 @@
     :class="[styles.popup]"
   >
     <div class="card card-sm">
-      <div class="card-body">
+      <div class="card-body p-3.5">
         <div class="mb-2 flex items-center justify-between">
-          <h3 class="card-title">
+          <h3 class="text-sm font-semibold text-white/92">
             视频色彩
           </h3>
           <Button
             variant="ghost"
             size="xs"
             shape="circle"
+            class="text-white/70 hover:bg-white/12 hover:text-white"
             title="重置"
             @click="resetAll"
           >
-            <Icon :name="I.RESTART" class="size-6" />
+            <Icon :name="I.RESTART" class="size-4.5" />
           </Button>
         </div>
         <div class="grid grid-flow-col grid-rows-5 gap-x-5 gap-y-2">
@@ -39,8 +41,8 @@
             :key="key"
             class="fieldset"
           >
-            <legend class="fieldset-legend w-full">
-              {{ ENHANCE_PARAMS_CONFIG[key].name }} <span class="badge badge-sm">{{ value }}</span>
+            <legend class="fieldset-legend w-full text-xs font-medium text-white/75">
+              {{ ENHANCE_PARAMS_CONFIG[key].name }} <span class="badge badge-xs border-0 bg-white/12 text-white/85">{{ value }}</span>
             </legend>
             <input
               type="range"
@@ -55,7 +57,7 @@
           </fieldset>
           <!-- 禁用HDR -->
           <fieldset class="fieldset">
-            <legend class="fieldset-legend w-full">
+            <legend class="fieldset-legend w-full text-xs font-medium text-white/75">
               禁用HDR
             </legend>
             <input
@@ -82,7 +84,7 @@ import { clsx } from '@/utils/clsx'
 const styles = clsx({
   ...controlStyles,
   popup: [
-    'p-2',
+    'p-1',
     'select-none',
   ],
 })

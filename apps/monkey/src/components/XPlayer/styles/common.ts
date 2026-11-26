@@ -1,21 +1,30 @@
+import './player.css'
+
 export const controlStyles = {
   btn: {
-    icon: 'size-7',
+    root: 'x-player-btn',
+    icon: 'size-5',
   },
   btnText: {
     root: [
-      'text-base font-semibold',
+      'x-player-btn x-player-btn-text',
+      'text-[13px] font-semibold tracking-wide',
       'no-underline hover:no-underline!',
     ],
   },
   menu: {
-    root: 'menu p-2 min-w-32 gap-1',
-    a: 'rounded-xl',
-    active: 'menu-active bg-primary!',
-    icon: 'size-6',
-    label: 'text-base-content',
-    desc: 'text-base-content/60',
+    root: 'menu p-1.5 min-w-28 gap-0.5 text-[13px]',
+    a: [
+      'flex items-center justify-between',
+      'rounded-lg px-3 py-1.5 font-medium text-white/85',
+      'transition-colors duration-150',
+      'hover:bg-white/10 hover:text-white',
+    ],
+    active: 'bg-primary/20! text-primary! font-semibold hover:bg-primary/25!',
+    icon: 'size-4.5',
+    label: 'text-white/92',
+    desc: 'text-white/50 text-xs',
   },
-  text: 'text-sm text-base-content text-shadow-xs/60 text-shadow-[0_0_2px_rgba(0_0_0_/0.3),0_0_2px_rgba(0_0_0_/0.3),0_0_2px_rgba(0_0_0_/0.3)]',
-  subtext: 'text-base-content/60',
+  text: 'text-sm text-white/92 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]',
+  subtext: 'text-white/60',
 }

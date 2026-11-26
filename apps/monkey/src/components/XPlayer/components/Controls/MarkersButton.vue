@@ -2,13 +2,18 @@
   <Button
     ref="buttonRef"
     variant="ghost"
-    size="sm"
-    :class="styles.btnText.root"
+    shape="circle"
+    class="relative"
+    :class="styles.btn.root"
     :disabled="!playerCore?.canplay"
     :title="markerTip"
     @click="toggleMenu"
   >
-    <Icon :class="styles.btn.icon" :name="I.MARKER" />
+    <Icon :class="styles.btn.icon" :filled="markerList.length > 0" :name="I.MARKER" />
+    <span
+      v-if="markerList.length > 0"
+      :class="styles.activeDot"
+    />
   </Button>
   <Popup
     v-model:visible="menuVisible"
@@ -19,7 +24,7 @@
       <!-- 顶部添加打点按钮与保存方式提示 -->
       <div :class="styles.popup.header">
         <div :class="styles.popup.storageRow">
-          <span class="text-base-content/55">保存方式</span>
+          <span class="text-white/55">保存方式</span>
           <span
             class="badge badge-xs rounded-full font-normal"
             :class="storageBadge.badgeClass"
@@ -137,24 +142,25 @@ import { formatMarkerTime } from '@/utils/markers'
 const styles = clsx({
   btn: controlStyles.btn,
   btnText: controlStyles.btnText,
+  activeDot: 'pointer-events-none absolute top-1.5 right-1.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]',
   popup: {
-    container: 'text-base-content flex max-h-80 w-72 flex-col gap-2 p-2',
+    container: 'flex max-h-80 w-72 flex-col gap-2 p-2.5 text-white/90',
     header: 'flex shrink-0 flex-col gap-1.5',
-    storageRow: 'flex items-center justify-between px-0.5 text-[11px]',
-    empty: 'text-base-content/50 py-6 text-center text-sm',
+    storageRow: 'flex items-center justify-between px-0.5 text-[11px] text-white/60',
+    empty: 'py-6 text-center text-xs text-white/45',
     list: [
       'flex max-h-60 flex-col gap-1 overflow-y-auto',
       ...scrollbar(),
     ],
     row: [
       'flex items-center gap-2 rounded-lg px-2 py-1.5',
-      'hover:bg-base-content/10 group cursor-pointer transition-colors',
+      'group cursor-pointer transition-colors hover:bg-white/10',
     ],
-    time: 'badge badge-sm badge-neutral shrink-0 font-mono',
-    label: 'text-base-content/80 flex-1 truncate text-xs',
+    time: 'app-font-time shrink-0 rounded bg-white/12 px-1.5 py-0.5 font-mono text-[11px] font-medium text-white/90',
+    label: 'flex-1 truncate text-xs text-white/85',
     actions: 'flex shrink-0 items-center gap-0.5 opacity-80 group-hover:opacity-100',
     editBox: 'flex min-w-0 flex-1 items-center gap-1',
-    input: 'input input-xs input-bordered bg-base-100 text-base-content min-w-0 flex-1',
+    input: 'input input-xs focus:border-primary h-6 min-w-0 flex-1 border-white/20 bg-white/10 text-xs text-white placeholder:text-white/40',
   },
 })
 

@@ -74,7 +74,7 @@
                 @click="toggleManualAv"
               >
                 <Icon :name="I.RENAME" class="text-sm" />
-                <span>{{ entry.kind === 'movie' || entry.kind === 'tv' ? '指定片名' : '指定番号' }}</span>
+                <span>{{ isCinema ? '指定片名' : '指定番号' }}</span>
               </Button>
               <Button
                 v-if="canRestoreCollection"
@@ -181,7 +181,7 @@
             <input
               v-model="manualAvInput"
               type="text"
-              :placeholder="entry.kind === 'movie' || entry.kind === 'tv' ? '输入正确的片名（可附年份，如 流浪地球2 2023）' : '输入正确的番号（例如 SSIS-001）'"
+              :placeholder="isCinema ? '输入正确的片名（可附年份，如 流浪地球2 2023）' : '输入正确的番号（例如 SSIS-001）'"
               class="input input-sm input-bordered bg-base-100/80 min-w-48 flex-1 rounded-full font-mono text-xs"
             >
             <Button
@@ -193,13 +193,27 @@
             >
               重新匹配
             </Button>
+            <Button
+              v-if="!isCinema && manualAvBinding"
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="rounded-full px-3 text-xs"
+              :disabled="isScraping"
+              @click="handleResetManualMatch"
+            >
+              恢复自动识别
+            </Button>
             <span v-if="scrapeHint" class="text-warning text-xs">{{ scrapeHint }}</span>
           </form>
 
           <!-- 主封面与核心元数据 -->
           <div class="flex flex-col gap-6 md:flex-row md:items-start">
             <!-- 主封面（自定义封面优先，否则 WebP 缩略图瞬时占位 + 高清原图异步升级） -->
-            <div class="group bg-base-300/70 relative aspect-[3/2] w-full shrink-0 overflow-hidden rounded-2xl shadow-lg md:w-[420px]">
+            <div
+              class="group bg-base-300/70 relative shrink-0 overflow-hidden rounded-2xl shadow-lg"
+              :class="isCinema ? 'aspect-[2/3] w-56 sm:w-64 md:w-[260px]' : 'aspect-[3/2] w-full md:w-[420px]'"
+            >
               <img
                 v-if="customCoverUrl"
                 :src="customCoverUrl"
@@ -261,6 +275,9 @@
                   </span>
                   <span v-if="!isCollection && entry.meta?.source" class="badge badge-neutral badge-soft text-xs">
                     {{ entry.meta.source }}
+                  </span>
+                  <span v-if="!isCollection && manualAvBinding" class="badge badge-info badge-soft text-xs">
+                    手动匹配
                   </span>
                   <span v-if="isCollection" class="badge badge-accent badge-soft text-xs">
                     {{ entry.files.length }} 个视频
@@ -809,6 +826,8 @@ const previewCountSetting = useUserSetting('filelistPreviewCount')
 const mediaKey = computed(() => String(route.params.mediaKey ?? ''))
 const entry = computed(() => store.getEntry(mediaKey.value))
 const isCollection = computed(() => entry.value?.kind === 'collection')
+const isCinema = computed(() => entry.value?.kind === 'movie' || entry.value?.kind === 'tv')
+const manualAvBinding = computed(() => store.getManualAvBinding(mediaKey.value))
 const collectionCid = computed(() =>
   isCollection.value ? mediaKey.value.slice('collection:'.length) : '',
 )
@@ -1530,8 +1549,13 @@ watch(
 
 onMounted(async () => {
   await store.init()
-  if (entry.value && entry.value.meta === null && entry.value.kind === 'jav')
+  if (
+    entry.value
+    && entry.value.meta === null
+    && (entry.value.kind === 'jav' || entry.value.kind === 'movie' || entry.value.kind === 'tv')
+  ) {
     store.enqueueScrape(entry.value.mediaKey)
+  }
 })
 
 onUnmounted(() => {
@@ -1547,15 +1571,29 @@ onUnmounted(() => {
 function toggleManualAv() {
   showManualAv.value = !showManualAv.value
   scrapeHint.value = ''
-  if (showManualAv.value)
-    manualAvInput.value = entry.value?.externalId ?? ''
+  if (showManualAv.value) {
+    manualAvInput.value = isCinema.value
+      ? (entry.value?.meta?.title ?? '')
+      : (manualAvBinding.value || entry.value?.externalId || '')
+  }
 }
 
 async function handleRescrape() {
   scrapeHint.value = ''
+  if (!isCinema.value && !entry.value?.externalId) {
+    showManualAv.value = true
+    manualAvInput.value = manualAvBinding.value || ''
+    scrapeHint.value = '未能自动识别番号，请手动输入番号进行匹配'
+    return
+  }
   const result = await store.rescrape(mediaKey.value)
-  if (!result)
+  if (!result) {
     scrapeHint.value = '未获取到新的刮削结果'
+    if (!showManualAv.value)
+      toast.warning(scrapeHint.value)
+    return
+  }
+  toast.success('已重新拉取最新资料')
 }
 
 async function handleManualScrape() {
@@ -1565,10 +1603,27 @@ async function handleManualScrape() {
   scrapeHint.value = ''
   const result = await store.rescrape(mediaKey.value, target)
   if (!result) {
-    scrapeHint.value = `未找到番号「${target}」的资料`
+    scrapeHint.value = isCinema.value
+      ? `未找到片名「${target}」的院线资料`
+      : `未找到番号「${target}」的资料`
     return
   }
   showManualAv.value = false
+  toast.success(
+    isCinema.value
+      ? '已更新院线匹配资料'
+      : `已绑定并匹配番号 ${result.externalId}`,
+  )
+}
+
+async function handleResetManualMatch() {
+  scrapeHint.value = ''
+  manualAvInput.value = ''
+  showManualAv.value = false
+  await store.resetManualMatch(mediaKey.value)
+  if (entry.value?.kind === 'jav' && entry.value.meta === null)
+    store.enqueueScrape(entry.value.mediaKey)
+  toast.success('已恢复自动识别')
 }
 
 function goBackToLibrary() {

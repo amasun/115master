@@ -64,13 +64,13 @@ import { Icon } from '@/icons'
 import { clsx } from '@/utils/clsx'
 
 const styles = clsx({
-  popup: 'top-6! left-6!',
-  wrap: 'flex items-center gap-2 px-4 py-2',
-  content: 'flex flex-1 flex-col gap-1 px-1',
-  icon: 'size-6',
-  title: 'text-sm font-semibold',
-  progress: 'progress progress-primary h-1 w-35',
-  value: 'text-base-content/70 text-sm font-semibold',
+  popup: 'top-5! left-5!',
+  wrap: 'flex items-center gap-2.5 px-3.5 py-2',
+  content: 'flex flex-1 flex-col gap-1 px-0.5',
+  icon: 'size-5 text-white/90',
+  title: 'text-[13px] font-semibold text-white/95',
+  progress: 'progress progress-primary h-1 w-28 bg-white/15',
+  value: 'app-font-time text-xs font-medium text-white/70',
 })
 
 /** 获取播放器上下文 */

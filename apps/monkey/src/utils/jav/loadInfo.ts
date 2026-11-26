@@ -22,13 +22,14 @@ let activeNetworkLoads = 0
 export interface JavInfoSource {
   source: string
   getInfoByCache: (avNumber: string) => Promise<JavInfo | undefined>
-  getInfo: (avNumber: string) => Promise<JavInfo | undefined>
+  getInfo: (avNumber: string, options?: { forceRefresh?: boolean }) => Promise<JavInfo | undefined>
   cancelInfoRequest?: (avNumber: string) => void
 }
 
 export interface LoadJavInfoOptions {
   hedgeDelay?: number
   sourceWaitTimeout?: number
+  forceRefresh?: boolean
   onUpgrade?: (info: JavInfo) => void
   onSourceError?: (source: string, error: unknown) => void
   onSourceTimeout?: (source: string) => void
@@ -236,9 +237,12 @@ async function requestSource(
   source: JavInfoSource,
   avNumber: string,
   onSourceError?: (source: string, error: unknown) => void,
+  forceRefresh?: boolean,
 ): Promise<SourceResult> {
   try {
-    const info = await source.getInfo(avNumber) ?? null
+    const info = (forceRefresh
+      ? await source.getInfo(avNumber, { forceRefresh: true })
+      : await source.getInfo(avNumber)) ?? null
     if (info && !isJavInfoForAvNumber(avNumber, info)) {
       logger.warn('番号资料源返回相似番号，继续回退', source.source, avNumber, info.avNumber)
       return { info: null }
@@ -261,6 +265,7 @@ function scheduleSource(
   avNumber: string,
   delay: number,
   onSourceError?: (source: string, error: unknown) => void,
+  forceRefresh?: boolean,
 ): ScheduledSource {
   let started = false
   let settledResult: SourceResult | undefined
@@ -271,7 +276,7 @@ function scheduleSource(
     const start = () => {
       started = true
       timer = undefined
-      requestSource(source, avNumber, onSourceError).then((result) => {
+      requestSource(source, avNumber, onSourceError, forceRefresh).then((result) => {
         settledResult = result
         resolve(result)
       })
@@ -333,7 +338,8 @@ export function loadJavInfo(
   const lookupKey = normalizeAvNumber(requestedAvNumber)
   if (!lookupKey)
     return Promise.resolve(null)
-  const activeLoad = inFlightLoads.get(lookupKey)
+  const inflightKey = options.forceRefresh ? `${lookupKey}:force` : lookupKey
+  const activeLoad = inFlightLoads.get(inflightKey)
   if (activeLoad)
     return activeLoad
 
@@ -356,12 +362,13 @@ export function loadJavInfo(
     options.onUpgrade,
     options.onSourceError,
     options.onSourceTimeout,
+    Boolean(options.forceRefresh),
   ).finally(() => {
-    if (inFlightLoads.get(lookupKey) === task)
-      inFlightLoads.delete(lookupKey)
+    if (inFlightLoads.get(inflightKey) === task)
+      inFlightLoads.delete(inflightKey)
     logger.info('番号资料调度完成', lookupKey)
   })
-  inFlightLoads.set(lookupKey, task)
+  inFlightLoads.set(inflightKey, task)
   return task
 }
 
@@ -373,8 +380,9 @@ async function loadJavInfoInternal(
   onUpgrade?: (info: JavInfo) => void,
   onSourceError?: (source: string, error: unknown) => void,
   onSourceTimeout?: (source: string) => void,
+  forceRefresh = false,
 ): Promise<JavInfo | null> {
-  const mergedCache = await javCache.get(`${MERGED_CACHE_PREFIX}:${avNumber}`)
+  const mergedCache = forceRefresh ? null : await javCache.get(`${MERGED_CACHE_PREFIX}:${avNumber}`)
   const mergedInfo = mergedCache?.value ?? null
 
   /**
@@ -389,7 +397,7 @@ async function loadJavInfoInternal(
    * 3) 后备缓存到期后启动单个后台升级任务
    */
   const primary = sources[0]
-  if (isJavInfoDisplayable(avNumber, mergedInfo)) {
+  if (!forceRefresh && isJavInfoDisplayable(avNumber, mergedInfo)) {
     if (!primary || mergedInfo.source === primary.source)
       return mergedInfo
 
@@ -420,7 +428,7 @@ async function loadJavInfoInternal(
     return mergedInfo
   }
 
-  /*
+  /**
    * ================================================================================
    * 步骤1：并行读取来源缓存
    * ================================================================================
@@ -430,24 +438,28 @@ async function loadJavInfoInternal(
    * 1) 同时读取全部缓存
    * 2) 按传入顺序融合可展示结果并直接复用
    */
-  logger.info('开始并行读取番号资料缓存', avNumber)
-  const cachedResults = await Promise.all(
-    sources.map(source => source.getInfoByCache(avNumber)),
-  )
-  const cachedInfos = cachedResults.map((info, index) => {
-    if (!info || isJavInfoForAvNumber(avNumber, info))
-      return info
-    logger.warn(
-      '番号资料缓存返回相似番号，忽略缓存',
-      sources[index]?.source,
-      avNumber,
-      info.avNumber,
-    )
-    return undefined
-  })
-  const cachedInfo = mergeJavInfo(avNumber, [...cachedInfos, mergedInfo])
+  const cachedInfos: Array<JavInfo | undefined> = forceRefresh
+    ? sources.map(() => undefined)
+    : await (async () => {
+        logger.info('开始并行读取番号资料缓存', avNumber)
+        const cachedResults = await Promise.all(
+          sources.map(source => source.getInfoByCache(avNumber)),
+        )
+        return cachedResults.map((info, index) => {
+          if (!info || isJavInfoForAvNumber(avNumber, info))
+            return info
+          logger.warn(
+            '番号资料缓存返回相似番号，忽略缓存',
+            sources[index]?.source,
+            avNumber,
+            info.avNumber,
+          )
+          return undefined
+        })
+      })()
+  const cachedInfo = forceRefresh ? null : mergeJavInfo(avNumber, [...cachedInfos, mergedInfo])
   logger.info('番号资料缓存读取完成', avNumber)
-  if (isJavInfoDisplayable(avNumber, cachedInfo)) {
+  if (!forceRefresh && isJavInfoDisplayable(avNumber, cachedInfo)) {
     const primarySource = sources[0]?.source
     const hasPrimaryCache = cachedInfos.some(info => info?.source === primarySource)
     const needsPrimaryUpgrade = !hasPrimaryCache
@@ -494,7 +506,7 @@ async function loadJavInfoInternal(
      */
     logger.info('开始按优先级请求番号资料', avNumber)
     const scheduledSources = sources.map((source, index) =>
-      scheduleSource(source, avNumber, index * hedgeDelay, onSourceError),
+      scheduleSource(source, avNumber, index * hedgeDelay, onSourceError, forceRefresh),
     )
     const results = [...cachedInfos]
 

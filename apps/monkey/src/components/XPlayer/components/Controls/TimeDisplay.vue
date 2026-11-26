@@ -3,8 +3,9 @@
     :class="styles.root"
     :data-canplay="playerCore?.canplay"
   >
-    {{ formatTime(playerCore?.currentTime) }} /
-    {{ formatTime(playerCore?.duration) }}
+    <span class="text-white/95">{{ formatTime(playerCore?.currentTime) }}</span>
+    <span class="text-white/40">/</span>
+    <span class="text-white/65">{{ formatTime(playerCore?.duration) }}</span>
   </div>
 </template>
 
@@ -17,15 +18,11 @@ const { playerCore } = usePlayerContext()
 
 const styles = clsx({
   root: [
-    'flex justify-center select-none',
+    'flex items-center gap-1 whitespace-nowrap select-none',
     'px-2',
-    'min-w-38',
-    'text-lg',
-    'text-base-content',
-    'tracking-tight',
+    'text-[13px]',
     'font-medium',
     'app-font-time',
-    '[&>span]:align-middle',
   ],
 })
 </script>

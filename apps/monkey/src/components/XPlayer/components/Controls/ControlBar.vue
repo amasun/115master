@@ -16,78 +16,58 @@
         :ref="controls.mainRef"
         :class="[styles.controlBar.mainContent]"
       >
-        <div :class="styles.controlBar.subBar">
-          <div :class="styles.controlBar.subBarLeft" />
-          <div :class="styles.controlBar.subBarRight" />
+        <div :class="styles.controlBar.progressRow">
+          <!-- 进度条 -->
+          <ProgressBar />
         </div>
         <div
           :class="[styles.controlBar.mainBar]"
         >
           <div :class="styles.controlBar.mainBarLeft">
-            <PlayerControlSurface>
-              <!-- 上一集按钮 -->
-              <EpisodeButton
-                type="playPrevious"
-                :disabled="!rootProps.hasPrevious"
-                :on-click="handlePlayPrevious"
-              />
-              <!-- 播放按钮 -->
-              <PlayButton />
-              <!-- 下一集按钮 -->
-              <EpisodeButton
-                type="playNext"
-                :disabled="!rootProps.hasNext"
-                :on-click="handlePlayNext"
-              />
-            </PlayerControlSurface>
-            <PlayerControlSurface>
-              <!-- 音量控制 -->
-              <VolumeControl />
-            </PlayerControlSurface>
-            <PlayerControlSurface class="hidden lg:flex">
-              <TimeDisplay />
-            </PlayerControlSurface>
-          </div>
-          <div :class="styles.controlBar.mainBarCenter">
-            <!-- 进度条 -->
-            <ProgressBar />
+            <!-- 上一集按钮 -->
+            <EpisodeButton
+              type="playPrevious"
+              :disabled="!rootProps.hasPrevious"
+              :on-click="handlePlayPrevious"
+            />
+            <!-- 播放按钮 -->
+            <PlayButton />
+            <!-- 下一集按钮 -->
+            <EpisodeButton
+              type="playNext"
+              :disabled="!rootProps.hasNext"
+              :on-click="handlePlayNext"
+            />
+            <!-- 音量控制 -->
+            <VolumeControl />
+            <TimeDisplay class="hidden sm:flex" />
           </div>
           <div :class="styles.controlBar.mainBarRight">
-            <PlayerControlSurface>
-              <ExpandableControlGroup>
-                <template #expanded>
-                  <!-- 画面变换 -->
-                  <TransformButton />
-                  <!-- 视频色彩 -->
-                  <VideoEnhanceSettings />
-                  <!-- 音频轨道 -->
-                  <AudioTrackButton />
-                </template>
-                <!-- 字幕按钮 -->
-                <SubtitleButton />
-              </ExpandableControlGroup>
-            </PlayerControlSurface>
+            <ExpandableControlGroup>
+              <template #expanded>
+                <!-- 画面变换 -->
+                <TransformButton />
+                <!-- 视频色彩 -->
+                <VideoEnhanceSettings />
+                <!-- 音频轨道 -->
+                <AudioTrackButton />
+              </template>
+              <!-- 字幕按钮 -->
+              <SubtitleButton />
+            </ExpandableControlGroup>
 
-            <PlayerControlSurface>
-              <!-- 打点 -->
-              <MarkersButton />
-              <!-- 倍速控制 -->
-              <PlaybackRateButton />
-            </PlayerControlSurface>
-
-            <PlayerControlSurface>
-              <!-- 画质控制 -->
-              <QualityButton />
-            </PlayerControlSurface>
-
-            <PlayerControlSurface>
-              <!-- 画中画 -->
-              <PipButton />
-              <!-- 剧院模式 -->
-              <TheatreButton />
-              <!-- 全屏控制 -->
-              <FullscreenButton />
-            </PlayerControlSurface>
+            <!-- 打点 -->
+            <MarkersButton />
+            <!-- 倍速控制 -->
+            <PlaybackRateButton />
+            <!-- 画质控制 -->
+            <QualityButton />
+            <!-- 画中画 -->
+            <PipButton />
+            <!-- 剧院模式 -->
+            <TheatreButton />
+            <!-- 全屏控制 -->
+            <FullscreenButton />
           </div>
         </div>
       </div>
@@ -108,7 +88,6 @@ import MarkersButton from './MarkersButton.vue'
 import PipButton from './PipButton.vue'
 import PlaybackRateButton from './PlaybackRateButton.vue'
 import PlayButton from './PlayButton.vue'
-import PlayerControlSurface from './PlayerControlSurface'
 import ProgressBar from './ProgressBar.vue'
 import QualityButton from './QualityButton.vue'
 import SubtitleButton from './SubtitleButton.vue'
@@ -126,18 +105,15 @@ const styles = clsx({
       'transform-gpu',
     ],
     bg: [
-      'absolute inset-0 top-[-200%]',
-      'bg-[linear-gradient(to_top,rgba(0,0,0,0.45)_0%,rgba(0,0,0,0.32)_22%,rgba(0,0,0,0.26)_32%,rgba(0,0,0,0.20)_42%,rgba(0,0,0,0.14)_52%,rgba(0,0,0,0.08)_62%,rgba(0,0,0,0.03)_72%,rgba(0,0,0,0)_100%)]',
+      'absolute inset-0 top-[-140%]',
+      'bg-[linear-gradient(to_top,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.52)_45%,rgba(0,0,0,0.18)_78%,rgba(0,0,0,0)_100%)]',
       'pointer-events-none',
     ],
-    mainContent: 'relative flex flex-col gap-y-2 px-6 pb-6',
-    mainBar: 'flex items-center gap-2',
-    mainBarLeft: 'flex items-center gap-2',
-    mainBarCenter: 'flex-1 px-6',
-    mainBarRight: 'flex items-center gap-2',
-    subBar: 'flex items-center justify-between',
-    subBarLeft: 'flex items-center gap-2',
-    subBarRight: 'flex items-center gap-2',
+    mainContent: 'relative flex flex-col gap-0 px-4 pt-2 pb-2.5',
+    progressRow: 'w-full',
+    mainBar: 'flex items-center justify-between gap-2 pt-0.5',
+    mainBarLeft: 'flex items-center gap-0.5',
+    mainBarRight: 'flex items-center gap-0.5',
   },
 })
 

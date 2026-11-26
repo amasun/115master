@@ -3,20 +3,20 @@
     variant="ghost"
     shape="circle"
     class="swap swap-rotate"
-    :class="{ 'swap-active': playerCore?.paused }"
+    :class="[styles.btn.root, { 'swap-active': playerCore?.paused }]"
     :disabled="!playerCore?.canplay"
     :title="playTip"
     @click="playerCore?.togglePlay"
   >
     <Icon
-      :name="I.PAUSE" class="swap-off" :class="[
-        styles.btn.icon,
-      ]"
+      :name="I.PAUSE"
+      :filled="true"
+      class="swap-off size-[22px]"
     />
     <Icon
-      :name="I.PLAY" class="swap-on" :class="[
-        styles.btn.icon,
-      ]"
+      :name="I.PLAY"
+      :filled="true"
+      class="swap-on size-[22px] translate-x-px"
     />
   </Button>
 </template>

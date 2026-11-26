@@ -270,7 +270,7 @@ abstract class Jav {
   abstract source: JAV_SOURCE
 
   /** 获取番号信息 */
-  async getInfo(avNumber: string): Promise<JavInfo | undefined> {
+  async getInfo(avNumber: string, options?: { forceRefresh?: boolean }): Promise<JavInfo | undefined> {
     /*
      * ================================================================================
      * 步骤1：读取并核对单源缓存
@@ -282,7 +282,7 @@ abstract class Jav {
      * 2) 完整缓存直接返回；不完整缓存继续联网刷新
      */
     logger.info('开始读取单源番号资料', this.source, avNumber)
-    const info = await this.getInfoByCache(avNumber)
+    const info = options?.forceRefresh ? undefined : await this.getInfoByCache(avNumber)
     if (isJavInfoCacheable(info, avNumber)) {
       logger.info('单源番号资料读取完成，命中完整缓存', this.source, avNumber)
       return info

@@ -191,4 +191,16 @@ describe('jav 番号验真与缓存', () => {
     expect(cache.set).not.toHaveBeenCalled()
     testLogger.info('完整缓存门槛验证完成')
   })
+
+  it('forceRefresh 时跳过有效单源缓存并刷新覆写缓存', async () => {
+    cache.get.mockResolvedValue({ value: createInfo('SORA-636', { title: '旧缓存标题' }) })
+    const source = new TestJav()
+    source.networkInfo = createInfo('SORA-636', { title: '最新网络标题' })
+
+    const result = await source.getInfo('SORA-636', { forceRefresh: true })
+
+    expect(cache.get).not.toHaveBeenCalled()
+    expect(result?.title).toBe('最新网络标题')
+    expect(cache.set).toHaveBeenCalledWith('JavBus:SORA-636', result)
+  })
 })

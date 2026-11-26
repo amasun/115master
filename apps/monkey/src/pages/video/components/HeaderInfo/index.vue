@@ -73,16 +73,17 @@ const styles = clsx({
   },
   /** 文件信息样式 */
   fileInfo: {
-    container: 'flex flex-1 flex-col',
+    container: 'flex flex-1 flex-col gap-0.5',
     file: 'flex flex-wrap items-center gap-2 tracking-tight',
-    name: 'app-text-shadow-dark line-clamp-2 text-xl font-semibold text-white',
-    size: 'app-text-shadow-dark flex-shrink-0 text-xs font-medium tracking-wide whitespace-nowrap text-white',
+    name: 'line-clamp-2 text-base leading-snug font-medium text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.65)] sm:text-lg',
+    size: 'flex-shrink-0 text-xs font-medium tracking-wide whitespace-nowrap text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]',
     path: {
       container: [
         'breadcrumbs',
-        'text-xs font-medium text-white',
+        'text-xs font-medium text-white/65',
         'tracking-wide',
-        'app-text-shadow-dark',
+        'drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]',
+        '[&_a]:transition-colors [&_a:hover]:text-white',
       ],
     },
   },

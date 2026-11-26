@@ -1,6 +1,7 @@
 <template>
   <Popup
     :visible="visible"
+    surface="panel"
     :class="styles.root"
     @update:visible="$emit('update:visible', $event)"
   >

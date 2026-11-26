@@ -88,6 +88,7 @@ const LIBRARY_PREF_KEYS = [
   '115Master_cleanup_junk_page_size',
   '115Master_library_collection_meta_v1',
   '115Master_library_ungrouped_collections_v1',
+  '115Master_library_manual_av_bindings_v1',
 ] as const
 
 const LIBRARY_PREF_KEY_SET = new Set<string>(LIBRARY_PREF_KEYS)

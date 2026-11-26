@@ -34,14 +34,14 @@ const { subtitles, controls, progressBar } = usePlayerContext()
 
 const styles = clsx({
   root: [
-    'absolute bottom-20 left-5',
-    'inline-flex items-center gap-3 px-5 py-2',
-    'rounded-3xl',
-    'text-base-content text-sm',
+    'absolute bottom-22 left-5',
+    'inline-flex items-center gap-2.5 px-3.5 py-2',
+    'rounded-xl border border-white/10',
+    'bg-black/72 shadow-lg backdrop-blur-md',
+    'text-xs text-white/90',
     'pointer-events-none',
-    'ui-glass-panel',
   ],
-  icon: 'size-8 opacity-80',
+  icon: 'size-5 shrink-0 text-white/80',
 })
 
 /** 当前字幕 */

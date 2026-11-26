@@ -3,6 +3,8 @@
     ref="buttonRef"
     variant="ghost"
     shape="circle"
+    class="relative"
+    :class="styles.btn.root"
     :title="subtitleTip"
     :disabled="subtitles.loading.value || !subtitles.ready.value || subtitles.list.value?.length === 0"
     @click="toggleMenu"
@@ -17,8 +19,13 @@
     <Icon
       v-else
       :name="subtitles.current.value ? I.SUBTITLES : I.SUBTITLES_OFF"
+      :filled="Boolean(subtitles.current.value)"
       :class="styles.btn.icon"
       :disabled="subtitles.list.value?.length === 0"
+    />
+    <span
+      v-if="subtitles.current.value"
+      :class="styles.activeLine"
     />
   </Button>
 
@@ -86,16 +93,13 @@ const styles = clsx({
       'overflow-x-hidden overflow-y-auto',
     ],
     a: [
-      controlStyles.menu.a,
-      'flex items-center',
-      'w-full gap-2',
-      'px-3 py-2',
-      'hover:bg-base-content/10',
-      'transition-colors ease-[var(--ui-ease-standard)]',
+      ...controlStyles.menu.a,
+      'w-full justify-start gap-2',
     ],
-    label: 'line-clamp-1 text-sm font-medium',
+    label: 'line-clamp-1 text-[13px] font-medium text-white/90',
   },
   btn: controlStyles.btn,
+  activeLine: 'bg-primary pointer-events-none absolute bottom-1 left-1/2 h-[2.5px] w-4 -translate-x-1/2 rounded-full',
 })
 
 const { subtitles, shortcuts, logger } = usePlayerContext()

@@ -4,6 +4,7 @@
     ref="buttonRef"
     variant="ghost"
     shape="circle"
+    :class="styles.btn.root"
     title="播放器核心"
     :disabled="source?.current?.value?.type === 'hls' || source?.isSwitching?.value"
     @click="toggleVisible"

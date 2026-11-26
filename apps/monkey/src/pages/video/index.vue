@@ -82,12 +82,13 @@
             </HeaderInfo>
           </template>
           <template #headerRight="{ ctx }">
-            <div class="flex items-center gap-2">
-              <PlayerControlSurface v-if="isWindows && DataFileInfo.isReady">
+            <div class="flex items-center gap-1.5">
+              <div v-if="isWindows && DataFileInfo.isReady" class="x-player-header-group">
                 <!-- Windows MPV 播放按钮 -->
                 <Button
                   variant="ghost"
                   shape="circle"
+                  :class="styles.controls.btn.root"
                   :title="getActionNameTip(ctx, 'MPV 播放', 'playWithMPV')"
                   @click="handleLocalPlay('mpv')"
                 >
@@ -96,13 +97,14 @@
                     :class="styles.controls.btn.icon"
                   />
                 </Button>
-              </PlayerControlSurface>
+              </div>
 
-              <PlayerControlSurface v-if="isMac && DataFileInfo.isReady">
+              <div v-if="isMac && DataFileInfo.isReady" class="x-player-header-group">
                 <!-- IINA 播放按钮 -->
                 <Button
                   variant="ghost"
                   shape="circle"
+                  :class="styles.controls.btn.root"
                   :title="getActionNameTip(ctx, 'IINA 播放', 'playWithIINA')"
                   @click="handleLocalPlay('iina')"
                 >
@@ -112,13 +114,14 @@
                     alt="IINA"
                   >
                 </Button>
-              </PlayerControlSurface>
+              </div>
 
-              <PlayerControlSurface>
+              <div class="x-player-header-group">
                 <!-- 播放列表切换按钮 -->
                 <Button
                   variant="ghost"
                   shape="circle"
+                  :class="styles.controls.btn.root"
                   aria-label="播放列表"
                   data-app-playlist-trigger
                   :title="getActionNameTip(ctx, '播放列表', 'toggleShowSider')"
@@ -129,13 +132,14 @@
                     :class="styles.controls.btn.icon"
                   />
                 </Button>
-              </PlayerControlSurface>
+              </div>
 
-              <PlayerControlSurface v-if="props.overlay">
+              <div v-if="props.overlay" class="x-player-header-group">
                 <!-- 独立页打开 -->
                 <Button
                   variant="ghost"
                   shape="circle"
+                  :class="styles.controls.btn.root"
                   aria-label="独立页打开"
                   title="在独立播放页打开"
                   @click="openStandalonePlayer"
@@ -149,6 +153,7 @@
                 <Button
                   variant="ghost"
                   shape="circle"
+                  :class="styles.controls.btn.root"
                   aria-label="关闭播放器"
                   title="关闭并返回影院 (Esc)"
                   @click="emit('close')"
@@ -158,7 +163,7 @@
                     :class="styles.controls.btn.icon"
                   />
                 </Button>
-              </PlayerControlSurface>
+              </div>
             </div>
           </template>
         </XPlayer>
@@ -209,7 +214,6 @@ import { cloneDeep } from 'lodash'
 import { computed, h, nextTick, onMounted, ref, shallowRef, toValue, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import iinaIcon from '@/assets/icons/iina-icon.png'
-import PlayerControlSurface from '@/components/XPlayer/components/Controls/PlayerControlSurface'
 import { ACTION_GROUPS } from '@/components/XPlayer/components/Shortcuts/shortcuts.const'
 import XPlayer from '@/components/XPlayer/index.vue'
 import { controlStyles } from '@/components/XPlayer/styles/common'
@@ -291,7 +295,7 @@ const styles = clsx({
   // 控制样式
   controls: {
     btn: controlStyles.btn,
-    iinaIcon: 'size-7 contrast-200 grayscale invert',
+    iinaIcon: 'size-5 contrast-200 grayscale invert',
   },
 })
 

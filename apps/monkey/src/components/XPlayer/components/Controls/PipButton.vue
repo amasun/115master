@@ -2,6 +2,7 @@
   <Button
     variant="ghost"
     shape="circle"
+    :class="styles.btn.root"
     :title="pipTip" :disabled="playerCore?.type === PlayerCoreType.AvPlayer" @click="pictureInPicture.toggle"
   >
     <Icon v-if="pictureInPicture.isPip.value" :name="I.PIP_EXIT" :class="styles.btn.icon" />

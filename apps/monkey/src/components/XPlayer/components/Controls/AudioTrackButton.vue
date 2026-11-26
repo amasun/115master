@@ -3,6 +3,7 @@
     ref="buttonRef"
     variant="ghost"
     shape="circle"
+    :class="styles.btn.root"
     :disabled="!canSwitch"
     aria-label="音频轨道"
     title="音频轨道"
@@ -26,6 +27,7 @@
           variant="ghost"
           size="sm"
           block
+          class="h-auto min-h-8 justify-between border-0 bg-transparent shadow-none"
           :class="[styles.menu.a, {
             [styles.menu.active]: playerCore.audioStreamId === stream.id,
           }]"

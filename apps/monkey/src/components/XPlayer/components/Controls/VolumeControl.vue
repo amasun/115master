@@ -21,7 +21,7 @@
           variant="ghost"
           shape="circle"
           class="swap swap-rotate"
-          :class="{ 'swap-active': playerCore?.muted }"
+          :class="[styles.btn.root, { 'swap-active': playerCore?.muted }]"
           :title="muteTip"
           :disabled="!playerCore?.canplay || playerCore?.isSuspended"
           @click="playerCore?.toggleMute"
@@ -29,11 +29,13 @@
           <Icon
             class="swap-off"
             :class="styles.btn.icon"
+            :filled="true"
             :name="VolumeIcon"
           />
           <Icon
             class="swap-on"
             :class="styles.btn.icon"
+            :filled="true"
             :name="VolumeIcon"
           />
         </Button>
@@ -43,6 +45,9 @@
         <input
           type="range"
           :class="[styles.range]"
+          :style="{
+            '--volume-percent': `${playerCore?.muted ? 0 : (playerCore?.volume ?? 0)}%`,
+          }"
           min="0"
           max="100"
           :value="playerCore?.volume ?? 0"
@@ -81,9 +86,9 @@ const { playerCore, hud, shortcuts } = usePlayerContext()
 const styles = computed(() => clsx({
   btn: controlStyles.btn,
   range: [
-    'range app-range-2xs range-primary',
-    'w-24',
-    'mx-2',
+    'x-player-volume-range',
+    'w-20',
+    'mx-1.5',
   ],
   tooltip: [
     'tooltip tooltip-top',
@@ -91,7 +96,7 @@ const styles = computed(() => clsx({
       'tooltip-open': playerCore.value?.isSuspended,
     },
   ],
-  tooltipContent: 'tooltip-content px-4 py-2',
+  tooltipContent: 'tooltip-content rounded-lg border border-white/10 bg-black/85 px-3 py-1.5 text-white/90',
   resumeBtn: 'pointer-events-auto cursor-pointer',
 }))
 

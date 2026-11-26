@@ -67,6 +67,8 @@ export interface Settings {
   customSections: CustomLibrarySection[]
   /** TMDB API Key（可选，支持 v3 Key 或 v4 Bearer Token；留空时自动用豆瓣免 Key 兜底） */
   tmdbApiKey: string
+  /** TMDB API 自定义反代地址（可选，如 https://tmdb-proxy.example.com；留空直连官方） */
+  tmdbProxyUrl: string
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
 }
@@ -88,6 +90,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableCinemaLibrary: false,
   customSections: [],
   tmdbApiKey: '',
+  tmdbProxyUrl: '',
   theme: 'system',
 }
 

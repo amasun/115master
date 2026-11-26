@@ -175,6 +175,7 @@ const PreferencesContent = defineComponent({
     const indexRootFolders = useUserSetting('indexRootFolders')
     const enableCinemaLibrary = useUserSetting('enableCinemaLibrary')
     const tmdbApiKey = useUserSetting('tmdbApiKey')
+    const tmdbProxyUrl = useUserSetting('tmdbProxyUrl')
     const backupBusy = shallowRef(false)
     const exportIncludeCustomMedia = shallowRef(true)
     const exportIncludePosterThumbs = shallowRef(false)
@@ -615,6 +616,21 @@ const PreferencesContent = defineComponent({
                       class="input input-bordered input-xs bg-base-200 w-full rounded-lg font-mono"
                       value={tmdbApiKey.value}
                       onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
+                    />
+                  </label>
+                  <label class="flex flex-col gap-1 pt-1" for="tmdb-proxy-url-input">
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-base-content/75 font-medium">TMDB 反代地址（可选）</span>
+                      <span class="text-base-content/45 text-[11px]">留空直连官方接口</span>
+                    </div>
+                    <input
+                      id="tmdb-proxy-url-input"
+                      type="url"
+                      autocomplete="off"
+                      placeholder="可选，如 https://tmdb-proxy.example.com（留空直连）"
+                      class="input input-bordered input-xs bg-base-200 w-full rounded-lg font-mono"
+                      value={tmdbProxyUrl.value}
+                      onInput={event => tmdbProxyUrl.value = (event.target as HTMLInputElement).value.trim()}
                     />
                   </label>
                 </div>

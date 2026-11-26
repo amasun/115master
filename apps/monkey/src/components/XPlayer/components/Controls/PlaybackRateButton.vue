@@ -3,7 +3,7 @@
     ref="buttonRef"
     variant="ghost"
     size="sm"
-    :class="styles.btnText.root"
+    :class="[styles.btnText.root, playbackRate.current.value !== 1 && 'text-primary!']"
     :disabled="!playerCore?.canplay"
     :title="playbackRateTip"
     @click="toggleSpeedMenu"
@@ -26,7 +26,7 @@
           :class="[styles.menu.a, {
             [styles.menu.active]: playbackRate.current.value === rate,
           }]"
-        >{{ rate }}</a>
+        >{{ rate }}x</a>
       </li>
     </ul>
   </Popup>
@@ -51,7 +51,7 @@ const rateOptions = computed(() =>
 const menuVisible = shallowRef(false)
 const buttonRef = ref<HTMLElement>()
 const buttonText = computed(() => {
-  return `${playbackRate.current.value}X`
+  return `${playbackRate.current.value}x`
 })
 
 const playbackRateTip = computed(() => {

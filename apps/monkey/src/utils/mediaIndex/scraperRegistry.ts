@@ -187,7 +187,10 @@ function classifySourceError(error: unknown): 'not_found' | 'rate_limited' | 'ch
 }
 
 /** 联网刮削单个番号元数据并返回结构化结果（用于熔断保护与空结果负缓存） */
-export async function scrapeJavMetaDetailed(avNumber: string): Promise<ScrapeResult> {
+export async function scrapeJavMetaDetailed(
+  avNumber: string,
+  options?: { forceRefresh?: boolean },
+): Promise<ScrapeResult> {
   const sources = createJavInfoSources(avNumber, {
     enableFanza: userSettings.value.enableFanzaSource,
   })
@@ -199,6 +202,7 @@ export async function scrapeJavMetaDetailed(avNumber: string): Promise<ScrapeRes
 
   const info = await loadJavInfo(avNumber, sources, {
     ...(hasQueryVariants ? { sourceWaitTimeout: MULTI_VARIANT_SOURCE_WAIT_TIMEOUT_MS } : {}),
+    ...(options?.forceRefresh ? { forceRefresh: true } : {}),
     onSourceError: (source, error) => {
       const kind = classifySourceError(error)
       const message = error instanceof Error ? error.message : String(error ?? '')

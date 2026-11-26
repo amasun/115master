@@ -1,5 +1,5 @@
 <template>
-  <PlayerControlSurface>
+  <div class="x-player-header-group">
     <ul :class="styles.root">
       <li
         v-for="(action, index) in actions"
@@ -12,13 +12,13 @@
         </Button>
       </li>
     </ul>
-  </PlayerControlSurface>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { FileActionMenuProps } from './FileActionMenu.types'
 import { Button } from '@115master/ui'
-import PlayerControlSurface from '@/components/XPlayer/components/Controls/PlayerControlSurface'
+import { controlStyles } from '@/components/XPlayer/styles/common'
 import { Icon } from '@/icons'
 import { clsx } from '@/utils/clsx'
 
@@ -27,10 +27,10 @@ const props = defineProps<FileActionMenuProps>()
 const { ctx } = props
 
 const styles = clsx({
-  root: 'flex items-center',
+  root: 'flex items-center gap-0.5',
   item: 'flex items-center',
-  button: 'text-base-content',
-  icon: 'size-7',
+  button: controlStyles.btn.root,
+  icon: controlStyles.btn.icon,
 })
 </script>
 

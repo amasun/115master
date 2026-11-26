@@ -17,6 +17,7 @@ import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { parseCinemaTitle } from './cinemaTitleParser'
 import { isAdLibraryEntry } from './junkScanner'
+import { normalizeManualAvNumber } from './manualMatchStore'
 import { PROTECTED_FOLDER_NAMES } from './safeDelete'
 
 export interface AggregateLibraryOptions {
@@ -26,6 +27,8 @@ export interface AggregateLibraryOptions {
   ungroupedCids?: ReadonlySet<string>
   /** 用户自定义的合集元数据（按 cid 索引） */
   customCollections?: Readonly<Record<string, CollectionCustomMeta>>
+  /** 用户手动指定的番号绑定映射（mediaKey -> avNumber） */
+  manualAvBindings?: Readonly<Record<string, string>>
   /** 目录名称反查函数（优先从本地目录路径缓存读取） */
   folderNameLookup?: (cid: string) => string | undefined
 }
@@ -305,10 +308,25 @@ export function aggregateLibraryEntries(
     const sortedVideos = [...group.videos].sort((a, b) => b.mtime - a.mtime || b.size - a.size)
     const files = sortedVideos.map(toLibraryFile)
     const latestMtime = files.reduce((max, file) => Math.max(max, file.mtime), 0)
-    const meta = isCollection
+    const isCinemaEntry = unprefixedKey.startsWith('movie:') || unprefixedKey.startsWith('tv:')
+    const rawManualAv = !isCollection && !isCinemaEntry
+      ? options?.manualAvBindings?.[mediaKey]
+      : undefined
+    const manualAv = rawManualAv ? normalizeManualAvNumber(rawManualAv) || undefined : undefined
+    const manualAvKey = manualAv ? normalizeAvNumber(manualAv) : ''
+    const rawMeta = isCollection
       ? buildCollectionMeta(mediaKey.slice('collection:'.length), latestMtime, options)
-      : (metaMap.get(mediaKey) ?? metaMap.get(unprefixedKey) ?? null)
-    const externalId = isCollection ? undefined : (meta?.externalId ?? group.externalId)
+      : manualAv
+        ? (manualAvKey ? (metaMap.get(`jav:${manualAvKey}`) ?? null) : null)
+        : (metaMap.get(mediaKey) ?? metaMap.get(unprefixedKey) ?? null)
+    const meta = !isCollection && manualAv && rawMeta && rawMeta.mediaKey !== mediaKey
+      ? { ...rawMeta, mediaKey }
+      : rawMeta
+    const externalId = isCollection
+      ? undefined
+      : manualAv
+        ? (meta?.externalId ?? manualAv)
+        : (meta?.externalId ?? group.externalId)
     const kind = isCollection
       ? 'collection'
       : unprefixedKey.startsWith('movie:')

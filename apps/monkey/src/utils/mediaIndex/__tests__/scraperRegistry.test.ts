@@ -243,5 +243,13 @@ describe('scraperRegistry', () => {
     await scrapeJavMetaDetailed('ABP-100')
     const lastOptions = loadJavInfoMock.mock.calls[loadJavInfoMock.mock.calls.length - 1]?.[2] as Record<string, unknown>
     expect(lastOptions.sourceWaitTimeout).toBeUndefined()
+    expect(lastOptions.forceRefresh).toBeUndefined()
+
+    await scrapeJavMetaDetailed('ABP-100', { forceRefresh: true })
+    expect(loadJavInfoMock).toHaveBeenLastCalledWith(
+      'ABP-100',
+      [],
+      expect.objectContaining({ forceRefresh: true }),
+    )
   })
 })

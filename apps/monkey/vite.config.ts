@@ -159,6 +159,7 @@ export default defineConfig({
           'api.themoviedb.org',
           'image.tmdb.org',
           'movie.douban.com',
+          'doubanio.com',
           '*.doubanio.com',
           'api-shoulei-ssl.xunlei.com',
           'subtitle.v.geilijiasu.com',

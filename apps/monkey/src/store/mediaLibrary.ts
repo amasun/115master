@@ -33,6 +33,7 @@ import { normalizeActressName } from '@/utils/actressNameMatcher'
 import { markerStore } from '@/utils/cache/markerStore'
 import { folderPathResolver } from '@/utils/driveFolderPath'
 import { getAvNumber } from '@/utils/getNumber'
+import { normalizeAvNumber } from '@/utils/jav/jav'
 import { appLogger } from '@/utils/logger'
 import {
   aggregateLibraryEntries,
@@ -52,8 +53,12 @@ import {
   isAdLibraryEntry,
   isSuspectedMultiPartGroup,
   loadVideoIndexSnapshot,
+  MANUAL_AV_BINDINGS_STORAGE_KEY,
   markScrapeMissed,
+  needsCinemaFolderFallback,
   normalizeAdMatchMode,
+  normalizeManualAvNumber,
+  posterThumbCache,
   readActiveScrapeMissKeys,
   readAllCachedCinemaMeta,
   readAllCachedJavMeta,
@@ -62,6 +67,7 @@ import {
   removeCustomCover,
   requestPersistentStorage,
   sanitizeCollectionCustomMeta,
+  sanitizeManualAvBindings,
   saveCustomAvatar,
   saveCustomCover,
   saveVideoIndexSnapshot,
@@ -193,6 +199,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const customCollections = useStorage<Record<string, CollectionCustomMeta>>(COLLECTION_CUSTOM_META_STORAGE_KEY, {})
   const ungroupedCollectionCids = useStorage<string[]>(UNGROUPED_COLLECTION_CIDS_STORAGE_KEY, [])
   const ungroupedCollectionCidSet = computed(() => new Set(ungroupedCollectionCids.value))
+  const manualAvBindings = useStorage<Record<string, string>>(MANUAL_AV_BINDINGS_STORAGE_KEY, {})
+  const sanitizedManualBindings = sanitizeManualAvBindings(manualAvBindings.value)
+  if (JSON.stringify(sanitizedManualBindings) !== JSON.stringify(manualAvBindings.value))
+    manualAvBindings.value = sanitizedManualBindings
   const indexRootFolders = useUserSetting('indexRootFolders')
   const enableCinemaLibrary = useUserSetting('enableCinemaLibrary')
   const customSections = useUserSetting('customSections')
@@ -358,6 +368,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       excludedRootCids,
       ungroupedCids: ungroupedCollectionCidSet.value,
       customCollections: customCollections.value,
+      manualAvBindings: manualAvBindings.value,
       folderNameLookup: cid => folderPathResolver.getCached(cid)?.name,
     })
     const nextIndex = buildLibraryIndex(nextEntries, actorWorks.value)
@@ -367,34 +378,56 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     void matchActorAvatars(nextIndex.actorStats)
     scheduleBackgroundDuplicateAnalysis()
 
-    const missingCollectionCids: string[] = []
+    const missingFolderCids: string[] = []
     for (const item of nextEntries) {
-      if (item.kind !== 'collection')
+      if (item.kind === 'collection') {
+        const cid = item.mediaKey.slice('collection:'.length)
+        if (!cid || prefetchedCollectionCids.has(cid) || folderPathResolver.getCached(cid))
+          continue
+        prefetchedCollectionCids.add(cid)
+        missingFolderCids.push(cid)
         continue
-      const cid = item.mediaKey.slice('collection:'.length)
-      if (!cid || prefetchedCollectionCids.has(cid) || folderPathResolver.getCached(cid))
-        continue
-      prefetchedCollectionCids.add(cid)
-      missingCollectionCids.push(cid)
+      }
+      if (isCinemaEntry(item)) {
+        const primaryFile = item.files[0]
+        const cid = primaryFile?.cid?.trim()
+        if (
+          cid
+          && cid !== '0'
+          && primaryFile
+          && needsCinemaFolderFallback(primaryFile.name)
+          && !prefetchedCollectionCids.has(cid)
+          && !folderPathResolver.getCached(cid)
+        ) {
+          prefetchedCollectionCids.add(cid)
+          missingFolderCids.push(cid)
+        }
+      }
     }
-    if (missingCollectionCids.length > 0)
-      folderPathResolver.prefetch(missingCollectionCids)
+    if (missingFolderCids.length > 0)
+      folderPathResolver.prefetch(missingFolderCids)
   }
 
   watch(
     () => folderPathResolver.version.value,
     () => {
-      const hasResolvableCollection = entries.value.some((item) => {
-        if (item.kind !== 'collection')
-          return false
-        const cid = item.mediaKey.slice('collection:'.length)
-        const cachedName = folderPathResolver.getCached(cid)?.name?.trim()
-        if (!cachedName)
-          return false
-        const customTitle = customCollections.value[cid]?.title?.trim()
-        return !customTitle && item.meta?.title !== cachedName
+      const hasResolvableEntry = entries.value.some((item) => {
+        if (item.kind === 'collection') {
+          const cid = item.mediaKey.slice('collection:'.length)
+          const cachedName = folderPathResolver.getCached(cid)?.name?.trim()
+          if (!cachedName)
+            return false
+          const customTitle = customCollections.value[cid]?.title?.trim()
+          return !customTitle && item.meta?.title !== cachedName
+        }
+        if (isCinemaEntry(item) && item.meta === null) {
+          const primaryFile = item.files[0]
+          if (primaryFile && needsCinemaFolderFallback(primaryFile.name))
+            return Boolean(folderPathResolver.getCached(primaryFile.cid)?.name?.trim())
+        }
+        return false
       })
-      if (hasResolvableCollection)
+      if (hasResolvableEntry)
         rebuildEntries()
     },
   )
@@ -663,6 +696,17 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     metaMap.value = cachedMeta
     actorWorks.value = cachedActorWorks
     markerDocs.value = markers
+    if (typeof localStorage !== 'undefined') {
+      const rawBindings = localStorage.getItem(MANUAL_AV_BINDINGS_STORAGE_KEY)
+      if (rawBindings) {
+        try {
+          manualAvBindings.value = sanitizeManualAvBindings(JSON.parse(rawBindings))
+        }
+        catch {
+          // 忽略损坏的手动绑定数据
+        }
+      }
+    }
     if (videos.value.length > 0)
       rebuildEntries()
   }
@@ -773,19 +817,83 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     return (entry.kind === 'jav' && Boolean(entry.externalId)) || isCinemaEntry(entry)
   }
 
-  function scrapeEntryByKind(entry: LibraryEntry, customQuery?: string): Promise<ScrapeResult> {
+  function getManualAvBinding(mediaKey: string): string | undefined {
+    return manualAvBindings.value[mediaKey]
+  }
+
+  function setManualAvBinding(mediaKey: string, avNumber: string | null) {
+    const key = mediaKey.trim()
+    if (!key)
+      return
+    const next = { ...manualAvBindings.value }
+    const normalized = avNumber ? normalizeManualAvNumber(avNumber) : ''
+    if (normalized)
+      next[key] = normalized
+    else
+      delete next[key]
+    manualAvBindings.value = sanitizeManualAvBindings(next)
+  }
+
+  function getNaturalEntryAvNumber(entry: LibraryEntry): string {
+    const fileIdSet = new Set(entry.files.map(file => file.fid))
+    for (const video of videos.value) {
+      if (fileIdSet.has(video.fid) && video.avNumber?.trim())
+        return normalizeManualAvNumber(video.avNumber)
+    }
+    return ''
+  }
+
+  function applyScrapedMeta(
+    entry: LibraryEntry,
+    scraped: UnifiedMediaMeta,
+    clearEntryKey = false,
+  ): UnifiedMediaMeta {
+    const nextMap = new Map(metaMap.value)
     if (isCinemaEntry(entry)) {
-      const folderName = folderPathResolver.getCached(entry.files[0]?.cid ?? '')?.name
+      const patched: UnifiedMediaMeta = { ...scraped, mediaKey: entry.mediaKey }
+      nextMap.set(entry.mediaKey, patched)
+      metaMap.value = nextMap
+      return patched
+    }
+    const targetKey = scraped.mediaKey || entry.mediaKey
+    if (clearEntryKey && targetKey !== entry.mediaKey)
+      nextMap.delete(entry.mediaKey)
+    nextMap.set(targetKey, scraped)
+    metaMap.value = nextMap
+    return { ...scraped, mediaKey: entry.mediaKey }
+  }
+
+  async function scrapeEntryByKind(
+    entry: LibraryEntry,
+    customQuery?: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<ScrapeResult> {
+    if (isCinemaEntry(entry)) {
+      const primaryFile = entry.files[0]
+      const cid = primaryFile?.cid?.trim() ?? ''
+      const filename = primaryFile?.name ?? ''
+      if (
+        !customQuery?.trim()
+        && cid
+        && cid !== '0'
+        && needsCinemaFolderFallback(filename)
+        && !folderPathResolver.getCached(cid)
+      ) {
+        await folderPathResolver.syncCids([cid]).catch(() => {})
+      }
+      const folderName = folderPathResolver.getCached(cid)?.name
       return scrapeCinemaMetaDetailed({
         mediaKey: entry.mediaKey,
-        filename: entry.files[0]?.name ?? '',
+        filename,
         ...(folderName ? { folderName } : {}),
         customQuery,
         kindHint: entry.kind as 'movie' | 'tv',
       })
     }
-    const targetAv = (customQuery?.trim() || entry.externalId || '').toUpperCase()
-    return scrapeJavMetaDetailed(targetAv)
+    const targetAv = normalizeManualAvNumber(
+      customQuery || manualAvBindings.value[entry.mediaKey] || entry.externalId || '',
+    )
+    return scrapeJavMetaDetailed(targetAv, options)
   }
 
   function enqueueScrape(mediaKey: string) {
@@ -813,9 +921,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       updateViewportScrapingKeys(mediaKey, false)
       if (result.status === 'ok') {
         removeMissedScrapeKey(mediaKey)
-        const nextMap = new Map(metaMap.value)
-        nextMap.set(mediaKey, { ...result.meta, mediaKey })
-        metaMap.value = nextMap
+        applyScrapedMeta(entry, result.meta)
         rebuildEntries()
         return
       }
@@ -840,31 +946,61 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     }
   }
 
-  async function rescrape(mediaKey: string, customInput?: string): Promise<UnifiedMediaMeta | null> {
+  async function resetManualMatch(mediaKey: string): Promise<void> {
+    setManualAvBinding(mediaKey, null)
+    attemptedScrapeKeys.delete(mediaKey)
+    removeMissedScrapeKey(mediaKey)
+    await posterThumbCache.remove(mediaKey).catch(() => {})
+    bumpCustomCoverVersion(mediaKey)
+    rebuildEntries()
+  }
+
+  async function rescrape(
+    mediaKey: string,
+    customInput?: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<UnifiedMediaMeta | null> {
     const entry = libraryIndex.value.entryMap.get(mediaKey)
     if (!entry)
       return null
+
+    const trimmedInput = customInput?.trim() ?? ''
     const cinema = isCinemaEntry(entry)
     const targetQuery = cinema
-      ? (customInput?.trim() || entry.files[0]?.name || '')
-      : (customInput?.trim() || entry.externalId || '').toUpperCase()
+      ? (trimmedInput || entry.files[0]?.name || '')
+      : normalizeManualAvNumber(trimmedInput || manualAvBindings.value[mediaKey] || entry.externalId || '')
     if (!targetQuery)
       return null
+
+    const isSameJavTarget = !cinema
+      && Boolean(trimmedInput)
+      && Boolean(entry.externalId)
+      && normalizeAvNumber(trimmedInput) === normalizeAvNumber(entry.externalId)
+    const forceRefresh = options?.forceRefresh ?? (!trimmedInput || isSameJavTarget)
 
     attemptedScrapeKeys.delete(mediaKey)
     removeMissedScrapeKey(mediaKey)
     updateScrapingKeys(mediaKey, true)
     try {
-      const result = await scrapeEntryByKind(entry, customInput)
+      const result = await scrapeEntryByKind(entry, trimmedInput || undefined, { forceRefresh })
       if (result.status !== 'ok') {
         if (result.status === 'not_found')
           addMissedScrapeKey(mediaKey, targetQuery)
         return null
       }
-      const patched: UnifiedMediaMeta = { ...result.meta, mediaKey }
-      const nextMap = new Map(metaMap.value)
-      nextMap.set(mediaKey, patched)
-      metaMap.value = nextMap
+
+      if (!cinema && trimmedInput) {
+        const boundAv = normalizeManualAvNumber(result.meta.externalId || targetQuery)
+        const naturalAv = getNaturalEntryAvNumber(entry)
+        if (!naturalAv || normalizeAvNumber(boundAv) !== normalizeAvNumber(naturalAv))
+          setManualAvBinding(mediaKey, boundAv)
+        else
+          setManualAvBinding(mediaKey, null)
+      }
+
+      const patched = applyScrapedMeta(entry, result.meta, true)
+      await posterThumbCache.remove(mediaKey).catch(() => {})
+      bumpCustomCoverVersion(mediaKey)
       rebuildEntries()
       return patched
     }
@@ -892,6 +1028,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     hideAdVideos.value
       ? entries.value.filter(entry => !adEntryKeySet.value.has(entry.mediaKey))
       : entries.value,
+  )
+  const totalVisibleEntryCount = computed(() => visibleEntries.value.length)
+  const filteredEntries = computed(() =>
+    libraryIndex.value.query(
+      filter,
+      hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : undefined,
+    ),
   )
   const visibleEntryCount = computed(() =>
     visibleEntries.value.filter(entry => !isCinemaEntry(entry) && !entry.sectionId).length,
@@ -929,14 +1072,17 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       adMatchMode.value = mode
   }
 
-  function getNextBackgroundCandidate(): LibraryEntry | undefined {
-    return visibleEntries.value.find(entry =>
-      isScrapableEntry(entry)
+  function isPendingScrapeCandidate(entry: LibraryEntry): boolean {
+    return isScrapableEntry(entry)
       && entry.meta === null
       && !missedScrapeKeys.value.has(entry.mediaKey)
       && !scrapingKeys.value.has(entry.mediaKey)
-      && !attemptedScrapeKeys.has(entry.mediaKey),
-    )
+      && !attemptedScrapeKeys.has(entry.mediaKey)
+  }
+
+  function getNextBackgroundCandidate(): LibraryEntry | undefined {
+    return filteredEntries.value.find(isPendingScrapeCandidate)
+      ?? visibleEntries.value.find(isPendingScrapeCandidate)
   }
 
   async function runBackgroundScrapeLoop(controller: AbortController) {
@@ -995,9 +1141,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
           consecutiveBlocks = 0
           attemptedScrapeKeys.add(mediaKey)
           removeMissedScrapeKey(mediaKey)
-          const nextMap = new Map(metaMap.value)
-          nextMap.set(mediaKey, { ...result.meta, mediaKey })
-          metaMap.value = nextMap
+          applyScrapedMeta(candidate, result.meta)
           pendingRebuilds += 1
           if (
             pendingRebuilds >= BG_SCRAPE_REBUILD_BATCH
@@ -1448,12 +1592,6 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     customAvatarUrls.value = next
   }
 
-  const filteredEntries = computed(() =>
-    libraryIndex.value.query(
-      filter,
-      hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : undefined,
-    ),
-  )
   const wallTotalPages = computed(() =>
     getWallTotalPages(filteredEntries.value.length, wallPageSize.value),
   )
@@ -1550,6 +1688,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     adMatchMode,
     adFilterOptions,
     adEntryCount,
+    totalVisibleEntryCount,
     visibleEntryCount,
     cinemaCount,
     sectionCounts,
@@ -1599,6 +1738,9 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     enqueueScrape,
     cancelScrape,
     rescrape,
+    manualAvBindings,
+    getManualAvBinding,
+    resetManualMatch,
     startBackgroundScrape,
     pauseBackgroundScrape,
     resumeBackgroundScrape,

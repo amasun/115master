@@ -4,7 +4,7 @@ import { computed, defineComponent, nextTick, onMounted, shallowRef, watch } fro
 import { usePlayerContext } from '@/components/XPlayer/hooks/usePlayerProvide'
 import { clsx } from '@/utils/clsx'
 
-const DEFAULT_BUTTON_WIDTH_FALLBACK = 40
+const DEFAULT_BUTTON_WIDTH_FALLBACK = 36
 const DELAY_MS = 60
 
 /**
@@ -30,12 +30,12 @@ const ExpandableControlGroup = defineComponent({
       root: [
         'flex items-center',
         props.direction === 'left' ? 'justify-start' : 'justify-end',
-        'w-10',
+        'w-9',
         'group/control',
         'transition-[width] duration-300 ease-[var(--ui-ease-move)]',
       ],
       expandedContent: [
-        'flex items-center gap-1',
+        'flex items-center gap-0.5',
         'overflow-hidden',
         'opacity-0',
         'w-0',

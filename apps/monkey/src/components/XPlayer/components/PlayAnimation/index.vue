@@ -3,7 +3,11 @@
     v-if="visible"
     :class="[styles.container, animationClass]"
   >
-    <Icon :name="isShowPause ? I.PAUSE : I.PLAY" :class="styles.icon" />
+    <Icon
+      :name="isShowPause ? I.PAUSE : I.PLAY"
+      :filled="true"
+      :class="[styles.icon, !isShowPause && 'translate-x-0.5']"
+    />
   </div>
 </template>
 
@@ -18,9 +22,9 @@ const styles = clsx({
   container: [
     'absolute inset-0 m-auto',
     'flex items-center justify-center',
-    'size-20 rounded-full bg-black/30 text-white drop-shadow-xs/60',
+    'size-20 rounded-full bg-black/55 text-white shadow-[0_8px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/15 backdrop-blur-md',
   ],
-  icon: 'size-[61.8%]',
+  icon: 'size-9',
 })
 
 const { playerCore } = usePlayerContext()

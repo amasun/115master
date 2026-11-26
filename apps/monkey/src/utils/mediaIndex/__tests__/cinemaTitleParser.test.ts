@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseCinemaTitle } from '../cinemaTitleParser'
+import {
+  buildCinemaSearchQueries,
+  needsCinemaFolderFallback,
+  parseCinemaTitle,
+} from '../cinemaTitleParser'
 
 describe('cinemaTitleParser', () => {
   it('解析中文电影名、年份与画质噪点标记', () => {
@@ -9,6 +13,38 @@ describe('cinemaTitleParser', () => {
       mediaType: 'movie',
       normalizedKey: '流浪地球2',
     })
+  })
+
+  it('清洗复杂网盘压制名与字幕组前缀（杜比视界 / 60fps / DDP5.1 / 压制组）', () => {
+    expect(parseCinemaTitle('[人人影视]【4K杜比】流浪地球2.杜比视界.60fps.DDP5.1-HHWEB.mp4')).toEqual({
+      title: '流浪地球2',
+      mediaType: 'movie',
+      normalizedKey: '流浪地球2',
+    })
+
+    expect(parseCinemaTitle('沙丘2-Dune Part Two.2024.IMAX.2160p.WEB-DL.Atmos.H265-FRDS.mkv')).toEqual({
+      title: '沙丘2',
+      year: 2024,
+      mediaType: 'movie',
+      normalizedKey: '沙丘2',
+    })
+  })
+
+  it('判断仅含集数或纯数字的文件名是否需要父目录回退', () => {
+    expect(needsCinemaFolderFallback('S01E01.1080p.WEB-DL.mkv')).toBe(true)
+    expect(needsCinemaFolderFallback('03.mp4')).toBe(true)
+    expect(needsCinemaFolderFallback('第02集.4K.HDR.mp4')).toBe(true)
+    expect(needsCinemaFolderFallback('流浪地球2.2023.mp4')).toBe(false)
+  })
+
+  it('生成去重后的搜索候选词队列（中英混合与副标题降级）', () => {
+    expect(buildCinemaSearchQueries({ title: '流浪地球2' })).toEqual(['流浪地球2'])
+    expect(buildCinemaSearchQueries({ title: '阿凡达2：水之道 Avatar The Way of Water' })).toEqual([
+      '阿凡达2：水之道 Avatar The Way of Water',
+      '阿凡达2：水之道',
+      'Avatar The Way of Water',
+      '阿凡达2',
+    ])
   })
 
   it('解析英文剧集并按同一 normalizedKey 聚合多集', () => {

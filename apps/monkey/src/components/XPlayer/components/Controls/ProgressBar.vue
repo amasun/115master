@@ -40,6 +40,17 @@
         />
       </div>
 
+      <!-- 拖拽圆点指示器 -->
+      <div
+        :class="[
+          styles.scrubber.dot,
+          isDragging && styles.scrubber.dragging,
+        ]"
+        :style="{
+          left: `${thumbPercent}%`,
+        }"
+      />
+
       <!-- 打点刻度层（在 wrapper 层，避免被 track 的 overflow-hidden 裁切） -->
       <div
         v-if="duration > 0 && markerList.length > 0"
@@ -85,29 +96,41 @@ const styles = clsx({
   progressBar: {
     root: [
       'relative',
-      'group',
+      'group/progress',
       'hidden',
       'data-[canplay=true]:block',
     ],
-    wrapper: 'relative cursor-pointer py-4',
+    wrapper: 'relative cursor-pointer py-2.5',
     track:
       [
-        'h-2',
+        'h-[3.5px]',
+        'group-hover/progress:h-[5.5px]',
+        'group-data-[dragging=true]/progress:h-[5.5px]',
         'relative',
         'transition-[height]',
-        'duration-100',
-        'ease-[var(--ui-ease-linear)]',
+        'duration-150',
+        'ease-[var(--ui-ease-standard)]',
         'rounded-full',
         'overflow-hidden',
         'bg-white/25',
-        'shadow-[0_0_1px_rgba(0,0,0,0.1),0_0_32px_rgba(0,0,0,0.1)]',
       ],
   },
   thumb: {
     current:
-      'absolute h-full w-full origin-left bg-white/95 transition-transform duration-100 ease-[var(--ui-ease-settle)]',
+      'bg-primary absolute h-full w-full origin-left transition-transform duration-100 ease-[var(--ui-ease-settle)]',
     dragging: 'transition-none',
-    hover: 'pointer-events-none absolute h-full w-full origin-left bg-white/15',
+    hover: 'pointer-events-none absolute h-full w-full origin-left bg-white/35',
+  },
+  scrubber: {
+    dot: [
+      'pointer-events-none absolute top-1/2 z-20 -translate-x-1/2 -translate-y-1/2',
+      'ring-primary/90 size-3.5 rounded-full bg-white ring-2',
+      'shadow-[0_0_6px_rgba(0,0,0,0.65)]',
+      'scale-0 opacity-0 transition-[transform,opacity] duration-150 ease-[var(--ui-ease-standard)]',
+      'group-hover/progress:scale-100 group-hover/progress:opacity-100',
+      'group-data-[dragging=true]/progress:scale-110 group-data-[dragging=true]/progress:opacity-100',
+    ],
+    dragging: 'transition-none',
   },
   markers: {
     layer: 'pointer-events-none absolute inset-x-0 top-0 bottom-0',
@@ -117,9 +140,9 @@ const styles = clsx({
       'group/marker',
     ],
     tick: [
-      'h-3 w-1 rounded-full bg-amber-400',
-      'transition-transform duration-150 group-hover/marker:scale-125',
-      'shadow-[0_0_2px_rgba(0,0,0,0.6)]',
+      'h-2.5 w-[3px] rounded-full bg-amber-400',
+      'shadow-[0_0_4px_rgba(0,0,0,0.85)] ring-1 ring-black/30',
+      'transition-[transform,height] duration-150 group-hover/marker:scale-125 group-hover/progress:h-3.5',
     ],
   },
 })
@@ -158,6 +181,12 @@ const {
   handleBarWrapperMouseLeave,
   setThumbnailRef,
 } = progressBar
+
+/** 拖拽圆点位置百分比 */
+const thumbPercent = computed(() => {
+  const raw = isDragging.value ? dragProgress.value : progressValue.value
+  return Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 0
+})
 
 /** 将 thumbnailRef 传递给 hook */
 watch(thumbnailRef, (newRef) => {

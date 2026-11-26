@@ -271,9 +271,9 @@
         <div class="flex flex-col gap-1">
           <div
             class="text-base-content/60 flex items-center justify-between px-1 text-[11px]"
-            :title="`已刮削 ${store.scrapedCount} / ${store.visibleEntryCount}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
+            :title="`已刮削 ${store.scrapedCount} / ${store.totalVisibleEntryCount}，待刮削 ${store.bgScrapePendingCount}，负缓存跳过 ${store.missedScrapeCount}`"
           >
-            <span class="tabular-nums">已刮削 {{ store.scrapedCount }} / {{ store.visibleEntryCount }}</span>
+            <span class="tabular-nums">已刮削 {{ store.scrapedCount }} / {{ store.totalVisibleEntryCount }}</span>
             <span v-if="store.bgScrapeState === 'circuit_open'" class="text-warning">
               已熔断暂停
             </span>

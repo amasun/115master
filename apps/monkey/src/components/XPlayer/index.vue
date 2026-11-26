@@ -108,6 +108,7 @@ import Statistics from './components/Statistics/index.vue'
 import Subtitle from './components/Subtitle/index.vue'
 import { usePlayerProvide } from './hooks/usePlayerProvide'
 import { usePortalProvider } from './hooks/usePortal'
+import './styles/player.css'
 
 /** 属性 */
 const props = withDefaults(defineProps<XPlayerProps>(), {

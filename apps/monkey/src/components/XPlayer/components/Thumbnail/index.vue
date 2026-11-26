@@ -53,7 +53,7 @@
       </transition>
     </div>
     <div :class="styles.timeBox.container">
-      <span>{{ time }}</span>
+      <span :class="styles.timeBox.pill">{{ time }}</span>
     </div>
   </div>
 </template>
@@ -85,22 +85,22 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {})
 
 const styles = clsx({
-  root: ['absolute top-2', '[will-change:transform]'],
+  root: ['absolute -top-2', '[will-change:transform]'],
   image: {
     root: [
-      'relative mb-2 flex items-center justify-center overflow-hidden rounded-2xl',
+      'relative mb-1.5 flex items-center justify-center overflow-hidden rounded-lg',
       'bg-black',
       'box-content',
       'cursor-pointer',
-      'border-4 border-white',
+      'border border-white/25 shadow-[0_10px_30px_rgba(0,0,0,0.72)] ring-1 ring-black/60',
     ],
     loading:
       'loading loading-spinner absolute m-auto size-12 rounded-full text-white/80',
     error: 'absolute inset-0 flex items-center justify-center',
   },
   timeBox: {
-    container:
-      'app-font-time text-center text-sm text-white select-none',
+    container: 'text-center select-none',
+    pill: 'app-font-time inline-flex items-center justify-center rounded-md bg-black/82 px-2 py-0.5 text-xs font-medium text-white/95 shadow-sm backdrop-blur-sm',
   },
 })
 

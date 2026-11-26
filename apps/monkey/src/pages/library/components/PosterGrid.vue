@@ -119,7 +119,7 @@
             v-for="entry in section.entries"
             :key="entry.mediaKey"
             :entry="entry"
-            :aspect-mode="store.aspectMode"
+            :aspect-mode="effectiveAspectMode"
           />
         </div>
       </section>
@@ -234,9 +234,13 @@ const gap = computed(() => {
   return 16
 })
 
+const effectiveAspectMode = computed<'landscape' | 'portrait'>(() =>
+  store.filter.view === 'cinema' ? 'portrait' : store.aspectMode,
+)
+
 const columns = computed(() => {
   const width = Math.max(280, containerWidth.value)
-  const targetWidth = store.aspectMode === 'portrait'
+  const targetWidth = effectiveAspectMode.value === 'portrait'
     ? store.density === 'compact' ? 148 : store.density === 'relaxed' ? 220 : 180
     : store.density === 'compact' ? 210 : store.density === 'relaxed' ? 320 : 256
   return Math.max(1, Math.floor((width + gap.value) / (targetWidth + gap.value)))

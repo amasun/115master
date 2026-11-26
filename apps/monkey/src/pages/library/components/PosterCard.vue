@@ -293,7 +293,7 @@ watch(
 watch(
   [hasEnteredViewport, () => props.entry.mediaKey, () => props.entry.meta],
   ([visible, mediaKey, meta]) => {
-    if (visible && meta === null && props.entry.kind === 'jav')
+    if (visible && meta === null && (props.entry.kind === 'jav' || props.entry.kind === 'movie' || props.entry.kind === 'tv'))
       store.enqueueScrape(mediaKey)
   },
   { immediate: true },
