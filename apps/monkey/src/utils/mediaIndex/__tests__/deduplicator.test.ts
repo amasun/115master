@@ -169,6 +169,24 @@ describe('deduplicator', () => {
       expect(groups[1].files.map(f => f.fid).sort()).toEqual(['b1', 'b2'])
       expect(groups[0].reclaimableSize).toBeGreaterThan(groups[1].reclaimableSize)
     })
+
+    it('does not group similarly named videos across different parent folders with different sizes or generic numbered names', () => {
+      const generic1 = makeVideo({ fid: 'g1', cid: 'dir1', name: 'Video 6.wmv', size: 432 * 1024 * 1024, duration: 313 })
+      const generic2 = makeVideo({ fid: 'g2', cid: 'dir2', name: 'Video 6.wmv', size: 294 * 1024 * 1024, duration: 630 })
+      const generic3 = makeVideo({ fid: 'g3', cid: 'dir3', name: 'video_ (6).mp4', size: 7 * 1024 * 1024, duration: 22 })
+      const namedDiffDir1 = makeVideo({ fid: 'nd1', cid: 'dirA', name: 'My Holiday.mp4', size: 600 * 1024 * 1024, duration: 300 })
+      const namedDiffDir2 = makeVideo({ fid: 'nd2', cid: 'dirB', name: 'My Holiday.mkv', size: 400 * 1024 * 1024, duration: 300 })
+      const sameSizeDiffDir1 = makeVideo({ fid: 'sd1', cid: 'dirC', name: 'Concert Cut.mp4', size: 500 * 1024 * 1024, duration: 1200 })
+      const sameSizeDiffDir2 = makeVideo({ fid: 'sd2', cid: 'dirD', name: 'Concert Cut.mp4', size: 500 * 1024 * 1024, duration: 1200 })
+
+      const groups = analyzeDuplicateGroups(
+        [generic1, generic2, generic3, namedDiffDir1, namedDiffDir2, sameSizeDiffDir1, sameSizeDiffDir2],
+        [],
+      )
+
+      expect(groups).toHaveLength(1)
+      expect(groups[0].files.map(f => f.fid).sort()).toEqual(['sd1', 'sd2'])
+    })
   })
 
   describe('scoreEntryFilesForDedupe', () => {

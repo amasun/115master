@@ -117,7 +117,7 @@
           type="button"
           aria-label="标签与标签管理"
           :aria-expanded="store.tagRailOpen"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="relative flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isTagsActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
@@ -127,19 +127,17 @@
             <Icon :name="I.TAG" :filled="isTagsActive" class="text-lg" />
             <span>标签</span>
           </span>
-          <span class="flex items-center gap-1">
-            <span
-              v-if="tagCount > 0"
-              class="text-base-content/45 text-xs tabular-nums"
-            >
-              {{ tagCount }}
-            </span>
-            <Icon
-              :name="I.RIGHT"
-              class="text-base-content/45 text-xs transition-transform duration-200"
-              :class="store.tagRailOpen && 'rotate-180'"
-            />
+          <span
+            v-if="tagCount > 0"
+            class="text-base-content/45 text-xs tabular-nums"
+          >
+            {{ tagCount }}
           </span>
+          <Icon
+            :name="I.RIGHT"
+            class="text-base-content/45 pointer-events-none absolute top-1/2 right-0.5 -translate-y-1/2 text-[11px] transition-transform duration-200"
+            :class="store.tagRailOpen && 'rotate-180'"
+          />
         </button>
       </li>
       <li>

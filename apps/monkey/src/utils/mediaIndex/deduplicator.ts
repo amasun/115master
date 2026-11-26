@@ -301,12 +301,25 @@ const GENERIC_SIMILAR_STEMS = new Set([
   '预告',
 ])
 
+const GENERIC_NUMBERED_STEM_RE = /^(?:video|movie|film|clip|sample|vid|mov|part|ep|episode|track|file|cam|rec|dsc|img|pxl|mvi|mts|vts|正片|视频|电影|预告|片段|合集)\d*$/i
+
+function isGenericSimilarStem(stem: string): boolean {
+  return GENERIC_SIMILAR_STEMS.has(stem) || GENERIC_NUMBERED_STEM_RE.test(stem)
+}
+
 function isDurationCompatibleForSimilar(a: IndexedVideo, b: IndexedVideo): boolean {
-  if (a.duration < 60 || b.duration < 60)
-    return true
+  if (a.duration <= 0 || b.duration <= 0)
+    return a.size === b.size
   const diff = Math.abs(a.duration - b.duration)
-  const tolerance = Math.max(300, Math.min(a.duration, b.duration) * 0.2)
+  const tolerance = Math.max(15, Math.min(a.duration, b.duration) * 0.05)
   return diff <= tolerance
+}
+
+function isStemMatchCompatible(a: IndexedVideo, b: IndexedVideo): boolean {
+  // 不同父级目录且文件大小不一致的同名/类似名视频不视为重复
+  if (a.cid !== b.cid && a.size !== b.size)
+    return false
+  return isDurationCompatibleForSimilar(a, b)
 }
 
 /** 识别同番号/同键桶是否为站点前缀碰撞导致的误判组（>=4 个不同时长与不同标题的视频） */
@@ -370,19 +383,22 @@ function collectSimilarBuckets(unnumbered: IndexedVideo[]): IndexedVideo[][] {
       parent[rb] = ra
   }
 
-  const byStem = new Map<string, number>()
+  const byStem = new Map<string, number[]>()
   const bySizeDur = new Map<string, number>()
 
   unnumbered.forEach((video, idx) => {
     const stem = normalizeStem(video.name)
-    if (stem.length >= 4 && !GENERIC_SIMILAR_STEMS.has(stem)) {
-      const prev = byStem.get(stem)
-      if (prev !== undefined) {
-        if (isDurationCompatibleForSimilar(unnumbered[prev], video))
-          union(prev, idx)
+    if (stem.length >= 4 && !isGenericSimilarStem(stem)) {
+      const prevList = byStem.get(stem)
+      if (prevList) {
+        for (const prev of prevList) {
+          if (isStemMatchCompatible(unnumbered[prev], video))
+            union(prev, idx)
+        }
+        prevList.push(idx)
       }
       else {
-        byStem.set(stem, idx)
+        byStem.set(stem, [idx])
       }
     }
 
