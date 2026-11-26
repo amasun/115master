@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { buildNativeFolderUrl } from '@/utils/userSettings'
 import SiderMenuButton from './SiderMenuButton'
 
 const MobileSider = defineComponent({
@@ -99,7 +100,7 @@ const MobileSider = defineComponent({
                 variant="ghost"
                 class="hover:bg-base-content/5 text-base-content/75 hover:text-base-content justify-start gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
                 onClick={() => {
-                  window.location.href = '/?mode=wangpan'
+                  window.location.href = buildNativeFolderUrl('0')
                 }}
                 title="返回 115 原生网盘界面"
               >

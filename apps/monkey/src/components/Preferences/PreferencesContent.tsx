@@ -23,7 +23,7 @@ import {
 } from '@/utils/userSettings'
 import AccountPreferences from './AccountPreferences'
 
-/** 分类卡片：无透明度的纯白 / 暗灰实体卡片，克制简洁 */
+/** 分类卡片：无透明实体卡片，层级对比清晰 */
 const Card = defineComponent({
   name: 'PreferenceCard',
   props: {
@@ -36,17 +36,17 @@ const Card = defineComponent({
     return () => (
       <section
         class={[
-          'bg-base-200 border-base-content/10 flex min-w-0 flex-col gap-3 rounded-xl border p-4',
+          'pref-card flex min-w-0 flex-col gap-3 rounded-xl border p-4',
           props.className,
         ]}
         aria-label={props.title}
       >
         <header class="flex items-center justify-between gap-2">
           <div class="flex min-w-0 items-center gap-2">
-            <Icon name={props.icon} size="sm" class="text-base-content/55 shrink-0" />
+            <Icon name={props.icon} size="sm" class="pref-text-muted shrink-0" />
             <div class="min-w-0">
               <h3 class="text-base-content truncate text-sm leading-5 font-semibold">{props.title}</h3>
-              {props.hint && <p class="text-base-content/50 truncate text-xs leading-4">{props.hint}</p>}
+              {props.hint && <p class="pref-text-subtle truncate text-xs leading-4">{props.hint}</p>}
             </div>
           </div>
           {slots.extra?.()}
@@ -82,20 +82,20 @@ const SettingToggle = defineComponent({
   },
   setup(props, { emit }) {
     return () => (
-      <label class="hover:bg-base-content/[0.04] flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors">
+      <label class="hover:bg-base-content/[0.06] flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors">
         <div class="flex min-w-0 items-center gap-2.5">
           <Icon
             name={props.icon}
             size="sm"
             class={[
               'shrink-0 transition-colors',
-              props.modelValue ? 'text-base-content/85' : 'text-base-content/40',
+              props.modelValue ? 'text-base-content' : 'pref-text-subtle',
             ]}
           />
           <div class="flex min-w-0 flex-col">
             <span class="text-base-content text-sm leading-5 font-medium">{props.label}</span>
             {props.description && (
-              <span class="text-base-content/50 text-xs leading-4">{props.description}</span>
+              <span class="pref-text-subtle text-xs leading-4">{props.description}</span>
             )}
           </div>
         </div>
@@ -112,11 +112,11 @@ const SettingToggle = defineComponent({
 
 /** 宽大 / 紧凑布局极简示意指示 */
 function renderLayoutWireframe(compact: boolean, active: boolean) {
-  const tone = active ? 'bg-primary/60' : 'bg-base-content/25'
-  const muted = active ? 'bg-primary/25' : 'bg-base-content/12'
+  const tone = active ? 'bg-primary/80' : 'bg-base-content/40'
+  const muted = active ? 'bg-primary/35' : 'bg-base-content/20'
   const surface = active
-    ? 'border-primary/40 bg-base-100'
-    : 'border-base-content/10 bg-base-100'
+    ? 'pref-card border-primary/50'
+    : 'pref-card'
 
   if (!compact) {
     return (
@@ -315,15 +315,15 @@ const PreferencesContent = defineComponent({
           class={[
             'flex cursor-pointer flex-col gap-1.5 rounded-lg border p-2.5 transition-colors',
             active
-              ? 'border-primary bg-base-100 ring-primary/20 ring-1'
-              : 'border-base-content/10 bg-base-100 hover:border-base-content/25',
+              ? 'pref-surface-2 border-primary ring-primary/35 ring-1'
+              : 'pref-surface-2-interactive',
           ]}
         >
           {renderLayoutWireframe(compact, active)}
           <div class="flex items-start justify-between gap-2 px-0.5">
             <div class="flex min-w-0 flex-col">
               <span class="text-base-content text-xs leading-4 font-semibold">{label}</span>
-              <span class="text-base-content/55 mt-0.5 text-[11px] leading-4">{text}</span>
+              <span class="pref-text-subtle mt-0.5 text-[11px] leading-4">{text}</span>
             </div>
             <input
               type="radio"
@@ -339,12 +339,12 @@ const PreferencesContent = defineComponent({
 
     const aboutLink = (href: string, icon: IconValue, label: string) => (
       <a
-        class="border-base-content/12 bg-base-100 text-base-content hover:border-base-content/25 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors"
+        class="pref-surface-2-interactive text-base-content flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors"
         href={href}
         target="_blank"
         rel="noreferrer"
       >
-        <Icon name={icon} size="sm" class="text-base-content/60 shrink-0" />
+        <Icon name={icon} size="sm" class="pref-text-muted shrink-0" />
         <span class="truncate">{label}</span>
       </a>
     )
@@ -361,20 +361,20 @@ const PreferencesContent = defineComponent({
             <div class="flex flex-col gap-3">
               <ThemeToggle />
 
-              <div class="border-base-content/8 border-t pt-3">
+              <div class="pref-divider border-t pt-3">
                 <div class="grid grid-cols-2 gap-2">
                   {layoutOption(false, '宽大布局', '大封面与完整资料')}
                   {layoutOption(true, '紧凑布局', '小封面一屏更多')}
                 </div>
               </div>
 
-              <div class="border-base-content/8 grid grid-cols-2 gap-2.5 border-t pt-3">
+              <div class="pref-divider grid grid-cols-2 gap-2.5 border-t pt-3">
                 <label class="flex flex-col gap-1" for="drive-list-load-mode">
-                  <span class="text-base-content/65 text-xs font-medium">列表加载方式</span>
+                  <span class="pref-text-muted text-xs font-medium">列表加载方式</span>
                   <select
                     id="drive-list-load-mode"
                     aria-label="文件列表加载方式"
-                    class="select select-bordered select-xs bg-base-100 w-full rounded-lg"
+                    class="select select-bordered select-xs pref-input-2 w-full rounded-lg"
                     value={mode.value}
                     onChange={event => mode.value = (event.target as HTMLSelectElement).value as typeof mode.value}
                   >
@@ -384,16 +384,16 @@ const PreferencesContent = defineComponent({
                 </label>
 
                 <label class="flex flex-col gap-1" for="native-folder-target">
-                  <span class="text-base-content/65 text-xs font-medium">原生目录跳转</span>
+                  <span class="pref-text-muted text-xs font-medium">默认 115 界面版本</span>
                   <select
                     id="native-folder-target"
-                    aria-label="原生 115 目录跳转版本"
-                    class="select select-bordered select-xs bg-base-100 w-full rounded-lg"
+                    aria-label="默认 115 界面版本"
+                    class="select select-bordered select-xs pref-input-2 w-full rounded-lg"
                     value={nativeFolderTarget.value}
                     onChange={event => nativeFolderTarget.value = (event.target as HTMLSelectElement).value as typeof nativeFolderTarget.value}
                   >
-                    <option value="new">新版 115</option>
-                    <option value="legacy">旧版 115</option>
+                    <option value="new">新版 UI（默认）</option>
+                    <option value="legacy">旧版 UI</option>
                   </select>
                 </label>
               </div>
@@ -401,7 +401,7 @@ const PreferencesContent = defineComponent({
           </Card>
 
           <Card title="功能增强" hint="各功能可单独开关，立即生效" icon={I.EXTENSION}>
-            <div class="divide-base-content/6 -mx-1 flex flex-col divide-y">
+            <div class="-mx-1 flex flex-col divide-y divide-[var(--pref-border-subtle)]">
               <div class="pb-1">
                 <SettingToggle
                   icon={I.FILE_VIDEO}
@@ -411,18 +411,18 @@ const PreferencesContent = defineComponent({
                   onUpdate:modelValue={value => preview.value = value}
                 />
 
-                <div class="border-base-content/10 ml-5 border-l pl-3">
+                <div class="pref-divider ml-5 border-l pl-3">
                   <label
                     class={[
-                      'bg-base-100 border-base-content/8 flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 transition-opacity',
+                      'pref-surface-2 flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 transition-opacity',
                       preview.value ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
                     ]}
                     for="filelist-preview-count"
                   >
-                    <span class="text-base-content/75 text-xs font-medium">截图张数</span>
+                    <span class="pref-text-muted text-xs font-medium">截图张数</span>
                     <select
                       id="filelist-preview-count"
-                      class="select select-bordered select-xs bg-base-100 w-20 rounded-md"
+                      class="select select-bordered select-xs pref-input-3 w-20 rounded-md"
                       value={previewCount.value}
                       disabled={!preview.value}
                       onChange={event => previewCount.value = Number((event.target as HTMLSelectElement).value)}
@@ -477,10 +477,10 @@ const PreferencesContent = defineComponent({
           <Card title="索引与刮削目录" hint="分别配置 AV 与院线影视目录，修改后自动重扫" icon={I.FOLDER_OPEN}>
             <div class="flex flex-col gap-3">
               {/* AV / 番号影视目录 */}
-              <div class="border-base-content/10 bg-base-100 flex flex-col gap-2 rounded-lg border p-3">
+              <div class="pref-surface-2 flex flex-col gap-2 rounded-lg border p-3">
                 <div class="flex items-center justify-between gap-2 text-xs">
                   <span class="text-base-content font-medium">AV / 番号影视目录</span>
-                  <span class="text-base-content/50 text-[11px] tabular-nums">
+                  <span class="pref-text-subtle text-[11px] tabular-nums">
                     {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0
                       ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'jav').length} 个`
                       : '全盘扫描'}
@@ -492,13 +492,13 @@ const PreferencesContent = defineComponent({
                         {getIndexFoldersByCategory(indexRootFolders.value, 'jav').map(folder => (
                           <span
                             key={folder.cid}
-                            class="border-base-content/12 bg-base-200 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
+                            class="pref-surface-3 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
                             title={folder.path}
                           >
                             <span class="max-w-32 truncate">{folder.name}</span>
                             <button
                               type="button"
-                              class="text-base-content/50 hover:text-base-content rounded-sm p-0.5"
+                              class="pref-text-subtle hover:text-base-content rounded-sm p-0.5"
                               aria-label={`移除 ${folder.name}`}
                               onClick={() => handleRemoveCategoryFolder('jav', folder.cid)}
                             >
@@ -509,14 +509,14 @@ const PreferencesContent = defineComponent({
                       </div>
                     )
                   : (
-                      <p class="text-base-content/50 text-[11px]">
+                      <p class="pref-text-subtle text-[11px]">
                         未指定目录时默认扫描全盘（仅归入「全部作品」）。
                       </p>
                     )}
                 <div class="flex gap-2 pt-0.5">
                   <button
                     type="button"
-                    class="btn btn-xs border-base-content/15 bg-base-200 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
+                    class="btn btn-xs pref-surface-3-interactive text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
                     onClick={() => handlePickCategoryFolders('jav')}
                   >
                     <Icon name={I.FOLDER_OPEN} size="xs" />
@@ -525,7 +525,7 @@ const PreferencesContent = defineComponent({
                   {getIndexFoldersByCategory(indexRootFolders.value, 'jav').length > 0 && (
                     <button
                       type="button"
-                      class="btn btn-xs btn-ghost rounded-lg"
+                      class="btn btn-xs btn-ghost pref-text-muted rounded-lg"
                       onClick={() => handleResetCategoryFolders('jav')}
                     >
                       恢复全盘
@@ -548,10 +548,10 @@ const PreferencesContent = defineComponent({
 
               {/* 院线影视目录（开启后展示） */}
               {enableCinemaLibrary.value && (
-                <div class="border-base-content/10 bg-base-100 flex flex-col gap-2 rounded-lg border p-3">
+                <div class="pref-surface-2 flex flex-col gap-2 rounded-lg border p-3">
                   <div class="flex items-center justify-between gap-2 text-xs">
                     <span class="text-base-content font-medium">院线影视目录</span>
-                    <span class="text-base-content/50 text-[11px] tabular-nums">
+                    <span class="pref-text-subtle text-[11px] tabular-nums">
                       {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0
                         ? `已选 ${getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length} 个`
                         : '未配置'}
@@ -563,13 +563,13 @@ const PreferencesContent = defineComponent({
                           {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').map(folder => (
                             <span
                               key={folder.cid}
-                              class="border-base-content/12 bg-base-200 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
+                              class="pref-surface-3 text-base-content inline-flex h-auto max-w-full items-center gap-1 rounded-md border py-0.5 pr-1 pl-2 text-[11px]"
                               title={folder.path}
                             >
                               <span class="max-w-32 truncate">{folder.name}</span>
                               <button
                                 type="button"
-                                class="text-base-content/50 hover:text-base-content rounded-sm p-0.5"
+                                class="pref-text-subtle hover:text-base-content rounded-sm p-0.5"
                                 aria-label={`移除 ${folder.name}`}
                                 onClick={() => handleRemoveCategoryFolder('cinema', folder.cid)}
                               >
@@ -580,14 +580,14 @@ const PreferencesContent = defineComponent({
                         </div>
                       )
                     : (
-                        <p class="text-base-content/50 text-[11px]">
+                        <p class="pref-text-subtle text-[11px]">
                           请选择存放电影或剧集的 115 目录，避免与 AV 混在一起。
                         </p>
                       )}
                   <div class="flex gap-2 pt-0.5">
                     <button
                       type="button"
-                      class="btn btn-xs border-base-content/15 bg-base-200 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
+                      class="btn btn-xs pref-surface-3-interactive text-base-content flex-1 gap-1.5 rounded-lg border font-medium shadow-none"
                       onClick={() => handlePickCategoryFolders('cinema')}
                     >
                       <Icon name={I.FOLDER_OPEN} size="xs" />
@@ -596,7 +596,7 @@ const PreferencesContent = defineComponent({
                     {getIndexFoldersByCategory(indexRootFolders.value, 'cinema').length > 0 && (
                       <button
                         type="button"
-                        class="btn btn-xs btn-ghost rounded-lg"
+                        class="btn btn-xs btn-ghost pref-text-muted rounded-lg"
                         onClick={() => handleResetCategoryFolders('cinema')}
                       >
                         清空
@@ -605,30 +605,30 @@ const PreferencesContent = defineComponent({
                   </div>
                   <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
                     <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="text-base-content/75 font-medium">TMDB API Key（可选）</span>
-                      <span class="text-base-content/45 text-[11px]">留空走豆瓣免 Key 兜底</span>
+                      <span class="pref-text-muted font-medium">TMDB API Key（可选）</span>
+                      <span class="pref-text-subtle text-[11px]">留空走豆瓣免 Key 兜底</span>
                     </div>
                     <input
                       id="tmdb-api-key-input"
                       type="password"
                       autocomplete="off"
                       placeholder="支持 v3 API Key 或 v4 Read Token"
-                      class="input input-bordered input-xs bg-base-200 w-full rounded-lg font-mono"
+                      class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
                       value={tmdbApiKey.value}
                       onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
                     />
                   </label>
                   <label class="flex flex-col gap-1 pt-1" for="tmdb-proxy-url-input">
                     <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="text-base-content/75 font-medium">TMDB 反代地址（可选）</span>
-                      <span class="text-base-content/45 text-[11px]">留空直连官方接口</span>
+                      <span class="pref-text-muted font-medium">TMDB 反代地址（可选）</span>
+                      <span class="pref-text-subtle text-[11px]">留空直连官方接口</span>
                     </div>
                     <input
                       id="tmdb-proxy-url-input"
                       type="url"
                       autocomplete="off"
                       placeholder="可选，如 https://tmdb-proxy.example.com（留空直连）"
-                      class="input input-bordered input-xs bg-base-200 w-full rounded-lg font-mono"
+                      class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
                       value={tmdbProxyUrl.value}
                       onInput={event => tmdbProxyUrl.value = (event.target as HTMLInputElement).value.trim()}
                     />
@@ -647,7 +647,7 @@ const PreferencesContent = defineComponent({
               onChange={handleImportBackup}
             />
             <div class="flex flex-col gap-1.5 text-xs">
-              <label class="text-base-content/80 flex cursor-pointer items-center gap-2">
+              <label class="text-base-content/90 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   class="checkbox checkbox-xs checkbox-primary"
@@ -656,7 +656,7 @@ const PreferencesContent = defineComponent({
                 />
                 <span>包含自定义封面与头像</span>
               </label>
-              <label class="text-base-content/80 flex cursor-pointer items-center gap-2">
+              <label class="text-base-content/90 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   class="checkbox checkbox-xs checkbox-primary"
@@ -678,7 +678,7 @@ const PreferencesContent = defineComponent({
               </button>
               <button
                 type="button"
-                class="btn btn-sm border-base-content/15 bg-base-100 hover:bg-base-300 text-base-content flex-1 gap-1.5 rounded-lg border shadow-none"
+                class="btn btn-sm pref-surface-2-interactive text-base-content flex-1 gap-1.5 rounded-lg border shadow-none"
                 disabled={backupBusy.value}
                 onClick={() => backupFileInputRef.value?.click()}
               >
@@ -708,7 +708,7 @@ const PreferencesContent = defineComponent({
             icon={I.ABOUT}
             v-slots={{
               extra: () => (
-                <span class="border-base-content/10 bg-base-100 text-base-content/70 shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums">
+                <span class="pref-surface-2 pref-text-muted shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums">
                   {`v${PKG.version}`}
                 </span>
               ),

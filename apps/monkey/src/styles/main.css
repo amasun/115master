@@ -4,34 +4,148 @@
 @import './app.css';
 @import './reset.css';
 
-/* 偏好设置弹窗：纯白 / 暗灰无透明实色面板，克制简洁 */
-.preferences-solid-dialog [data-ui-dialog-panel],
-.preferences-solid-drawer [data-ui-drawer-panel] {
-  background: #ffffff;
-  background-image: none;
-  border: 1px solid #e4e4e7;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+/* 偏好设置弹窗：无透明实体面板 + 层级明度递进（暗色模式下越底层越暗，越上层越亮） */
+.preferences-solid-dialog,
+.preferences-solid-drawer {
+  --pref-surface-0: #ffffff;
+  --pref-surface-1: #f4f5f7;
+  --pref-surface-2: #ffffff;
+  --pref-surface-3: #e9ecf1;
+  --pref-surface-hover: #dfe4ec;
+  --pref-border-subtle: #d5dae2;
+  --pref-border-strong: #b8c0cc;
+  --pref-text-muted: #4b5563;
+  --pref-text-subtle: #5b6472;
+  --pref-track: #e6eaf0;
+  --pref-thumb: #ffffff;
 }
 
-.preferences-solid-dialog [data-ui-nav-bar],
-.preferences-solid-drawer [data-ui-nav-bar] {
-  background: #ffffff;
-  border-bottom: 1px solid #f4f4f5;
+[data-theme='dark'] .preferences-solid-dialog,
+[data-theme='dark'] .preferences-solid-drawer {
+  --pref-surface-0: #0e0e11;
+  --pref-surface-1: #18181e;
+  --pref-surface-2: #22222b;
+  --pref-surface-3: #2d2d38;
+  --pref-surface-hover: #373745;
+  --pref-border-subtle: #2f2f3b;
+  --pref-border-strong: #454556;
+  --pref-text-muted: #c2c2cf;
+  --pref-text-subtle: #a1a1b2;
+  --pref-track: #101014;
+  --pref-thumb: #2d2d38;
+}
+
+.preferences-solid-dialog [data-ui-dialog-panel],
+.preferences-solid-drawer [data-ui-drawer-panel] {
+  background: var(--pref-surface-0);
+  background-image: none;
+  border: 1px solid var(--pref-border-strong);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
 [data-theme='dark'] .preferences-solid-dialog [data-ui-dialog-panel],
 [data-theme='dark'] .preferences-solid-drawer [data-ui-drawer-panel] {
-  background: #18181b;
-  border-color: #27272a;
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
 }
 
-[data-theme='dark'] .preferences-solid-dialog [data-ui-nav-bar],
-[data-theme='dark'] .preferences-solid-drawer [data-ui-nav-bar] {
-  background: #18181b;
-  border-bottom-color: #27272a;
+.preferences-solid-dialog [data-ui-nav-bar],
+.preferences-solid-drawer [data-ui-nav-bar] {
+  background: var(--pref-surface-0);
+  border-bottom: 1px solid var(--pref-border-subtle);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.preferences-solid-dialog [role='radiogroup'][aria-label='主题'],
+.preferences-solid-drawer [role='radiogroup'][aria-label='主题'] {
+  background: var(--pref-track);
+  border-color: var(--pref-border-subtle);
+}
+
+.preferences-solid-dialog [role='radiogroup'][aria-label='主题'] [aria-checked='true'],
+.preferences-solid-drawer [role='radiogroup'][aria-label='主题'] [aria-checked='true'] {
+  background: var(--pref-thumb);
+  border: 1px solid var(--pref-border-strong);
+  color: var(--color-base-content);
+}
+
+.preferences-solid-dialog [role='radiogroup'][aria-label='主题'] [aria-checked='false'],
+.preferences-solid-drawer [role='radiogroup'][aria-label='主题'] [aria-checked='false'] {
+  color: var(--pref-text-muted);
+}
+
+.preferences-solid-dialog .pref-card,
+.preferences-solid-drawer .pref-card {
+  background: var(--pref-surface-1);
+  border-color: var(--pref-border-subtle);
+}
+
+.preferences-solid-dialog .pref-surface-2,
+.preferences-solid-drawer .pref-surface-2 {
+  background: var(--pref-surface-2);
+  border-color: var(--pref-border-subtle);
+}
+
+.preferences-solid-dialog .pref-surface-2-interactive,
+.preferences-solid-drawer .pref-surface-2-interactive {
+  background: var(--pref-surface-2);
+  border-color: var(--pref-border-strong);
+}
+
+.preferences-solid-dialog .pref-surface-2-interactive:hover,
+.preferences-solid-drawer .pref-surface-2-interactive:hover {
+  background: var(--pref-surface-3);
+}
+
+.preferences-solid-dialog .pref-surface-3,
+.preferences-solid-drawer .pref-surface-3 {
+  background: var(--pref-surface-3);
+  border-color: var(--pref-border-strong);
+}
+
+.preferences-solid-dialog .pref-surface-3-interactive,
+.preferences-solid-drawer .pref-surface-3-interactive {
+  background: var(--pref-surface-3);
+  border-color: var(--pref-border-strong);
+}
+
+.preferences-solid-dialog .pref-surface-3-interactive:hover,
+.preferences-solid-drawer .pref-surface-3-interactive:hover {
+  background: var(--pref-surface-hover);
+}
+
+.preferences-solid-dialog .pref-input-2,
+.preferences-solid-drawer .pref-input-2 {
+  background: var(--pref-surface-2);
+  border-color: var(--pref-border-strong);
+  color: var(--color-base-content);
+}
+
+.preferences-solid-dialog .pref-input-3,
+.preferences-solid-drawer .pref-input-3 {
+  background: var(--pref-surface-3);
+  border-color: var(--pref-border-strong);
+  color: var(--color-base-content);
+}
+
+.preferences-solid-dialog .pref-divider,
+.preferences-solid-drawer .pref-divider {
+  border-color: var(--pref-border-subtle);
+}
+
+.preferences-solid-dialog .pref-text-muted,
+.preferences-solid-drawer .pref-text-muted {
+  color: var(--pref-text-muted);
+}
+
+.preferences-solid-dialog .pref-text-subtle,
+.preferences-solid-drawer .pref-text-subtle {
+  color: var(--pref-text-subtle);
+}
+
+.preferences-solid-dialog .toggle:not(:checked),
+.preferences-solid-drawer .toggle:not(:checked) {
+  border-color: var(--pref-border-strong);
 }

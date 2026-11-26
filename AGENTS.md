@@ -62,6 +62,7 @@ drive115 / subtitle-source → shared, utils
 - 默认保持线性历史：合并走 fast-forward / rebase，不产生 merge commit，除非用户明确要求。
 - **推送与 userscript 构建同步事务**：禁止单独执行 `git push`；所有推送统一使用 `pnpm push`（`scripts/push-and-build.mjs`），单条命令内先自动 `git pull --rebase` 同步远端提交（含 CI 回写的版本提交），再执行 `pnpm build` 并校验 `apps/monkey/dist/115master-fusion.{user,meta}.js` 产物，校验通过后再推送远端（构建失败则中止推送），确保推送与最新 `.user.js` 构建同步且减少输出开销。
 - **v2 自动发版**：`.github/workflows/release.yml` 已监听 `v2` 分支的业务代码推送（`apps/monkey/**`、`packages/**`、`pnpm-lock.yaml`，排除纯文档与 Story）；当 `v2` 收到新代码推送且当前 `v<version>` tag 已存在时，CI 会自动递增 patch 版本号、构建并发布新 GitHub Release（附带最新 `115master-fusion.{user,meta}.js`）。日常开发走 `pnpm push` 推送到 `v2` 即可自动出新版；如需手动触发可追加 `--release`。
+- **每两次功能改动自动提交推送**：在连续开发过程中，每累计完成 **2 次**功能/修复改动且本地验证通过后，无需等待用户额外指令，自动执行 `pnpm ship -m "<提交说明>"` 完成暂存提交、rebase、构建校验并推送到 `v2`（若用户明确要求暂不推送则以用户指令为准）。
 
 ## Packages
 

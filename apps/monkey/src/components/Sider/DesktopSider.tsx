@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { buildNativeFolderUrl } from '@/utils/userSettings'
 import SiderMenuButton from './SiderMenuButton'
 
 const DesktopSider = defineComponent({
@@ -32,7 +33,7 @@ const DesktopSider = defineComponent({
     }
 
     function backToNative() {
-      window.location.href = '/?mode=wangpan'
+      window.location.href = buildNativeFolderUrl('0')
     }
 
     return () => (

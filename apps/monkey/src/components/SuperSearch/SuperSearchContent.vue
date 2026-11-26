@@ -687,6 +687,7 @@ import {
   syncDriveVideoIndex,
 } from '@/utils/superSearch'
 import {
+  buildNativeFolderUrl,
   getConfiguredIndexRootCids,
   normalizeIndexRootFolders,
   useUserSetting,
@@ -1315,9 +1316,7 @@ async function playNativeItem(pickCode: string) {
 }
 
 function openFolderByCid(cid: string) {
-  const url = !isMasterApp() && window.location.pathname.startsWith('/storage/')
-    ? `https://115.com/storage/allfiles?cid=${encodeURIComponent(cid || '0')}`
-    : `https://115.com/?cid=${encodeURIComponent(cid || '0')}&offset=0&mode=wangpan`
+  const url = buildNativeFolderUrl(cid)
   GM_openInTab(url, { active: true })
   emit('close')
 }

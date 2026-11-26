@@ -105,7 +105,7 @@ const AccountPreferences = defineComponent({
                     'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
                     data.vip?.is_vip
                       ? 'border-warning/25 bg-warning/15 text-warning'
-                      : 'border-base-content/10 bg-base-content/5 text-base-content/65',
+                      : 'border-base-content/20 bg-base-content/8 text-base-content/80',
                   ]}
                 >
                   {data.vip?.is_vip && <Icon name={I.STAR_RATING} size="xs" class="text-warning" />}
@@ -113,19 +113,19 @@ const AccountPreferences = defineComponent({
                 </span>
               </p>
               {(displayName || (data.vip?.is_vip && data.vip.expire_str)) && (
-                <p class="text-base-content/55 mt-1 flex flex-wrap items-center gap-x-2.5 text-xs tabular-nums">
+                <p class="text-base-content/75 mt-1 flex flex-wrap items-center gap-x-2.5 text-xs tabular-nums">
                   {displayName && (
                     <span class="inline-flex items-center gap-1">
-                      <span class="text-base-content/40">UID</span>
+                      <span class="text-base-content/60">UID</span>
                       <span>{uid}</span>
                     </span>
                   )}
                   {displayName && data.vip?.is_vip && data.vip.expire_str && (
-                    <span aria-hidden="true" class="text-base-content/25">·</span>
+                    <span aria-hidden="true" class="text-base-content/40">·</span>
                   )}
                   {data.vip?.is_vip && data.vip.expire_str && (
                     <span class="inline-flex items-center gap-1">
-                      <span class="text-base-content/40">到期</span>
+                      <span class="text-base-content/60">到期</span>
                       <span>{data.vip.expire_str}</span>
                     </span>
                   )}
