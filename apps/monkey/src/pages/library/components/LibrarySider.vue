@@ -203,29 +203,31 @@
               </span>
               <Tooltip placement="right">
                 <template #content>
-                  <div class="flex max-w-68 min-w-60 flex-col gap-1.5 text-left text-xs leading-relaxed">
-                    <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-1 font-medium">
+                  <div class="flex w-72 flex-col gap-2 p-1 text-left text-xs leading-relaxed">
+                    <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-1.5 text-[13px] font-medium">
                       <span>预估总时长</span>
                       <span class="tabular-nums">{{ libraryDurationStats.totalLabel }}</span>
                     </div>
                     <div
                       v-for="item in libraryDurationStats.categories"
                       :key="item.key"
-                      class="flex items-center justify-between gap-4 text-[11px] opacity-85"
+                      class="flex items-center justify-between gap-4 text-xs opacity-85"
                     >
                       <span>{{ item.label }} ({{ item.count }})</span>
                       <span class="tabular-nums">{{ item.durationLabel }}</span>
                     </div>
-                    <div class="border-t border-white/10 pt-1.5">
-                      <div class="flex items-center justify-between gap-2 text-[11px]">
-                        <span class="opacity-60">片库称号</span>
-                        <span class="text-primary font-medium">{{ libraryDurationStats.persona.title }}</span>
+                    <div class="flex flex-col items-start gap-1 border-t border-white/10 pt-2 text-left">
+                      <div class="flex items-baseline gap-2">
+                        <span class="text-[11px] opacity-65">片库称号</span>
+                        <span class="text-warning text-sm font-semibold tracking-wide">
+                          {{ libraryDurationStats.persona.title }}
+                        </span>
                       </div>
-                      <p class="mt-0.5 text-[11px] leading-relaxed opacity-75">
+                      <p class="text-left text-xs leading-relaxed opacity-90">
                         {{ libraryDurationStats.persona.tagline }}
                       </p>
                     </div>
-                    <p v-if="libraryDurationStats.missingCount > 0" class="border-t border-white/10 pt-1 text-[10px] opacity-60">
+                    <p v-if="libraryDurationStats.missingCount > 0" class="border-t border-white/10 pt-1.5 text-left text-[11px] opacity-60">
                       另有 {{ libraryDurationStats.missingCount }} 部未返回时长元数据
                     </p>
                   </div>
@@ -235,7 +237,7 @@
                   class="text-base-content/45 hover:text-base-content inline-flex items-center justify-center rounded-full transition-colors"
                   aria-label="查看各分类预估总时长"
                 >
-                  <Icon :name="I.ABOUT" class="text-[10px]" />
+                  <Icon :name="I.ABOUT" size="custom" class="size-3" />
                 </button>
               </Tooltip>
             </span>
