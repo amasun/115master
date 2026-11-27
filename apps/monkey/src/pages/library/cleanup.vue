@@ -630,7 +630,7 @@
             >
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="badge badge-neutral badge-soft badge-xs shrink-0 rounded-full">
+                <span class="badge badge-ghost badge-xs shrink-0 rounded-full">
                   {{ junkCategoryLabel(item.category) }}
                 </span>
                 <span class="badge badge-ghost badge-xs shrink-0 rounded-full">

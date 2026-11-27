@@ -1,6 +1,6 @@
 <template>
   <Button
-    :color="isCopied ? 'primary' : 'neutral'"
+    :color="isCopied ? 'primary' : 'default'"
     variant="ghost"
     size="xs"
     shape="circle"

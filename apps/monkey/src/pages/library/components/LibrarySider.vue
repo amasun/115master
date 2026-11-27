@@ -5,6 +5,7 @@
       <RouterLink
         to="/library"
         class="flex items-center gap-2 no-underline"
+        @click="store.setTagRailOpen(false)"
       >
         <LogoWordmark role="img" aria-label="115Master" class="text-base-content h-7 w-auto" />
         <span class="badge badge-primary badge-soft badge-xs font-medium">影视库</span>
@@ -117,7 +118,7 @@
           type="button"
           aria-label="标签与标签管理"
           :aria-expanded="store.tagRailOpen"
-          class="relative flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
           :class="isTagsActive
             ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
             : 'hover:bg-base-content/5 text-base-content/75'"
@@ -133,11 +134,6 @@
           >
             {{ tagCount }}
           </span>
-          <Icon
-            :name="I.RIGHT"
-            class="text-base-content/45 pointer-events-none absolute top-1/2 right-0.5 -translate-y-1/2 text-[11px] transition-transform duration-200"
-            :class="store.tagRailOpen && 'rotate-180'"
-          />
         </button>
       </li>
       <li>
@@ -563,7 +559,7 @@ const tagCount = computed(() =>
   tagStore.tags.length > 0 ? tagStore.tags.length : store.libraryIndex.driveLabels.length,
 )
 const isAllWorksActive = computed(() =>
-  isWallRoute.value && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
+  isWallRoute.value && !store.tagRailOpen && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
 )
 const isCinemaActive = computed(() =>
   isWallRoute.value && store.filter.view === 'cinema' && !store.filter.actor && !store.filter.genre && !store.filter.driveLabel,
@@ -693,9 +689,11 @@ const isStarredActive = computed(() => isWallRoute.value && store.filter.view ==
 const isMarkedActive = computed(() => isWallRoute.value && store.filter.view === 'marked')
 
 function ensureLibraryWall(view: LibraryView = 'all') {
+  store.setTagRailOpen(false)
   const targetView = view === 'all' ? undefined : view
   const currentView = Array.isArray(route.query.view) ? route.query.view[0] : route.query.view
-  if (route.name !== 'library' || currentView !== targetView) {
+  const hasTagsQuery = Boolean(route.query.tags)
+  if (route.name !== 'library' || currentView !== targetView || hasTagsQuery) {
     if (route.name !== 'library')
       store.scrollTop = 0
     void router.push({
@@ -716,25 +714,38 @@ function selectAllWorks() {
 }
 
 function selectView(view: LibraryView) {
+  store.selectDriveLabel(undefined)
   ensureLibraryWall(view)
 }
 
 function openActorsWall() {
+  store.setTagRailOpen(false)
   if (route.name !== 'library-actors')
     void router.push({ name: 'library-actors' })
 }
 
 function openCleanupPage() {
+  store.setTagRailOpen(false)
   if (route.name !== 'library-cleanup')
     void router.push({ name: 'library-cleanup' })
 }
 
 function toggleTagRail() {
-  store.toggleTagRail()
-  if (store.tagRailOpen && route.name === 'library-tags') {
-    store.scrollTop = 0
-    void router.push({ name: 'library' })
+  if (store.tagRailOpen) {
+    store.setTagRailOpen(false)
+    return
   }
+  store.selectActor(undefined)
+  store.selectGenre(undefined)
+  if (route.name !== 'library' || route.query.tags !== '1' || route.query.view) {
+    if (route.name !== 'library')
+      store.scrollTop = 0
+    void router.push({ name: 'library', query: { tags: '1' } })
+    return
+  }
+  if (store.filter.view !== 'all')
+    store.setView('all')
+  store.setTagRailOpen(true)
 }
 
 async function openCloudDownload() {

@@ -214,7 +214,7 @@ const storageBadge = computed(() => {
   }
   return {
     label: '本地保存',
-    badgeClass: 'badge-neutral badge-soft',
+    badgeClass: 'badge-ghost',
     title: '当前仅保存在本地浏览器，可在偏好设置中开启「同步打点到 115 文件备注」',
   }
 })

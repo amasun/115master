@@ -66,15 +66,48 @@ function parseRouteView(raw: unknown): LibraryView {
 }
 
 watch(
-  [() => route.name, () => route.query.view],
-  ([name, view]) => {
-    if (name !== 'library')
+  [() => route.name, () => route.query.view, () => route.query.tags],
+  ([name, view, tags]) => {
+    if (name !== 'library') {
+      if (store.tagRailOpen)
+        store.setTagRailOpen(false)
       return
-    const nextView = parseRouteView(view)
+    }
+    const rawTags = Array.isArray(tags) ? tags[0] : tags
+    const wantsTagRail = rawTags === '1' || rawTags === 'true'
+    const nextView: LibraryView = wantsTagRail ? 'all' : parseRouteView(view)
     if (store.filter.view !== nextView)
       store.setView(nextView)
+    if (store.tagRailOpen !== wantsTagRail)
+      store.setTagRailOpen(wantsTagRail)
   },
   { immediate: true },
+)
+
+watch(
+  () => store.tagRailOpen,
+  (open) => {
+    if (route.name !== 'library')
+      return
+    const rawTags = Array.isArray(route.query.tags) ? route.query.tags[0] : route.query.tags
+    const hasTagsQuery = rawTags === '1' || rawTags === 'true'
+    if (open) {
+      if (store.filter.view !== 'all')
+        store.setView('all')
+      if (!hasTagsQuery || route.query.view) {
+        const nextQuery = { ...route.query }
+        delete nextQuery.view
+        nextQuery.tags = '1'
+        void router.replace({ name: 'library', query: nextQuery })
+      }
+      return
+    }
+    if (hasTagsQuery) {
+      const nextQuery = { ...route.query }
+      delete nextQuery.tags
+      void router.replace({ name: 'library', query: nextQuery })
+    }
+  },
 )
 
 watch(

@@ -11,7 +11,7 @@
         </span>
         <span
           v-if="cinemaInfo"
-          class="badge badge-neutral badge-soft badge-sm rounded-full"
+          class="badge badge-ghost badge-sm rounded-full"
         >
           {{ cinemaInfo.kind === 'tv' ? '剧集' : '电影' }}
         </span>

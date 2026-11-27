@@ -273,7 +273,7 @@
                   >
                     {{ entry.externalId }}
                   </span>
-                  <span v-if="!isCollection && entry.meta?.source" class="badge badge-neutral badge-soft text-xs">
+                  <span v-if="!isCollection && entry.meta?.source" class="badge badge-ghost text-xs">
                     {{ entry.meta.source }}
                   </span>
                   <span v-if="!isCollection && manualAvBinding" class="badge badge-info badge-soft text-xs">
@@ -356,7 +356,7 @@
                   v-for="genre in entry.meta.genres"
                   :key="genre"
                   type="button"
-                  class="badge badge-neutral badge-soft hover:badge-primary cursor-pointer rounded-full text-xs transition-colors"
+                  class="badge badge-ghost hover:badge-primary cursor-pointer rounded-full text-xs transition-colors"
                   @click="openGenreInLibrary(genre)"
                 >
                   {{ genre }}
@@ -499,7 +499,7 @@
               v-else-if="entry.files.length > 1"
               size="xs"
               :variant="dedupeMode ? 'soft' : 'ghost'"
-              :color="dedupeMode ? 'primary' : 'neutral'"
+              :color="dedupeMode ? 'primary' : 'default'"
               class="rounded-full"
               @click="toggleDetailDedupeMode"
             >
@@ -1656,7 +1656,7 @@ function openDriveLabelInLibrary(labelId: string) {
   store.selectDriveLabel(labelId)
   store.setTagRailOpen(true)
   store.scrollTop = 0
-  void router.push({ name: 'library' })
+  void router.push({ name: 'library', query: { tags: '1' } })
 }
 
 function playAt(pickCode: string, seconds = 0) {

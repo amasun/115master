@@ -5,7 +5,7 @@
       <div class="flex min-w-0 items-center gap-2">
         <Icon :name="I.TAG" class="text-primary shrink-0 text-base" />
         <span class="text-base-content truncate text-sm font-semibold">标签</span>
-        <span class="badge badge-neutral badge-soft badge-xs tabular-nums">
+        <span class="badge badge-ghost badge-xs tabular-nums">
           {{ allItems.length }}
         </span>
       </div>
@@ -13,7 +13,7 @@
         <Button
           size="xs"
           :variant="managing ? 'soft' : 'ghost'"
-          :color="managing ? 'primary' : 'neutral'"
+          :color="managing ? 'primary' : 'default'"
           class="rounded-full px-2.5 text-xs"
           :aria-pressed="managing"
           @click="toggleManaging"
@@ -372,6 +372,9 @@ function findDriveTag(id: string): Tag | undefined {
 }
 
 function handleSelectLabel(labelId?: string) {
+  if (store.filter.view !== 'all')
+    store.setView('all')
+
   if (!labelId) {
     store.selectDriveLabel(undefined)
   }
@@ -382,9 +385,10 @@ function handleSelectLabel(labelId?: string) {
     store.selectDriveLabel(labelId)
   }
 
-  if (route.name !== 'library') {
-    store.scrollTop = 0
-    void router.push({ name: 'library' })
+  if (route.name !== 'library' || route.query.view) {
+    if (route.name !== 'library')
+      store.scrollTop = 0
+    void router.push({ name: 'library', query: props.mobile ? {} : { tags: '1' } })
   }
 
   if (props.mobile)
