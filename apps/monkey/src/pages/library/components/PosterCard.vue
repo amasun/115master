@@ -107,6 +107,39 @@
         {{ displayTitle }}
       </h3>
 
+      <!-- AV 演员与发行商 -->
+      <div
+        v-if="isAvEntry"
+        class="text-base-content/65 flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4"
+      >
+        <div
+          v-if="visibleActors.length > 0"
+          class="flex min-w-0 items-center gap-1 overflow-hidden"
+          :title="allActorsTitle"
+        >
+          <template v-for="(actor, idx) in visibleActors" :key="actor.name">
+            <span v-if="idx > 0" class="text-base-content/35 shrink-0">·</span>
+            <button
+              type="button"
+              class="hover:text-primary truncate transition-colors"
+              :class="store.filter.actor === actor.name ? 'text-primary font-medium' : ''"
+              :title="`按演员「${actor.name}」筛选`"
+              @click.stop="store.selectActor(actor.name)"
+            >
+              {{ actor.name }}
+            </button>
+          </template>
+        </div>
+        <span v-else class="text-base-content/35 truncate">未知演员</span>
+        <span
+          v-if="publisherLabel"
+          class="text-base-content/45 max-w-[45%] shrink-0 truncate"
+          :title="`发行商：${publisherLabel}`"
+        >
+          {{ publisherLabel }}
+        </span>
+      </div>
+
       <!-- 题材标签（最多展示 3 枚，支持点击快捷筛选） -->
       <div class="flex h-5 shrink-0 items-center gap-1 overflow-hidden">
         <button
@@ -133,7 +166,7 @@
         </span>
         <span v-else class="truncate">未识别番号</span>
         <span class="shrink-0 tabular-nums">
-          {{ entry.meta?.year || (entry.meta?.releaseDate?.slice(0, 4)) || '' }}
+          {{ releaseDateLabel }}
         </span>
       </div>
     </div>
@@ -197,8 +230,23 @@ function openContextMenu(event: MouseEvent) {
   menuOpen.value = true
 }
 const isCollection = computed(() => props.entry.kind === 'collection')
+const isAvEntry = computed(() => props.entry.kind === 'jav')
 const isScraping = computed(() => store.scrapingKeys.has(props.entry.mediaKey))
 const visibleGenres = computed(() => props.entry.meta?.genres.slice(0, 3) ?? [])
+const visibleActors = computed(() => {
+  const actors = props.entry.meta?.actors ?? []
+  if (actors.length === 0)
+    return []
+  const preferred = actors.filter(actor => actor.sex !== 0)
+  return (preferred.length > 0 ? preferred : actors).slice(0, 2)
+})
+const allActorsTitle = computed(() => (props.entry.meta?.actors ?? []).map(actor => actor.name).join('、'))
+const publisherLabel = computed(() => props.entry.meta?.publisher || props.entry.meta?.studio || '')
+const releaseDateLabel = computed(() => {
+  if (isAvEntry.value)
+    return props.entry.meta?.releaseDate || (props.entry.meta?.year ? String(props.entry.meta.year) : '')
+  return props.entry.meta?.year || props.entry.meta?.releaseDate?.slice(0, 4) || ''
+})
 
 const displayTitle = computed(() =>
   props.entry.meta?.title

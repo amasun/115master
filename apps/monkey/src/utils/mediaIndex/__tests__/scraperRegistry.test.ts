@@ -77,6 +77,8 @@ describe('scraperRegistry', () => {
         { name: '演员甲', face: 'https://img.example/a.jpg', url: 'https://javlibrary.example/star/a' },
       ],
       category: [{ name: '单人作品' }, { name: '4K' }],
+      studio: [{ name: 'S1' }],
+      publisher: [{ name: 'S1 NO.1 STYLE' }],
       cover: { url: 'https://img.example/cover.jpg', referer: 'https://javlibrary.example/' },
       coverSingle: { url: 'https://img.example/cover-single.jpg' },
       coverFallbacks: [
@@ -101,6 +103,8 @@ describe('scraperRegistry', () => {
     ])
     expect(meta.directors).toEqual(['导演A'])
     expect(meta.genres).toEqual(['单人作品', '4K'])
+    expect(meta.studio).toBe('S1')
+    expect(meta.publisher).toBe('S1 NO.1 STYLE')
     expect(meta.actors).toEqual([
       {
         name: '演员甲',

@@ -285,14 +285,6 @@
                   <span v-else-if="entry.files.length > 1" class="badge badge-accent badge-soft text-xs">
                     {{ entry.files.length }} 个版本
                   </span>
-                  <span
-                    v-if="entry.starred"
-                    class="badge badge-warning badge-soft gap-1 text-xs"
-                    title="已星标收藏"
-                  >
-                    <Icon :name="I.STAR_FILL" class="text-xs" />
-                    <span>已收藏</span>
-                  </span>
                   <button
                     v-for="label in entry.driveLabels"
                     :key="label.id"
@@ -440,7 +432,15 @@
                 >
                   {{ actor.name.slice(0, 1) }}
                 </span>
-                <span class="pr-1 text-sm font-medium">{{ actor.name }}</span>
+                <span class="inline-flex items-center gap-1 pr-1 text-sm font-medium">
+                  <span>{{ actor.name }}</span>
+                  <Icon
+                    v-if="isActorFavorite(actor.name)"
+                    :name="I.HEART_FILL"
+                    class="text-error text-xs"
+                    title="已收藏演员"
+                  />
+                </span>
               </button>
             </div>
           </div>

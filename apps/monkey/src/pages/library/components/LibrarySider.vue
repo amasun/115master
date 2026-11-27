@@ -203,7 +203,7 @@
               </span>
               <Tooltip placement="right">
                 <template #content>
-                  <div class="flex min-w-60 max-w-68 flex-col gap-1.5 text-left text-xs leading-relaxed">
+                  <div class="flex max-w-68 min-w-60 flex-col gap-1.5 text-left text-xs leading-relaxed">
                     <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-1 font-medium">
                       <span>预估总时长</span>
                       <span class="tabular-nums">{{ libraryDurationStats.totalLabel }}</span>

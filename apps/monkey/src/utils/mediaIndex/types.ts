@@ -69,6 +69,8 @@ export interface UnifiedMediaMeta {
   directors: string[]
   actors: MediaActor[]
   genres: string[]
+  studio?: string
+  publisher?: string
   source: string
   detailUrl?: string
   updatedAt: number

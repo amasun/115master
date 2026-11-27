@@ -95,6 +95,8 @@ export function javInfoToUnifiedMeta(
   const covers = collectCoverCandidates(info)
   const releaseDate = format.date(info.date) || undefined
   const parsedYear = releaseDate ? Number(releaseDate.slice(0, 4)) : Number.NaN
+  const studio = (info.studio ?? []).map(s => s.name.trim()).filter(Boolean).join(' / ') || undefined
+  const publisher = (info.publisher ?? []).map(p => p.name.trim()).filter(Boolean).join(' / ') || undefined
 
   return {
     mediaKey: `jav:${normalized}`,
@@ -113,6 +115,8 @@ export function javInfoToUnifiedMeta(
     directors: (info.director ?? []).map(d => d.name.trim()).filter(Boolean),
     actors: mapActors(info),
     genres: (info.category ?? []).map(c => c.name.trim()).filter(Boolean),
+    studio,
+    publisher,
     source: info.source,
     detailUrl: info.detailUrl,
     updatedAt,
