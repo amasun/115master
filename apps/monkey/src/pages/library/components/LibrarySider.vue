@@ -203,7 +203,7 @@
               </span>
               <Tooltip placement="right">
                 <template #content>
-                  <div class="flex min-w-52 flex-col gap-1.5 text-left text-xs leading-relaxed">
+                  <div class="flex min-w-60 max-w-68 flex-col gap-1.5 text-left text-xs leading-relaxed">
                     <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-1 font-medium">
                       <span>预估总时长</span>
                       <span class="tabular-nums">{{ libraryDurationStats.totalLabel }}</span>
@@ -216,6 +216,15 @@
                       <span>{{ item.label }} ({{ item.count }})</span>
                       <span class="tabular-nums">{{ item.durationLabel }}</span>
                     </div>
+                    <div class="border-t border-white/10 pt-1.5">
+                      <div class="flex items-center justify-between gap-2 text-[11px]">
+                        <span class="opacity-60">片库称号</span>
+                        <span class="text-primary font-medium">{{ libraryDurationStats.persona.title }}</span>
+                      </div>
+                      <p class="mt-0.5 text-[11px] leading-relaxed opacity-75">
+                        {{ libraryDurationStats.persona.tagline }}
+                      </p>
+                    </div>
                     <p v-if="libraryDurationStats.missingCount > 0" class="border-t border-white/10 pt-1 text-[10px] opacity-60">
                       另有 {{ libraryDurationStats.missingCount }} 部未返回时长元数据
                     </p>
@@ -226,7 +235,7 @@
                   class="text-base-content/45 hover:text-base-content inline-flex items-center justify-center rounded-full transition-colors"
                   aria-label="查看各分类预估总时长"
                 >
-                  <Icon :name="I.ABOUT" class="text-xs" />
+                  <Icon :name="I.ABOUT" class="text-[10px]" />
                 </button>
               </Tooltip>
             </span>
@@ -434,7 +443,7 @@
 
 <script setup lang="ts">
 import type { ActionMenuGroup } from '@115master/ui'
-import type { LibraryEntry, LibraryView } from '@/utils/mediaIndex'
+import type { LibraryView } from '@/utils/mediaIndex'
 import type { CustomScrapeMode } from '@/utils/userSettings'
 import { ActionMenu, Button, Tooltip } from '@115master/ui'
 import { format } from '@115master/utils'
@@ -447,6 +456,7 @@ import { I, Icon } from '@/icons'
 import { useDriveSpaceInfoStore } from '@/store/driveSpaceInfo'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
 import { useTagStore } from '@/store/tagList'
+import { buildLibraryDurationStats } from './durationStats'
 
 const route = useRoute()
 const router = useRouter()
@@ -462,88 +472,9 @@ const spacePercent = computed(() => {
   return Number((allUse / allTotal * 100).toFixed(2))
 })
 
-function formatTotalDuration(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0)
-    return '0 分钟'
-  const totalMinutes = Math.round(totalSeconds / 60)
-  if (totalMinutes < 60)
-    return `${Math.max(1, totalMinutes)} 分钟`
-  const hours = Math.floor(totalMinutes / 60)
-  const mins = totalMinutes % 60
-  const base = mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`
-  if (hours >= 24)
-    return `${base}（约 ${(hours / 24).toFixed(1)} 天）`
-  return base
-}
-
-function estimateEntryDuration(entry: LibraryEntry): number {
-  if (entry.kind === 'tv' || entry.kind === 'collection') {
-    const filesSum = entry.files.reduce((sum, file) => sum + (file.duration > 0 ? file.duration : 0), 0)
-    if (filesSum > 0)
-      return filesSum
-  }
-  return entry.maxDuration > 0 ? entry.maxDuration : (entry.meta?.duration ?? 0)
-}
-
-const libraryDurationStats = computed(() => {
-  const buckets = new Map<string, { label: string, count: number, seconds: number }>()
-  const sectionLabelById = new Map(store.customSections.map(section => [section.id, section.name]))
-
-  const addBucket = (key: string, label: string, seconds: number) => {
-    const existing = buckets.get(key)
-    if (existing) {
-      existing.count += 1
-      existing.seconds += seconds
-      return
-    }
-    buckets.set(key, { label, count: 1, seconds })
-  }
-
-  let totalSeconds = 0
-  let missingCount = 0
-
-  for (const entry of store.entries) {
-    const sec = estimateEntryDuration(entry)
-    if (sec > 0)
-      totalSeconds += sec
-    else
-      missingCount += 1
-
-    if (entry.sectionId) {
-      addBucket(`section:${entry.sectionId}`, sectionLabelById.get(entry.sectionId) ?? '自定义栏目', sec)
-    }
-    else if (entry.kind === 'jav') {
-      addBucket('jav', 'AV 作品', sec)
-    }
-    else if (entry.kind === 'movie' || entry.kind === 'tv') {
-      addBucket('cinema', '院线影视', sec)
-    }
-    else {
-      addBucket('other', '合集 / 其他', sec)
-    }
-  }
-
-  const orderedKeys = ['jav', 'cinema', 'other', ...store.customSections.map(section => `section:${section.id}`)]
-  const categories = orderedKeys
-    .map((key) => {
-      const item = buckets.get(key)
-      if (!item || item.count === 0)
-        return null
-      return {
-        key,
-        label: item.label,
-        count: item.count,
-        durationLabel: formatTotalDuration(item.seconds),
-      }
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
-
-  return {
-    totalLabel: formatTotalDuration(totalSeconds),
-    categories,
-    missingCount,
-  }
-})
+const libraryDurationStats = computed(() =>
+  buildLibraryDurationStats(store.entries, store.customSections),
+)
 
 const isWallRoute = computed(() => route.name === 'library')
 const isActorsActive = computed(() => route.name === 'library-actors')
