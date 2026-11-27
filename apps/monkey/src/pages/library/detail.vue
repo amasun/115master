@@ -285,6 +285,14 @@
                   <span v-else-if="entry.files.length > 1" class="badge badge-accent badge-soft text-xs">
                     {{ entry.files.length }} 个版本
                   </span>
+                  <span
+                    v-if="uncensoredBadge"
+                    :title="uncensoredBadge.title"
+                    class="inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-wider shadow-xs"
+                    :class="uncensoredBadge.badgeClass"
+                  >
+                    {{ uncensoredBadge.fullLabel }}
+                  </span>
                   <button
                     v-for="label in entry.driveLabels"
                     :key="label.id"
@@ -561,6 +569,14 @@
                       {{ isCollection ? `#${index + 1}` : `版本 ${index + 1}` }}
                     </span>
                     <span
+                      v-if="getFileUncensoredBadge(file.name)"
+                      :title="getFileUncensoredBadge(file.name)!.title"
+                      class="inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider"
+                      :class="getFileUncensoredBadge(file.name)!.badgeClass"
+                    >
+                      {{ getFileUncensoredBadge(file.name)!.shortLabel }}
+                    </span>
+                    <span
                       v-if="dedupeMode && dedupeScoreByFid.get(file.fid)?.recommendedKeep"
                       class="badge badge-success badge-soft badge-xs rounded-full"
                     >
@@ -817,7 +833,9 @@ import { errorFeedback } from '@/utils/errorFeedback'
 import { createGMImageFallbackLoader } from '@/utils/imageLoader'
 import { syncMarkersFromFileDesc } from '@/utils/markers'
 import {
+  detectFileUncensoredKind,
   getCoverCandidates,
+  getUncensoredBadgeMeta,
   hasUniformSha1,
   isSuspectedMultiPartGroup,
   loadCustomFullCoverUrl,
@@ -1660,6 +1678,16 @@ function openGenreInLibrary(name: string) {
 }
 
 const publisherLabel = computed(() => entry.value?.meta?.publisher || entry.value?.meta?.studio || '')
+const uncensoredBadge = computed(() => getUncensoredBadgeMeta(entry.value?.uncensoredKind))
+
+function getFileUncensoredBadge(fileName: string) {
+  return getUncensoredBadgeMeta(
+    detectFileUncensoredKind(fileName, {
+      externalId: entry.value?.externalId,
+      allowNativeCode: entry.value?.kind !== 'movie' && entry.value?.kind !== 'tv',
+    }),
+  )
+}
 
 function openDirectorInLibrary(name: string) {
   store.resetFilters()

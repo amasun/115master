@@ -187,6 +187,19 @@ describe('deduplicator', () => {
       expect(groups).toHaveLength(1)
       expect(groups[0].files.map(f => f.fid).sort()).toEqual(['sd1', 'sd2'])
     })
+
+    it('prioritizes LTX and LADA high-grade demosaiced editions in duplicate scoring', () => {
+      const normal = makeVideo({ fid: 'n1', avNumber: 'IPX-811', name: 'IPX-811-UC.mp4', size: 3 * 1024 ** 3 })
+      const lada = makeVideo({ fid: 'd1', avNumber: 'IPX-811', name: 'IPX-811_LADA.mp4', size: 3 * 1024 ** 3 })
+      const ltx = makeVideo({ fid: 'l1', avNumber: 'IPX-811', name: 'IPX-811_LTX_restored.mp4', size: 3 * 1024 ** 3 })
+
+      const groups = analyzeDuplicateGroups([normal, lada, ltx], [makeEntry('jav:IPX811', [normal, lada, ltx], 'IPX-811')])
+
+      expect(groups).toHaveLength(1)
+      expect(groups[0].files.map(f => f.fid)).toEqual(['l1', 'd1', 'n1'])
+      expect(groups[0].files[0].keepReasons).toContain('LTX 高级去码')
+      expect(groups[0].files[1].keepReasons).toContain('LADA 去码')
+    })
   })
 
   describe('scoreEntryFilesForDedupe', () => {

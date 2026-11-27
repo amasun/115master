@@ -28,7 +28,12 @@ export {
 export {
   analyzeDuplicateGroups,
   analyzeDuplicateGroupsAsync,
+  detectEntryUncensoredKind,
+  detectFileUncensoredKind,
+  getUncensoredBadgeMeta,
   hasUniformSha1,
+  isLadaFileName,
+  isLtxFileName,
   isSuspectedMultiPartGroup,
   scoreEntryFilesForDedupe,
   scoreFileForKeep,
@@ -38,6 +43,7 @@ export type {
   DuplicateFileCandidate,
   DuplicateGroup,
   DuplicateKind,
+  UncensoredBadgeMeta,
 } from './deduplicator'
 export {
   AD_DURATION_MAX_SEC,
@@ -137,6 +143,7 @@ export type {
   MediaCoverCandidate,
   MediaKind,
   MediaPreview,
+  UncensoredKind,
   UnifiedMediaMeta,
   VideoIndexSnapshot,
 } from './types'

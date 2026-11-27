@@ -417,6 +417,10 @@ const subFilterCount = computed(() => {
     count += 1
   if (store.filter.onlyMarked)
     count += 1
+  if (store.filter.onlyLtx)
+    count += 1
+  if (store.filter.onlyUncensored)
+    count += 1
   return count
 })
 

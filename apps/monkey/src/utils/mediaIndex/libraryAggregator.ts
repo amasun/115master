@@ -16,6 +16,7 @@ import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { parseCinemaTitle } from './cinemaTitleParser'
+import { detectEntryUncensoredKind, isLtxFileName } from './deduplicator'
 import { isAdLibraryEntry } from './junkScanner'
 import { normalizeManualAvNumber } from './manualMatchStore'
 import { PROTECTED_FOLDER_NAMES } from './safeDelete'
@@ -341,6 +342,14 @@ export function aggregateLibraryEntries(
     const markerCount = files.reduce((sum, file) => sum + countDocMarkers(markerDocs[file.pickCode]), 0)
     const starred = files.some(file => Boolean(file.starred))
     const driveLabels = collectDriveLabels(files)
+    const uncensoredKind = detectEntryUncensoredKind({
+      kind,
+      externalId,
+      files,
+      meta,
+      driveLabels,
+    })
+    const isLtx = uncensoredKind === 'ltx' || files.some(file => isLtxFileName(file.name))
 
     return {
       mediaKey,
@@ -355,6 +364,8 @@ export function aggregateLibraryEntries(
       totalSize,
       maxDuration,
       starred,
+      ...(isLtx ? { isLtx } : {}),
+      ...(uncensoredKind ? { uncensoredKind } : {}),
       driveLabels,
     }
   })
@@ -741,6 +752,10 @@ export function buildLibraryIndex(
       if ((filter.view === 'starred' || filter.onlyStarred) && !entry.starred)
         return false
       if ((filter.view === 'marked' || filter.onlyMarked) && entry.markerCount <= 0)
+        return false
+      if (filter.onlyLtx && !entry.isLtx)
+        return false
+      if (filter.onlyUncensored && !entry.uncensoredKind)
         return false
       if (filter.scrapeStatus === 'scraped' && entry.meta === null)
         return false

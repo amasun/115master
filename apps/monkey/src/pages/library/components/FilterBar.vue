@@ -152,6 +152,32 @@
         <span>仅看有打点</span>
       </button>
 
+      <!-- 仅看 LTX 高级去码 -->
+      <button
+        v-if="store.ltxCount > 0 || store.filter.onlyLtx"
+        type="button"
+        class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
+        :class="store.filter.onlyLtx ? 'border-transparent bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 font-medium text-white' : 'btn-ghost'"
+        title="仅显示包含 LTX 高级去码版本的影片"
+        @click="store.filter.onlyLtx = !store.filter.onlyLtx"
+      >
+        <span>LTX</span>
+        <span v-if="store.ltxCount > 0" class="tabular-nums opacity-80">({{ store.ltxCount }})</span>
+      </button>
+
+      <!-- 仅看无码 / 去码 -->
+      <button
+        v-if="store.uncensoredCount > 0 || store.filter.onlyUncensored"
+        type="button"
+        class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
+        :class="store.filter.onlyUncensored ? 'btn-success font-medium' : 'btn-ghost'"
+        title="仅显示无码 / 去码 / LADA / LTX / 破解影片"
+        @click="store.filter.onlyUncensored = !store.filter.onlyUncensored"
+      >
+        <span>无码</span>
+        <span v-if="store.uncensoredCount > 0" class="tabular-nums opacity-80">({{ store.uncensoredCount }})</span>
+      </button>
+
       <!-- 隐藏疑似广告视频与共用阈值（与清理页实时同步） -->
       <div class="flex shrink-0 flex-wrap items-center gap-1.5">
         <button

@@ -1,6 +1,177 @@
-import type { IndexedVideo, LibraryEntry, LibraryFileItem } from './types'
+import type { IndexedVideo, LibraryEntry, LibraryFileItem, UncensoredKind, UnifiedMediaMeta } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
 import { normalizeAvNumber } from '@/utils/jav/jav'
+
+const LTX_FILENAME_RE = /(?:^|[^A-Z0-9])LTX(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
+const LADA_FILENAME_RE = /(?:^|[^A-Z0-9])LADA(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
+const NATIVE_UNCENSORED_CODE_RE = /(?:^|[^A-Z0-9])(?:FC2[-_\s]?PPV[-_\s]?\d+|HEYZO[-_\s]?\d{4}|CARIB(?:BEAN(?:COM)?)?[-_\s]?\d{6}[-_]\d{3}|1PON(?:DO)?[-_\s]?\d{6}[-_]\d{3}|10MUSUME[-_\s]?\d{6}[-_]\d{2,3}|PACO(?:PACOMAMA)?[-_\s]?\d{6}[-_]\d{3}|(?:LAFBD|CWPBD|MKBD|SMBD|KIBD|MCBD|S2MBD|SKYHD|CWP|MKD|SMD|LAF|SKY|DRC|RHJ|GACHI|XXX-AV|CWDV|HEYDOUGA|H0930|H4610|C0930|KIN8|MURAMURA|MESUBUTA|NYOSHIN)[-_\s]?\d+|[NK]\d{4}|\d{6}[-_]\d{3})(?=[^A-Z0-9]|$)/i
+const NATIVE_TEXT_RE = /原生(?:无码|無碼)|步兵/
+const DEMOSAIC_TEXT_RE = /去码|去碼|破坏版|破壞版|demosaic|mosaic[-_\s]?removed|reducing[-_\s]?mosaic/i
+const CRACKED_TEXT_RE = /破解|流出|leaked/i
+const UNCENSORED_SUFFIX_RE = /[_-]UC?(?=\.[^.]+$|[-_](?:C|CH|CHS|CHT|SUB|4K|1080P|720P|FHD|HD|UHD)(?:[^A-Z0-9]|$))/i
+const UNCENSORED_TEXT_RE = /无码|無碼|无修正|無修正|uncensored/i
+
+const UNCENSORED_PRIORITY: Record<UncensoredKind, number> = {
+  ltx: 6,
+  lada: 5,
+  native: 4,
+  demosaic: 3,
+  cracked: 2,
+  uncensored: 1,
+}
+
+export interface UncensoredBadgeMeta {
+  shortLabel: string
+  fullLabel: string
+  title: string
+  badgeClass: string
+}
+
+const UNCENSORED_BADGE_MAP: Record<UncensoredKind, UncensoredBadgeMeta> = {
+  ltx: {
+    shortLabel: 'LTX',
+    fullLabel: 'LTX 高级去码',
+    title: 'LTX 高级去码版',
+    badgeClass: 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 text-white ring-1 ring-white/25',
+  },
+  lada: {
+    shortLabel: 'LADA',
+    fullLabel: 'LADA 去码',
+    title: 'LADA 高级去码版',
+    badgeClass: 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white ring-1 ring-white/20',
+  },
+  native: {
+    shortLabel: '无码',
+    fullLabel: '原生无码',
+    title: '原生无码作品',
+    badgeClass: 'bg-emerald-500/90 text-white',
+  },
+  demosaic: {
+    shortLabel: '去码',
+    fullLabel: '去码 / 破坏版',
+    title: '去码 / 破坏版',
+    badgeClass: 'bg-rose-500/90 text-white',
+  },
+  cracked: {
+    shortLabel: '破解',
+    fullLabel: '无码破解 / 流出',
+    title: '无码破解 / 流出版',
+    badgeClass: 'bg-amber-500/90 text-black',
+  },
+  uncensored: {
+    shortLabel: '无码',
+    fullLabel: '无码',
+    title: '无码版本',
+    badgeClass: 'bg-emerald-500/90 text-white',
+  },
+}
+
+/** 判断文件名是否包含 LTX 高级去码标记 */
+export function isLtxFileName(fileName?: string | null): boolean {
+  if (!fileName)
+    return false
+  return LTX_FILENAME_RE.test(fileName)
+}
+
+/** 判断文件名是否包含 LADA 去码标记 */
+export function isLadaFileName(fileName?: string | null): boolean {
+  if (!fileName)
+    return false
+  return LADA_FILENAME_RE.test(fileName)
+}
+
+function pickHigherUncensoredKind(
+  current: UncensoredKind | undefined,
+  candidate: UncensoredKind | undefined,
+): UncensoredKind | undefined {
+  if (!candidate)
+    return current
+  if (!current)
+    return candidate
+  return UNCENSORED_PRIORITY[candidate] > UNCENSORED_PRIORITY[current] ? candidate : current
+}
+
+function detectTextUncensoredKind(text?: string | null): UncensoredKind | undefined {
+  if (!text)
+    return undefined
+  if (LTX_FILENAME_RE.test(text))
+    return 'ltx'
+  if (LADA_FILENAME_RE.test(text))
+    return 'lada'
+  if (NATIVE_TEXT_RE.test(text))
+    return 'native'
+  if (DEMOSAIC_TEXT_RE.test(text))
+    return 'demosaic'
+  if (CRACKED_TEXT_RE.test(text))
+    return 'cracked'
+  if (UNCENSORED_TEXT_RE.test(text))
+    return 'uncensored'
+  return undefined
+}
+
+/** 识别单个文件的无码 / 去码来源类型 */
+export function detectFileUncensoredKind(
+  fileName?: string | null,
+  options?: { externalId?: string, allowNativeCode?: boolean },
+): UncensoredKind | undefined {
+  const name = fileName?.trim() ?? ''
+  if (name) {
+    if (LTX_FILENAME_RE.test(name))
+      return 'ltx'
+    if (LADA_FILENAME_RE.test(name))
+      return 'lada'
+    if (NATIVE_TEXT_RE.test(name))
+      return 'native'
+  }
+  if (options?.allowNativeCode !== false) {
+    if ((name && NATIVE_UNCENSORED_CODE_RE.test(name)) || (options?.externalId && NATIVE_UNCENSORED_CODE_RE.test(options.externalId)))
+      return 'native'
+  }
+  if (!name)
+    return undefined
+  if (DEMOSAIC_TEXT_RE.test(name))
+    return 'demosaic'
+  if (CRACKED_TEXT_RE.test(name))
+    return 'cracked'
+  if (UNCENSORED_SUFFIX_RE.test(name) || UNCENSORED_TEXT_RE.test(name))
+    return 'uncensored'
+  return undefined
+}
+
+/** 综合文件、网盘标签、题材与标题识别作品的无码 / 去码来源类型 */
+export function detectEntryUncensoredKind(params: {
+  kind: LibraryEntry['kind']
+  externalId?: string
+  files: ReadonlyArray<{ name: string }>
+  meta: UnifiedMediaMeta | null
+  driveLabels: ReadonlyArray<{ name: string }>
+}): UncensoredKind | undefined {
+  const allowNativeCode = params.kind !== 'movie' && params.kind !== 'tv'
+  let best: UncensoredKind | undefined
+
+  for (const file of params.files) {
+    best = pickHigherUncensoredKind(
+      best,
+      detectFileUncensoredKind(file.name, { externalId: params.externalId, allowNativeCode }),
+    )
+  }
+
+  for (const label of params.driveLabels)
+    best = pickHigherUncensoredKind(best, detectTextUncensoredKind(label.name))
+
+  if (params.meta) {
+    for (const genre of params.meta.genres)
+      best = pickHigherUncensoredKind(best, detectTextUncensoredKind(genre))
+    best = pickHigherUncensoredKind(best, detectTextUncensoredKind(params.meta.title))
+  }
+
+  return best
+}
+
+/** 获取无码 / 去码角标展示信息 */
+export function getUncensoredBadgeMeta(kind?: UncensoredKind): UncensoredBadgeMeta | null {
+  return kind ? UNCENSORED_BADGE_MAP[kind] : null
+}
 
 export type DuplicateKind = 'sha1' | 'avNumber' | 'edition' | 'similar'
 
@@ -151,12 +322,21 @@ export function scoreFileForKeep(
     reasons.push('含中文字幕标记')
   }
 
+  if (isLtxFileName(file.name)) {
+    parts.push(180)
+    reasons.push('LTX 高级去码')
+  }
+  else if (isLadaFileName(file.name)) {
+    parts.push(150)
+    reasons.push('LADA 去码')
+  }
+
   if (/(?:^|[^A-Z0-9])(?:LAFBD|CWPBD|MKBD|SMBD|KIBD|MCBD|S2MBD)[-_\s]?S?\d+|BLU-?RAY|BDMV|BDRIP/i.test(file.name)) {
     parts.push(120)
     reasons.push('蓝光版')
   }
 
-  if (/[_-]UC(?=\.[^.]+$|$)|无码|破解|流出/i.test(file.name)) {
+  if (UNCENSORED_SUFFIX_RE.test(file.name) || /无码|無碼|破解|流出|去码|去碼|破坏版|破壞版|无修正|無修正/.test(file.name)) {
     parts.push(100)
     reasons.push('无码/破解版')
   }

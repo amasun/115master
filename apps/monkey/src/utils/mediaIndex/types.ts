@@ -15,6 +15,8 @@ export type {
 
 export type MediaKind = 'jav' | 'movie' | 'tv' | 'collection' | 'unknown'
 
+export type UncensoredKind = 'ltx' | 'lada' | 'native' | 'demosaic' | 'cracked' | 'uncensored'
+
 export interface CollectionCustomMeta {
   cid: string
   title?: string
@@ -103,6 +105,8 @@ export interface LibraryEntry {
   totalSize: number
   maxDuration: number
   starred: boolean
+  isLtx?: boolean
+  uncensoredKind?: UncensoredKind
   driveLabels: IndexedVideoLabel[]
 }
 
@@ -118,6 +122,8 @@ export interface LibraryFilterState {
   scrapeStatus: LibraryScrapeFilter
   onlyStarred: boolean
   onlyMarked: boolean
+  onlyLtx?: boolean
+  onlyUncensored?: boolean
   sortBy: LibrarySortBy
   sortAsc: boolean
 }

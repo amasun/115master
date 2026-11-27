@@ -77,6 +77,16 @@
         </span>
       </div>
 
+      <!-- 右上角：无码 / 去码角标 -->
+      <span
+        v-if="uncensoredBadge"
+        :title="uncensoredBadge.title"
+        class="pointer-events-none absolute top-2 right-2 inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm"
+        :class="uncensoredBadge.badgeClass"
+      >
+        {{ uncensoredBadge.shortLabel }}
+      </span>
+
       <!-- 左下角：评分与评价人数角标 -->
       <span
         v-if="ratingBadge"
@@ -205,7 +215,7 @@ import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
 import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
-import { getCoverCandidates, loadPosterThumbUrl, shouldCropRightHalfForPortrait } from '@/utils/mediaIndex'
+import { getCoverCandidates, getUncensoredBadgeMeta, loadPosterThumbUrl, shouldCropRightHalfForPortrait } from '@/utils/mediaIndex'
 
 const props = defineProps<{
   entry: LibraryEntry
@@ -243,6 +253,7 @@ function openContextMenu(event: MouseEvent) {
   menuOpen.value = true
 }
 const isCollection = computed(() => props.entry.kind === 'collection')
+const uncensoredBadge = computed(() => getUncensoredBadgeMeta(props.entry.uncensoredKind))
 const isAvEntry = computed(() => props.entry.kind === 'jav')
 const isScraping = computed(() => store.scrapingKeys.has(props.entry.mediaKey))
 const visibleGenres = computed(() => props.entry.meta?.genres.slice(0, 3) ?? [])

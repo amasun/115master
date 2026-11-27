@@ -169,6 +169,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     scrapeStatus: 'all',
     onlyStarred: false,
     onlyMarked: false,
+    onlyLtx: false,
+    onlyUncensored: false,
     sortBy: 'mtime',
     sortAsc: false,
   })
@@ -1058,6 +1060,12 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const cinemaCount = computed(() =>
     visibleEntries.value.filter(entry => isCinemaEntry(entry) && !entry.sectionId).length,
   )
+  const ltxCount = computed(() =>
+    visibleEntries.value.filter(entry => entry.isLtx).length,
+  )
+  const uncensoredCount = computed(() =>
+    visibleEntries.value.filter(entry => Boolean(entry.uncensoredKind)).length,
+  )
   const sectionCounts = computed<Record<string, number>>(() => {
     const counts: Record<string, number> = {}
     for (const entry of visibleEntries.value) {
@@ -1456,6 +1464,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.scrapeStatus = 'all'
     filter.onlyStarred = false
     filter.onlyMarked = false
+    filter.onlyLtx = false
+    filter.onlyUncensored = false
   }
 
   function resetFilters() {
@@ -1655,6 +1665,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       () => filter.scrapeStatus,
       () => filter.onlyStarred,
       () => filter.onlyMarked,
+      () => filter.onlyLtx,
+      () => filter.onlyUncensored,
       () => filter.sortBy,
       () => filter.sortAsc,
       hideAdVideos,
@@ -1753,6 +1765,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     scrapedCount,
     starredCount,
     markedCount,
+    ltxCount,
+    uncensoredCount,
     init,
     syncIndex,
     indexRootFolders,
