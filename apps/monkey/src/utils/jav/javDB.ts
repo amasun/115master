@@ -296,4 +296,34 @@ export class JavDB extends Jav {
   parseComments() {
     return []
   }
+
+  parseScore() {
+    const raw = (this.labels['評分'] ?? this.labels['评分'])
+      ?.parentElement
+      ?.querySelector('.value')
+      ?.textContent
+      ?.trim()
+    if (!raw)
+      return undefined
+    const matched = raw.match(/(\d+(?:\.\d+)?)\s*分/)
+    if (!matched)
+      return undefined
+    const score = Number(matched[1])
+    return Number.isFinite(score) && score > 0 ? score : undefined
+  }
+
+  parseScoreCount() {
+    const raw = (this.labels['評分'] ?? this.labels['评分'])
+      ?.parentElement
+      ?.querySelector('.value')
+      ?.textContent
+      ?.trim()
+    if (!raw)
+      return undefined
+    const matched = raw.match(/由\s*([\d,]+)\s*人/)
+    if (!matched)
+      return undefined
+    const count = Number.parseInt(matched[1].replace(/,/g, ''), 10)
+    return Number.isFinite(count) && count > 0 ? count : undefined
+  }
 }

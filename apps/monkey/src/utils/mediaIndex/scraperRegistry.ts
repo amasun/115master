@@ -112,6 +112,7 @@ export function javInfoToUnifiedMeta(
     year: Number.isFinite(parsedYear) && parsedYear > 1900 ? parsedYear : undefined,
     duration: info.duration,
     rating: info.score,
+    ratingCount: info.scoreCount,
     directors: (info.director ?? []).map(d => d.name.trim()).filter(Boolean),
     actors: mapActors(info),
     genres: (info.category ?? []).map(c => c.name.trim()).filter(Boolean),

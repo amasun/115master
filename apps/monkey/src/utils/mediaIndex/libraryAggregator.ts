@@ -51,12 +51,14 @@ export interface LibraryIndex {
   byGenre: Map<string, Set<string>>
   byYear: Map<number, Set<string>>
   byDirector: Map<string, Set<string>>
+  byPublisher: Map<string, Set<string>>
   byDriveLabel: Map<string, Set<string>>
   actors: FacetCount[]
   actorStats: ActorFacetStat[]
   genres: FacetCount[]
   years: YearFacetCount[]
   directors: FacetCount[]
+  publishers: FacetCount[]
   driveLabels: DriveLabelFacetCount[]
   query: (filter: LibraryFilterState, options?: LibraryQueryOptions) => LibraryEntry[]
 }
@@ -384,6 +386,10 @@ function matchesKeyword(
     return true
   if (entry.meta?.directors.some(director => director.toLowerCase().includes(keyword)))
     return true
+  if (entry.meta?.publisher?.toLowerCase().includes(keyword))
+    return true
+  if (entry.meta?.studio?.toLowerCase().includes(keyword))
+    return true
   if (entry.driveLabels.some(label => label.name.toLowerCase().includes(keyword)))
     return true
   return false
@@ -413,6 +419,23 @@ function compareEntries(a: LibraryEntry, b: LibraryEntry, filter: LibraryFilterS
       return -1
     if (da !== db)
       return da.localeCompare(db) * factor
+  }
+
+  if (filter.sortBy === 'rating') {
+    const ra = a.meta?.rating && a.meta.rating > 0 ? a.meta.rating : 0
+    const rb = b.meta?.rating && b.meta.rating > 0 ? b.meta.rating : 0
+    if (ra === 0 && rb === 0)
+      return (a.latestMtime - b.latestMtime) * factor
+    if (ra === 0)
+      return 1
+    if (rb === 0)
+      return -1
+    if (ra !== rb)
+      return (ra - rb) * factor
+    const ca = a.meta?.ratingCount ?? 0
+    const cb = b.meta?.ratingCount ?? 0
+    if (ca !== cb)
+      return (ca - cb) * factor
   }
 
   if (filter.sortBy === 'duration') {
@@ -504,6 +527,7 @@ export function buildLibraryIndex(
   const byGenre = new Map<string, Set<string>>()
   const byYear = new Map<number, Set<string>>()
   const byDirector = new Map<string, Set<string>>()
+  const byPublisher = new Map<string, Set<string>>()
   const byDriveLabel = new Map<string, Set<string>>()
   const driveLabelMeta = new Map<string, { id: string, name: string, color?: string }>()
 
@@ -567,6 +591,9 @@ export function buildLibraryIndex(
 
     entry.meta.genres.forEach(genre => addToIndex(byGenre, genre, entry.mediaKey))
     entry.meta.directors.forEach(director => addToIndex(byDirector, director, entry.mediaKey))
+    const publisherName = (entry.meta.publisher || entry.meta.studio)?.trim()
+    if (publisherName)
+      addToIndex(byPublisher, publisherName, entry.mediaKey)
     if (entry.meta.year)
       addToIndex(byYear, entry.meta.year, entry.mediaKey)
   })
@@ -659,6 +686,7 @@ export function buildLibraryIndex(
   const actors: FacetCount[] = actorStats.map(stat => ({ name: stat.name, count: stat.count }))
   const genres = toFacetCounts(byGenre)
   const directors = toFacetCounts(byDirector)
+  const publishers = toFacetCounts(byPublisher)
   const years = Array.from(byYear.entries())
     .map(([year, keys]) => ({ year, count: keys.size }))
     .sort((a, b) => b.year - a.year)
@@ -682,6 +710,8 @@ export function buildLibraryIndex(
       facetSets.push(byGenre.get(filter.genre))
     if (filter.director)
       facetSets.push(byDirector.get(filter.director))
+    if (filter.publisher)
+      facetSets.push(byPublisher.get(filter.publisher))
     if (filter.year !== undefined)
       facetSets.push(byYear.get(filter.year))
     if (filter.driveLabel)
@@ -731,12 +761,14 @@ export function buildLibraryIndex(
     byGenre,
     byYear,
     byDirector,
+    byPublisher,
     byDriveLabel,
     actors,
     actorStats,
     genres,
     years,
     directors,
+    publishers,
     driveLabels,
     query,
   }

@@ -7,22 +7,40 @@
       class="ui-glass-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
     >
       <!-- 题材 -->
-      <label class="flex shrink-0 items-center gap-1.5">
-        <span class="text-base-content/55 shrink-0 whitespace-nowrap">题材</span>
-        <select
-          v-model="store.filter.genre"
-          class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
-        >
-          <option :value="undefined">全部题材</option>
-          <option
-            v-for="item in store.libraryIndex.genres"
-            :key="item.name"
-            :value="item.name"
+      <div class="flex shrink-0 items-center gap-1.5">
+        <label class="flex shrink-0 items-center gap-1.5">
+          <span class="text-base-content/55 shrink-0 whitespace-nowrap">题材</span>
+          <select
+            v-model="store.filter.genre"
+            class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
           >
-            {{ item.name }} ({{ item.count }})
-          </option>
-        </select>
-      </label>
+            <option :value="undefined">全部题材</option>
+            <optgroup
+              v-for="group in groupedGenres"
+              :key="group.key"
+              :label="`${group.label} (${group.items.length})`"
+            >
+              <option
+                v-for="item in group.items"
+                :key="item.name"
+                :value="item.name"
+              >
+                {{ item.name }} ({{ item.count }})
+              </option>
+            </optgroup>
+          </select>
+        </label>
+        <button
+          v-if="groupedGenres.length > 0"
+          type="button"
+          class="btn btn-xs shrink-0 rounded-full font-normal whitespace-nowrap"
+          :class="genreBrowserOpen ? 'btn-primary btn-soft' : 'btn-ghost text-base-content/65'"
+          :aria-expanded="genreBrowserOpen"
+          @click="genreBrowserOpen = !genreBrowserOpen"
+        >
+          分类浏览
+        </button>
+      </div>
 
       <!-- 年份 -->
       <label class="flex shrink-0 items-center gap-1.5">
@@ -53,6 +71,24 @@
           <option :value="undefined">全部导演</option>
           <option
             v-for="item in store.libraryIndex.directors.slice(0, 100)"
+            :key="item.name"
+            :value="item.name"
+          >
+            {{ item.name }} ({{ item.count }})
+          </option>
+        </select>
+      </label>
+
+      <!-- 片商 -->
+      <label v-if="store.libraryIndex.publishers.length > 0" class="flex shrink-0 items-center gap-1.5">
+        <span class="text-base-content/55 shrink-0 whitespace-nowrap">片商</span>
+        <select
+          v-model="store.filter.publisher"
+          class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
+        >
+          <option :value="undefined">全部片商</option>
+          <option
+            v-for="item in store.libraryIndex.publishers.slice(0, 100)"
             :key="item.name"
             :value="item.name"
           >
@@ -214,18 +250,56 @@
         >
           <option value="mtime">最近入库</option>
           <option value="releaseDate">发行日期</option>
+          <option value="rating">评分</option>
           <option value="duration">片长</option>
           <option value="size">文件大小</option>
           <option value="title">番号 / 名称</option>
         </select>
       </label>
     </div>
+
+    <!-- 题材分类分组面板 -->
+    <div
+      v-if="genreBrowserOpen && groupedGenres.length > 0"
+      class="ui-glass-surface mt-2 flex flex-col gap-2.5 rounded-2xl px-3.5 py-2.5 text-xs"
+    >
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button
+          v-for="group in groupedGenres"
+          :key="group.key"
+          type="button"
+          class="btn btn-xs rounded-full font-normal"
+          :class="resolvedActiveGenreGroup?.key === group.key ? 'btn-primary' : 'btn-ghost text-base-content/70'"
+          @click="activeGenreGroupKey = group.key"
+        >
+          {{ group.label }} ({{ group.items.length }})
+        </button>
+      </div>
+      <div
+        v-if="resolvedActiveGenreGroup"
+        class="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto pr-1"
+      >
+        <button
+          v-for="item in resolvedActiveGenreGroup.items"
+          :key="item.name"
+          type="button"
+          class="cursor-pointer rounded-full px-2.5 py-1 text-[11px] leading-tight transition-colors"
+          :class="store.filter.genre === item.name
+            ? 'bg-primary text-primary-content font-medium'
+            : 'bg-base-content/8 text-base-content/80 hover:bg-primary/20 hover:text-primary'"
+          @click="store.selectGenre(item.name)"
+        >
+          {{ item.name }} ({{ item.count }})
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { GenreGroupKey } from './genreGroups'
 import type { LibraryScrapeFilter } from '@/utils/mediaIndex'
-import { ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
@@ -237,6 +311,7 @@ import {
   clampAdMaxDurationSec,
   clampAdMaxSizeMB,
 } from '@/utils/mediaIndex'
+import { groupGenres } from './genreGroups'
 
 defineProps<{
   visible: boolean
@@ -244,6 +319,13 @@ defineProps<{
 
 const router = useRouter()
 const store = useMediaLibraryStore()
+
+const genreBrowserOpen = shallowRef(false)
+const activeGenreGroupKey = shallowRef<GenreGroupKey>('theme')
+const groupedGenres = computed(() => groupGenres(store.libraryIndex.genres))
+const resolvedActiveGenreGroup = computed(() =>
+  groupedGenres.value.find(group => group.key === activeGenreGroupKey.value) ?? groupedGenres.value[0],
+)
 
 const adDurationDraft = ref(store.adFilterOptions.maxDurationSec)
 const adSizeDraft = ref(store.adFilterOptions.maxSizeMB)

@@ -72,6 +72,7 @@ describe('scraperRegistry', () => {
       date: Date.UTC(2024, 4, 15),
       duration: 120,
       score: 4.5,
+      scoreCount: 1234,
       director: [{ name: '导演A' }],
       actors: [
         { name: '演员甲', face: 'https://img.example/a.jpg', url: 'https://javlibrary.example/star/a' },
@@ -105,6 +106,8 @@ describe('scraperRegistry', () => {
     expect(meta.genres).toEqual(['单人作品', '4K'])
     expect(meta.studio).toBe('S1')
     expect(meta.publisher).toBe('S1 NO.1 STYLE')
+    expect(meta.rating).toBe(4.5)
+    expect(meta.ratingCount).toBe(1234)
     expect(meta.actors).toEqual([
       {
         name: '演员甲',

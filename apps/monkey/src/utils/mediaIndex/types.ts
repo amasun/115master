@@ -26,7 +26,7 @@ export interface CollectionCustomMeta {
 
 export type LibraryView = 'all' | 'cinema' | 'starred' | 'marked' | `section:${string}`
 
-export type LibrarySortBy = 'mtime' | 'releaseDate' | 'duration' | 'size' | 'title'
+export type LibrarySortBy = 'mtime' | 'releaseDate' | 'rating' | 'duration' | 'size' | 'title'
 
 export type LibraryScrapeFilter = 'all' | 'scraped' | 'unscraped'
 
@@ -66,6 +66,7 @@ export interface UnifiedMediaMeta {
   year?: number
   duration?: number
   rating?: number
+  ratingCount?: number
   directors: string[]
   actors: MediaActor[]
   genres: string[]
@@ -111,6 +112,7 @@ export interface LibraryFilterState {
   actor?: string
   genre?: string
   director?: string
+  publisher?: string
   year?: number
   driveLabel?: string
   scrapeStatus: LibraryScrapeFilter

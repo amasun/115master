@@ -163,6 +163,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     actor: undefined,
     genre: undefined,
     director: undefined,
+    publisher: undefined,
     year: undefined,
     driveLabel: undefined,
     scrapeStatus: 'all',
@@ -1416,6 +1417,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.genre = !name || filter.genre === name ? undefined : name
   }
 
+  function selectPublisher(name?: string) {
+    filter.publisher = !name || filter.publisher === name ? undefined : name
+  }
+
   function selectDriveLabel(labelId?: string) {
     filter.driveLabel = !labelId || filter.driveLabel === labelId ? undefined : labelId
   }
@@ -1445,6 +1450,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   function resetSubFilters() {
     filter.genre = undefined
     filter.director = undefined
+    filter.publisher = undefined
     filter.year = undefined
     filter.driveLabel = undefined
     filter.scrapeStatus = 'all'
@@ -1643,6 +1649,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       () => filter.actor,
       () => filter.genre,
       () => filter.director,
+      () => filter.publisher,
       () => filter.year,
       () => filter.driveLabel,
       () => filter.scrapeStatus,
@@ -1785,6 +1792,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     selectActor,
     setActorFilter,
     selectGenre,
+    selectPublisher,
     selectDriveLabel,
     setTagRailOpen,
     toggleTagRail,

@@ -1,6 +1,6 @@
 import type { LibraryView } from '@/utils/mediaIndex'
 
-export type BreadcrumbScopeKey = 'view' | 'driveLabel' | 'actor' | 'genre' | 'director'
+export type BreadcrumbScopeKey = 'view' | 'driveLabel' | 'actor' | 'genre' | 'director' | 'publisher'
 
 export type BreadcrumbTarget
   = | { kind: 'root' }
@@ -23,6 +23,7 @@ export interface LibraryBreadcrumbContext {
   actor?: string
   genre?: string
   director?: string
+  publisher?: string
   driveLabelId?: string
   driveLabelName?: string
   detailLabel?: string
@@ -141,6 +142,17 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
       key: `director:${ctx.director}`,
       label: ctx.director,
       title: `导演：${ctx.director}`,
+      current: false,
+      target: { kind: 'scope', keep: [...kept] },
+    })
+  }
+
+  if (ctx.publisher) {
+    kept.push('publisher')
+    items.push({
+      key: `publisher:${ctx.publisher}`,
+      label: ctx.publisher,
+      title: `片商：${ctx.publisher}`,
       current: false,
       target: { kind: 'scope', keep: [...kept] },
     })

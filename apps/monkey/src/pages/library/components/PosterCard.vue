@@ -77,6 +77,16 @@
         </span>
       </div>
 
+      <!-- 左下角：评分与评价人数角标 -->
+      <span
+        v-if="ratingBadge"
+        :title="ratingBadge.title"
+        class="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 font-mono text-[11px] text-amber-300 tabular-nums backdrop-blur-xs"
+      >
+        <span>★ {{ ratingBadge.scoreText }}</span>
+        <span v-if="ratingBadge.countText" class="text-[10px] text-white/75">({{ ratingBadge.countText }})</span>
+      </span>
+
       <!-- 右下角：时长角标 -->
       <span
         v-if="durationLabel"
@@ -131,13 +141,16 @@
           </template>
         </div>
         <span v-else class="text-base-content/35 truncate">未知演员</span>
-        <span
+        <button
           v-if="publisherLabel"
-          class="text-base-content/45 max-w-[45%] shrink-0 truncate"
-          :title="`发行商：${publisherLabel}`"
+          type="button"
+          class="hover:text-primary max-w-[45%] shrink-0 truncate transition-colors"
+          :class="store.filter.publisher === publisherLabel ? 'text-primary font-medium' : 'text-base-content/45'"
+          :title="`按片商「${publisherLabel}」筛选`"
+          @click.stop="store.selectPublisher(publisherLabel)"
         >
           {{ publisherLabel }}
-        </span>
+        </button>
       </div>
 
       <!-- 题材标签（最多展示 3 枚，支持点击快捷筛选） -->
@@ -261,6 +274,28 @@ const durationLabel = computed(() => {
   if (props.entry.meta?.duration)
     return `${props.entry.meta.duration} 分钟`
   return ''
+})
+
+function formatCompactCount(count: number): string {
+  if (count >= 10000)
+    return `${(count / 10000).toFixed(1).replace(/\.0$/, '')}万`
+  if (count >= 1000)
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return String(count)
+}
+
+const ratingBadge = computed(() => {
+  const rating = props.entry.meta?.rating
+  if (!rating || !Number.isFinite(rating) || rating <= 0)
+    return null
+  const scoreText = rating.toFixed(rating >= 10 ? 1 : 2).replace(/\.00$/, '.0')
+  const count = props.entry.meta?.ratingCount
+  const hasCount = Boolean(count && Number.isFinite(count) && count > 0)
+  const countText = hasCount ? formatCompactCount(count!) : ''
+  const title = hasCount
+    ? `评分 ${scoreText}（${count!.toLocaleString()} 人评价）`
+    : `评分 ${scoreText}`
+  return { scoreText, countText, title }
 })
 
 function cleanupResource() {

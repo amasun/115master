@@ -325,6 +325,9 @@
                 <span v-if="entry.meta?.rating" class="flex items-center gap-1">
                   <Icon :name="I.STAR_RATING" class="text-warning text-base" />
                   <span class="font-medium">{{ entry.meta.rating }}</span>
+                  <span v-if="entry.meta.ratingCount" class="text-base-content/50 text-xs tabular-nums">
+                    ({{ entry.meta.ratingCount.toLocaleString() }} 人评价)
+                  </span>
                 </span>
               </div>
 
@@ -339,6 +342,18 @@
                   @click="openDirectorInLibrary(director)"
                 >
                   {{ director }}
+                </button>
+              </div>
+
+              <!-- 片商 -->
+              <div v-if="publisherLabel" class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-base-content/50">片商</span>
+                <button
+                  type="button"
+                  class="badge badge-ghost hover:badge-primary cursor-pointer rounded-full transition-colors"
+                  @click="openPublisherInLibrary(publisherLabel)"
+                >
+                  {{ publisherLabel }}
                 </button>
               </div>
 
@@ -1644,9 +1659,18 @@ function openGenreInLibrary(name: string) {
   void router.push({ name: 'library' })
 }
 
+const publisherLabel = computed(() => entry.value?.meta?.publisher || entry.value?.meta?.studio || '')
+
 function openDirectorInLibrary(name: string) {
   store.resetFilters()
   store.filter.director = name
+  store.scrollTop = 0
+  void router.push({ name: 'library' })
+}
+
+function openPublisherInLibrary(name: string) {
+  store.resetFilters()
+  store.filter.publisher = name
   store.scrollTop = 0
   void router.push({ name: 'library' })
 }

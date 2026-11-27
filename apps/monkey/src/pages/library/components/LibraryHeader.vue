@@ -136,6 +136,9 @@
           <option value="releaseDate">
             发行日期
           </option>
+          <option value="rating">
+            评分
+          </option>
           <option value="duration">
             片长
           </option>
@@ -311,6 +314,7 @@ function handleBreadcrumbClick(item: LibraryBreadcrumbItem) {
     || (!keep.has('actor') && Boolean(store.filter.actor))
     || (!keep.has('genre') && Boolean(store.filter.genre))
     || (!keep.has('director') && Boolean(store.filter.director))
+    || (!keep.has('publisher') && Boolean(store.filter.publisher))
   )
 
   if (!keep.has('view'))
@@ -323,6 +327,8 @@ function handleBreadcrumbClick(item: LibraryBreadcrumbItem) {
     store.selectGenre(undefined)
   if (!keep.has('director'))
     store.filter.director = undefined
+  if (!keep.has('publisher'))
+    store.filter.publisher = undefined
 
   if (scopeChanged)
     store.scrollTop = 0
@@ -385,6 +391,7 @@ const breadcrumbs = computed(() =>
     actor: store.filter.actor,
     genre: store.filter.genre,
     director: store.filter.director,
+    publisher: store.filter.publisher,
     driveLabelId: store.filter.driveLabel,
     driveLabelName: activeDriveLabelName.value,
     detailLabel: detailLabel.value,
@@ -399,6 +406,8 @@ const subFilterCount = computed(() => {
   if (store.filter.year !== undefined)
     count += 1
   if (store.filter.director)
+    count += 1
+  if (store.filter.publisher)
     count += 1
   if (store.filter.driveLabel)
     count += 1
