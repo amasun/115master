@@ -9,6 +9,7 @@ import type {
   LibraryEntry,
   LibraryFileItem,
   LibraryFilterState,
+  UncensoredKind,
   UnifiedMediaMeta,
 } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
@@ -53,6 +54,7 @@ export interface LibraryIndex {
   byYear: Map<number, Set<string>>
   byDirector: Map<string, Set<string>>
   byPublisher: Map<string, Set<string>>
+  byUncensored: Map<UncensoredKind, Set<string>>
   byDriveLabel: Map<string, Set<string>>
   actors: FacetCount[]
   actorStats: ActorFacetStat[]
@@ -403,7 +405,22 @@ function matchesKeyword(
     return true
   if (entry.driveLabels.some(label => label.name.toLowerCase().includes(keyword)))
     return true
+  if (entry.uncensoredKind && getUncensoredSearchTerms(entry.uncensoredKind).some(term => term.includes(keyword)))
+    return true
   return false
+}
+
+const UNCENSORED_SEARCH_TERMS: Record<UncensoredKind, readonly string[]> = {
+  ltx: ['ltx', '无码', '無碼', '去码', '去碼', '高级去码', 'uncensored', 'demosaic'],
+  lada: ['lada', '无码', '無碼', '去码', '去碼', 'uncensored', 'demosaic'],
+  native: ['无码', '無碼', '原生无码', '原生無碼', '步兵', 'uncensored'],
+  demosaic: ['无码', '無碼', '去码', '去碼', '破坏版', '破壞版', 'demosaic', 'uncensored'],
+  cracked: ['无码', '無碼', '破解', '流出', 'leaked', 'uncensored'],
+  uncensored: ['无码', '無碼', '无修正', '無修正', 'uncensored'],
+}
+
+function getUncensoredSearchTerms(kind: UncensoredKind): readonly string[] {
+  return UNCENSORED_SEARCH_TERMS[kind]
 }
 
 function getEntryDurationSeconds(entry: LibraryEntry): number {
@@ -539,6 +556,7 @@ export function buildLibraryIndex(
   const byYear = new Map<number, Set<string>>()
   const byDirector = new Map<string, Set<string>>()
   const byPublisher = new Map<string, Set<string>>()
+  const byUncensored = new Map<UncensoredKind, Set<string>>()
   const byDriveLabel = new Map<string, Set<string>>()
   const driveLabelMeta = new Map<string, { id: string, name: string, color?: string }>()
 
@@ -565,6 +583,9 @@ export function buildLibraryIndex(
         })
       }
     })
+
+    if (entry.uncensoredKind)
+      addToIndex(byUncensored, entry.uncensoredKind, entry.mediaKey)
 
     if (!entry.meta)
       return
@@ -727,6 +748,10 @@ export function buildLibraryIndex(
       facetSets.push(byYear.get(filter.year))
     if (filter.driveLabel)
       facetSets.push(byDriveLabel.get(filter.driveLabel))
+    if (filter.uncensoredKind)
+      facetSets.push(byUncensored.get(filter.uncensoredKind))
+    if (filter.onlyLtx)
+      facetSets.push(byUncensored.get('ltx'))
 
     const candidateKeys = intersectSets(facetSets)
     const candidates = candidateKeys
@@ -777,6 +802,7 @@ export function buildLibraryIndex(
     byYear,
     byDirector,
     byPublisher,
+    byUncensored,
     byDriveLabel,
     actors,
     actorStats,

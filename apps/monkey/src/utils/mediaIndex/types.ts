@@ -124,6 +124,7 @@ export interface LibraryFilterState {
   onlyMarked: boolean
   onlyLtx?: boolean
   onlyUncensored?: boolean
+  uncensoredKind?: UncensoredKind
   sortBy: LibrarySortBy
   sortAsc: boolean
 }

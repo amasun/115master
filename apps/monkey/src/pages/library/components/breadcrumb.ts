@@ -1,6 +1,6 @@
-import type { LibraryView } from '@/utils/mediaIndex'
+import type { LibraryView, UncensoredKind } from '@/utils/mediaIndex'
 
-export type BreadcrumbScopeKey = 'view' | 'driveLabel' | 'actor' | 'genre' | 'director' | 'publisher'
+export type BreadcrumbScopeKey = 'view' | 'driveLabel' | 'actor' | 'genre' | 'director' | 'publisher' | 'uncensoredKind'
 
 export type BreadcrumbTarget
   = | { kind: 'root' }
@@ -24,6 +24,7 @@ export interface LibraryBreadcrumbContext {
   genre?: string
   director?: string
   publisher?: string
+  uncensoredKind?: UncensoredKind
   driveLabelId?: string
   driveLabelName?: string
   detailLabel?: string
@@ -34,6 +35,15 @@ const VIEW_LABELS: Record<'cinema' | 'starred' | 'marked', string> = {
   cinema: '院线影视',
   starred: '星标收藏',
   marked: '有打点',
+}
+
+const UNCENSORED_LABELS: Record<UncensoredKind, string> = {
+  ltx: 'LTX 高级去码',
+  lada: 'LADA 去码',
+  native: '原生无码',
+  demosaic: '去码 / 破坏版',
+  cracked: '无码破解 / 流出',
+  uncensored: '无码',
 }
 
 /**
@@ -153,6 +163,18 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
       key: `publisher:${ctx.publisher}`,
       label: ctx.publisher,
       title: `片商：${ctx.publisher}`,
+      current: false,
+      target: { kind: 'scope', keep: [...kept] },
+    })
+  }
+
+  if (ctx.uncensoredKind) {
+    kept.push('uncensoredKind')
+    const label = UNCENSORED_LABELS[ctx.uncensoredKind] ?? ctx.uncensoredKind
+    items.push({
+      key: `uncensoredKind:${ctx.uncensoredKind}`,
+      label,
+      title: `版本：${label}`,
       current: false,
       target: { kind: 'scope', keep: [...kept] },
     })

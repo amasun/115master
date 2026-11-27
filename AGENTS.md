@@ -134,7 +134,7 @@ Multi-context —— 根目录 `CONTEXT-MAP.md` 指向各 package/app 的 `CONTE
 
 组件 Story 的所有权、分类、Args/Controls、fixture、可访问性与显式 `.test()` 规范。详见 `docs/agents/component-stories.md`。
 
-### Feature Catalog（主要功能总览自动维护）
+### Feature Catalog & Product Manual（主要功能总览与产品说明书定期维护）
 
-- 插件全部核心功能总览维护在 `@docs/FEATURES.md`（第一部分为继承自 `115master` 与 `fusion` 的基础功能，第二部分为本新版 `115 master fusion+` 新增的大功能模块）。
-- **强制规则**：每次新增主要功能模块、独立页面/面板、新数据源/同步机制或新增用户可见设置项时，**必须在提交前同步更新 `docs/FEATURES.md` 第二部分**（归入对应模块或新增 `2.x` 模块小节）；纯 bugfix、内部重构或样式微调无需记录。详见 `docs/agents/feature-catalog.md`。
+- 插件全部核心功能总览维护在 `@docs/FEATURES.md`（第一部分为继承自 `115master` 与 `fusion` 的基础功能，第二部分为本新版 `115 master fusion+` 新增的大功能模块），用户向 Wiki 说明书维护在 `@docs/PRODUCT_MANUAL.md`。
+- **强制规则**：每次新增主要功能模块、独立页面/面板、新数据源/同步机制、筛选/排序维度或新增用户可见设置项时，**必须在提交前同步更新 `docs/FEATURES.md` 第二部分与 `docs/PRODUCT_MANUAL.md` 对应章节**；纯 bugfix、内部重构或样式微调无需记录。详见 `docs/agents/feature-catalog.md`。

@@ -285,14 +285,16 @@
                   <span v-else-if="entry.files.length > 1" class="badge badge-accent badge-soft text-xs">
                     {{ entry.files.length }} 个版本
                   </span>
-                  <span
+                  <button
                     v-if="uncensoredBadge"
-                    :title="uncensoredBadge.title"
-                    class="inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-wider shadow-xs"
+                    type="button"
+                    :title="`${uncensoredBadge.title}（点击筛选同类）`"
+                    class="inline-flex cursor-pointer items-center rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-wider shadow-xs transition-opacity hover:opacity-90"
                     :class="uncensoredBadge.badgeClass"
+                    @click="openUncensoredInLibrary(entry.uncensoredKind)"
                   >
                     {{ uncensoredBadge.fullLabel }}
-                  </span>
+                  </button>
                   <button
                     v-for="label in entry.driveLabels"
                     :key="label.id"
@@ -808,7 +810,7 @@
 import type { ActionMenuGroup } from '@115master/ui'
 import type { VideoCover } from '@/hooks/useVideoCover'
 import type { Marker } from '@/utils/markers/types'
-import type { LibraryFileItem, MediaActor, MediaPreview, PosterThumbResource } from '@/utils/mediaIndex'
+import type { LibraryFileItem, MediaActor, MediaPreview, PosterThumbResource, UncensoredKind } from '@/utils/mediaIndex'
 import { Core } from '@115master/drive115'
 import { ActionMenu, Button, Empty, Image, StatusFeedback } from '@115master/ui'
 import { format } from '@115master/utils'
@@ -1699,6 +1701,15 @@ function openDirectorInLibrary(name: string) {
 function openPublisherInLibrary(name: string) {
   store.resetFilters()
   store.filter.publisher = name
+  store.scrollTop = 0
+  void router.push({ name: 'library' })
+}
+
+function openUncensoredInLibrary(kind?: UncensoredKind) {
+  if (!kind)
+    return
+  store.resetFilters()
+  store.filter.uncensoredKind = kind
   store.scrollTop = 0
   void router.push({ name: 'library' })
 }

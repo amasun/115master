@@ -78,14 +78,16 @@
       </div>
 
       <!-- 右上角：无码 / 去码角标 -->
-      <span
+      <button
         v-if="uncensoredBadge"
-        :title="uncensoredBadge.title"
-        class="pointer-events-none absolute top-2 right-2 inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm"
+        type="button"
+        :title="`${uncensoredBadge.title}（点击筛选）`"
+        class="absolute top-2 right-2 inline-flex cursor-pointer items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm transition-transform hover:scale-105"
         :class="uncensoredBadge.badgeClass"
+        @click.stop="store.selectUncensoredKind(props.entry.uncensoredKind)"
       >
         {{ uncensoredBadge.shortLabel }}
-      </span>
+      </button>
 
       <!-- 左下角：评分与评价人数角标 -->
       <span

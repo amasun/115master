@@ -245,5 +245,42 @@ describe('libraryAggregator auto collection', () => {
 
     expect(filtered).toHaveLength(7)
     expect(filtered.some(e => e.mediaKey === 'jav:JUQ100')).toBe(false)
+
+    expect(index.byUncensored.get('ltx')?.has('jav:IPX811')).toBe(true)
+    expect(index.byUncensored.get('native')?.has('jav:FC2PPV1234567')).toBe(true)
+
+    const byKind = index.query({
+      view: 'all',
+      keyword: '',
+      scrapeStatus: 'all',
+      onlyStarred: false,
+      onlyMarked: false,
+      uncensoredKind: 'ltx',
+      sortBy: 'mtime',
+      sortAsc: false,
+    })
+    expect(byKind.map(e => e.mediaKey)).toEqual(['jav:IPX811'])
+
+    const byKeywordUncensored = index.query({
+      view: 'all',
+      keyword: '无码',
+      scrapeStatus: 'all',
+      onlyStarred: false,
+      onlyMarked: false,
+      sortBy: 'mtime',
+      sortAsc: false,
+    })
+    expect(byKeywordUncensored).toHaveLength(7)
+
+    const byKeywordLtx = index.query({
+      view: 'all',
+      keyword: 'ltx',
+      scrapeStatus: 'all',
+      onlyStarred: false,
+      onlyMarked: false,
+      sortBy: 'mtime',
+      sortAsc: false,
+    })
+    expect(byKeywordLtx.map(e => e.mediaKey)).toEqual(['jav:IPX811'])
   })
 })

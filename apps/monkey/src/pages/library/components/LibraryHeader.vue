@@ -315,6 +315,7 @@ function handleBreadcrumbClick(item: LibraryBreadcrumbItem) {
     || (!keep.has('genre') && Boolean(store.filter.genre))
     || (!keep.has('director') && Boolean(store.filter.director))
     || (!keep.has('publisher') && Boolean(store.filter.publisher))
+    || (!keep.has('uncensoredKind') && Boolean(store.filter.uncensoredKind))
   )
 
   if (!keep.has('view'))
@@ -329,6 +330,8 @@ function handleBreadcrumbClick(item: LibraryBreadcrumbItem) {
     store.filter.director = undefined
   if (!keep.has('publisher'))
     store.filter.publisher = undefined
+  if (!keep.has('uncensoredKind'))
+    store.selectUncensoredKind(undefined)
 
   if (scopeChanged)
     store.scrollTop = 0
@@ -392,6 +395,7 @@ const breadcrumbs = computed(() =>
     genre: store.filter.genre,
     director: store.filter.director,
     publisher: store.filter.publisher,
+    uncensoredKind: store.filter.uncensoredKind,
     driveLabelId: store.filter.driveLabel,
     driveLabelName: activeDriveLabelName.value,
     detailLabel: detailLabel.value,
@@ -420,6 +424,8 @@ const subFilterCount = computed(() => {
   if (store.filter.onlyLtx)
     count += 1
   if (store.filter.onlyUncensored)
+    count += 1
+  if (store.filter.uncensoredKind)
     count += 1
   return count
 })

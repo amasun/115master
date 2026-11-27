@@ -13,6 +13,7 @@ import type {
   LibraryIndex,
   LibraryView,
   ScrapeResult,
+  UncensoredKind,
   UnifiedMediaMeta,
 } from '@/utils/mediaIndex'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
@@ -171,6 +172,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     onlyMarked: false,
     onlyLtx: false,
     onlyUncensored: false,
+    uncensoredKind: undefined,
     sortBy: 'mtime',
     sortAsc: false,
   })
@@ -1433,6 +1435,10 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.driveLabel = !labelId || filter.driveLabel === labelId ? undefined : labelId
   }
 
+  function selectUncensoredKind(kind?: UncensoredKind) {
+    filter.uncensoredKind = !kind || filter.uncensoredKind === kind ? undefined : kind
+  }
+
   function setTagRailOpen(open: boolean) {
     tagRailOpen.value = open
   }
@@ -1466,6 +1472,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     filter.onlyMarked = false
     filter.onlyLtx = false
     filter.onlyUncensored = false
+    filter.uncensoredKind = undefined
   }
 
   function resetFilters() {
@@ -1667,6 +1674,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       () => filter.onlyMarked,
       () => filter.onlyLtx,
       () => filter.onlyUncensored,
+      () => filter.uncensoredKind,
       () => filter.sortBy,
       () => filter.sortAsc,
       hideAdVideos,
@@ -1808,6 +1816,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     selectGenre,
     selectPublisher,
     selectDriveLabel,
+    selectUncensoredKind,
     setTagRailOpen,
     toggleTagRail,
     setView,

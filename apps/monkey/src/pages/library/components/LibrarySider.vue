@@ -492,13 +492,13 @@ const tagCount = computed(() =>
   tagStore.tags.length > 0 ? tagStore.tags.length : store.libraryIndex.driveLabels.length,
 )
 const isAllWorksActive = computed(() =>
-  isWallRoute.value && !store.tagRailOpen && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.driveLabel,
+  isWallRoute.value && !store.tagRailOpen && store.filter.view === 'all' && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.uncensoredKind && !store.filter.driveLabel,
 )
 const isCinemaActive = computed(() =>
-  isWallRoute.value && store.filter.view === 'cinema' && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.driveLabel,
+  isWallRoute.value && store.filter.view === 'cinema' && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.uncensoredKind && !store.filter.driveLabel,
 )
 function isSectionActive(sectionId: string): boolean {
-  return isWallRoute.value && store.filter.view === `section:${sectionId}` && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.driveLabel
+  return isWallRoute.value && store.filter.view === `section:${sectionId}` && !store.filter.actor && !store.filter.genre && !store.filter.publisher && !store.filter.uncensoredKind && !store.filter.driveLabel
 }
 function scrapeModeLabel(mode: CustomScrapeMode): string {
   if (mode === 'jav')
@@ -643,6 +643,7 @@ function selectAllWorks() {
   store.selectActor(undefined)
   store.selectGenre(undefined)
   store.selectPublisher(undefined)
+  store.selectUncensoredKind(undefined)
   store.selectDriveLabel(undefined)
   ensureLibraryWall('all')
 }
