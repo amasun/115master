@@ -61,7 +61,7 @@ export interface Settings {
   nativeFolderTarget: NativeFolderTarget
   /** 指定索引与刮削根目录（空数组表示全盘） */
   indexRootFolders: IndexRootFolder[]
-  /** 是否在侧边栏启用「院线影视」栏目（默认关闭） */
+  /** 是否在侧边栏启用「院线影视」栏目（默认开启） */
   enableCinemaLibrary: boolean
   /** 用户自建侧边栏目列表 */
   customSections: CustomLibrarySection[]
@@ -87,7 +87,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableFanzaSource: false,
   nativeFolderTarget: 'new',
   indexRootFolders: [],
-  enableCinemaLibrary: false,
+  enableCinemaLibrary: true,
   customSections: [],
   tmdbApiKey: '',
   tmdbProxyUrl: '',
