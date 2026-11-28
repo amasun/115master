@@ -1,6 +1,8 @@
 <div align="center">
 
-<p><img src="./apps/monkey/src/assets/logo-wordmark.svg" alt="115master fusion+" width="500" /></p>
+<p><img src="./docs/assets/app-icon.png" alt="115master fusion+ icon" width="112" /></p>
+
+<p><img src="./apps/monkey/src/assets/logo-wordmark.svg" alt="115master fusion+" width="420" /></p>
 
 [![GitHub Release](https://img.shields.io/github/v/release/amasun/115master?include_prereleases&logo=github)](https://github.com/amasun/115master/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master/115master-fusion.user.js?logo=github)](https://github.com/amasun/115master/releases)
