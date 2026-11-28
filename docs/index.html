@@ -9,6 +9,7 @@
       content="115 master fusion+ 产品说明书（Wiki）：真影视库、多源刮削、超级搜索、MASTER 播放器、去重清理与跨设备备份"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+    <link rel="icon" type="image/png" href="assets/app-icon.png" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css"
@@ -23,13 +24,37 @@
       .markdown-section {
         max-width: 900px;
       }
+      .sidebar .app-name {
+        padding: 0 16px;
+      }
+      .sidebar .app-name-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .app-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .app-brand-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+      .app-brand-title {
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
     </style>
   </head>
   <body>
     <div id="app">加载中...</div>
     <script>
       window.$docsify = {
-        name: '115master fusion+',
+        name: '<span class="app-brand"><img src="assets/app-icon.png" alt="115master fusion+" class="app-brand-icon" /><span class="app-brand-title">115master fusion+</span></span>',
         repo: 'amasun/115master',
         homepage: 'PRODUCT_MANUAL.md',
         loadSidebar: true,
