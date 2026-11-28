@@ -63,9 +63,9 @@
         </span>
         <span
           v-if="entry.markerCount > 0"
-          class="inline-flex items-center gap-0.5 rounded-md border border-[#8B5CF6]/30 bg-[#8B5CF6]/20 px-1.5 py-0.5 text-[11px] font-medium text-[#C4B5FD] tabular-nums backdrop-blur-xs"
+          class="inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white tabular-nums backdrop-blur-xs"
         >
-          <Icon :name="I.MARKER" class="text-[11px]" />
+          <Icon :name="I.MARKER" :filled="true" class="text-[11px] text-white" />
           <span>{{ entry.markerCount }}</span>
         </span>
       </div>

@@ -151,3 +151,34 @@
 .preferences-solid-drawer .toggle:not(:checked) {
   border-color: var(--pref-border-strong);
 }
+
+/* 全局暗色应用与弹窗（偏好设置 / 新建栏目 / 超级搜索）统一采用主题亮绿 + 无色复选框，去除 #0b84ff 蓝色 */
+#my-app[data-theme='dark'],
+[data-ui-dialog][data-theme='dark'],
+[data-ui-drawer][data-theme='dark'],
+.preferences-solid-dialog[data-theme='dark'],
+.preferences-solid-drawer[data-theme='dark'] {
+  --color-primary: #b6f508;
+  --color-primary-content: #09090b;
+}
+
+#my-app[data-theme='dark'] .checkbox,
+[data-ui-dialog][data-theme='dark'] .checkbox,
+[data-ui-drawer][data-theme='dark'] .checkbox,
+.preferences-solid-dialog[data-theme='dark'] .checkbox,
+.preferences-solid-drawer[data-theme='dark'] .checkbox {
+  --input-color: #d4d4d8;
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: transparent;
+  color: #09090b;
+}
+
+#my-app[data-theme='dark'] .checkbox:checked,
+[data-ui-dialog][data-theme='dark'] .checkbox:checked,
+[data-ui-drawer][data-theme='dark'] .checkbox:checked,
+.preferences-solid-dialog[data-theme='dark'] .checkbox:checked,
+.preferences-solid-drawer[data-theme='dark'] .checkbox:checked {
+  border-color: #e4e4e7;
+  background-color: #e4e4e7;
+  color: #09090b;
+}

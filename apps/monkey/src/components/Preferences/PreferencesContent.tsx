@@ -637,7 +637,7 @@ const PreferencesContent = defineComponent({
               <label class="text-base-content/90 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
-                  class="checkbox checkbox-xs checkbox-primary"
+                  class="checkbox checkbox-xs"
                   checked={exportIncludeCustomMedia.value}
                   onChange={event => exportIncludeCustomMedia.value = (event.target as HTMLInputElement).checked}
                 />
@@ -646,7 +646,7 @@ const PreferencesContent = defineComponent({
               <label class="text-base-content/90 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
-                  class="checkbox checkbox-xs checkbox-primary"
+                  class="checkbox checkbox-xs"
                   checked={exportIncludePosterThumbs.value}
                   onChange={event => exportIncludePosterThumbs.value = (event.target as HTMLInputElement).checked}
                 />
