@@ -169,9 +169,9 @@ export default defineConfig({
           icon: logoSvg,
         },
         'downloadURL':
-          'https://github.com/amasun/115master-fusion-plus/releases/latest/download/115master-fusion.user.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master-fusion.user.js',
         'updateURL':
-          'https://github.com/amasun/115master-fusion-plus/releases/latest/download/115master-fusion.meta.js',
+          'https://github.com/amasun/115master/releases/latest/download/115master-fusion.meta.js',
       },
       build: {
         fileName: '115master-fusion.user.js',
