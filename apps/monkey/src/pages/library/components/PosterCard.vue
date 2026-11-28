@@ -47,15 +47,8 @@
         </span>
       </div>
 
-      <!-- 左上角：星标、多版本/合集与打点角标 -->
+      <!-- 左上角：多版本/合集与打点角标 -->
       <div class="pointer-events-none absolute top-2 left-2 flex flex-wrap gap-1">
-        <span
-          v-if="entry.starred"
-          title="已星标收藏"
-          class="badge badge-warning badge-xs rounded-full px-1.5 py-2 text-[11px] shadow-xs"
-        >
-          <Icon :name="I.STAR_FILL" class="text-[11px]" />
-        </span>
         <span
           v-if="isCollection"
           class="ui-glass-overlay text-primary inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
@@ -77,17 +70,29 @@
         </span>
       </div>
 
-      <!-- 右上角：无码 / 去码角标 -->
-      <button
-        v-if="uncensoredBadge"
-        type="button"
-        :title="`${uncensoredBadge.title}（点击筛选）`"
-        class="absolute top-2 right-2 inline-flex cursor-pointer items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm transition-transform hover:scale-105"
-        :class="uncensoredBadge.badgeClass"
-        @click.stop="store.selectUncensoredKind(props.entry.uncensoredKind)"
+      <!-- 右上角：无码 / 去码角标与收藏星标 -->
+      <div
+        v-if="uncensoredBadge || entry.starred"
+        class="pointer-events-none absolute top-2 right-2 flex items-center gap-1.5"
       >
-        {{ uncensoredBadge.shortLabel }}
-      </button>
+        <button
+          v-if="uncensoredBadge"
+          type="button"
+          :title="`${uncensoredBadge.title}（点击筛选）`"
+          class="pointer-events-auto inline-flex cursor-pointer items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm transition-transform hover:scale-105"
+          :class="uncensoredBadge.badgeClass"
+          @click.stop="store.selectUncensoredKind(props.entry.uncensoredKind)"
+        >
+          {{ uncensoredBadge.shortLabel }}
+        </button>
+        <span
+          v-if="entry.starred"
+          title="已星标收藏"
+          class="fav-icon-outline inline-flex items-center justify-center text-amber-400 drop-shadow-sm"
+        >
+          <Icon :name="I.STAR_FILL" size="custom" class="size-5" />
+        </span>
+      </div>
 
       <!-- 左下角：评分与评价人数角标 -->
       <span
@@ -414,3 +419,18 @@ function playPrimary() {
   store.openPlayerOverlay(primaryFile.value.pickCode)
 }
 </script>
+
+<style scoped>
+.fav-icon-outline :deep(svg) {
+  overflow: visible;
+}
+
+.fav-icon-outline :deep(path) {
+  stroke: #fff;
+  stroke-width: 4px;
+  vector-effect: non-scaling-stroke;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+</style>

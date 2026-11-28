@@ -4,6 +4,7 @@ import { normalizeAvNumber } from '@/utils/jav/jav'
 
 const LTX_FILENAME_RE = /(?:^|[^A-Z0-9])LTX(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
 const LADA_FILENAME_RE = /(?:^|[^A-Z0-9])LADA(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
+const RESTORED_FILENAME_RE = /(?:^|[^A-Z0-9])RESTORED(?=[^A-Z0-9]|$)/i
 const NATIVE_UNCENSORED_CODE_RE = /(?:^|[^A-Z0-9])(?:FC2[-_\s]?PPV[-_\s]?\d+|HEYZO[-_\s]?\d{4}|CARIB(?:BEAN(?:COM)?)?[-_\s]?\d{6}[-_]\d{3}|1PON(?:DO)?[-_\s]?\d{6}[-_]\d{3}|10MUSUME[-_\s]?\d{6}[-_]\d{2,3}|PACO(?:PACOMAMA)?[-_\s]?\d{6}[-_]\d{3}|(?:LAFBD|CWPBD|MKBD|SMBD|KIBD|MCBD|S2MBD|SKYHD|CWP|MKD|SMD|LAF|SKY|DRC|RHJ|GACHI|XXX-AV|CWDV|HEYDOUGA|H0930|H4610|C0930|KIN8|MURAMURA|MESUBUTA|NYOSHIN)[-_\s]?\d+|[NK]\d{4}|\d{6}[-_]\d{3})(?=[^A-Z0-9]|$)/i
 const NATIVE_TEXT_RE = /原生(?:无码|無碼)|步兵/
 const DEMOSAIC_TEXT_RE = /去码|去碼|破坏版|破壞版|demosaic|mosaic[-_\s]?removed|reducing[-_\s]?mosaic/i
@@ -73,11 +74,15 @@ export function isLtxFileName(fileName?: string | null): boolean {
   return LTX_FILENAME_RE.test(fileName)
 }
 
-/** 判断文件名是否包含 LADA 去码标记 */
-export function isLadaFileName(fileName?: string | null): boolean {
+/** 判断文件名是否包含 LADA 去码标记（含 restored 标记） */
+export function isLadaFileName(
+  fileName?: string | null,
+  options?: { allowRestored?: boolean },
+): boolean {
   if (!fileName)
     return false
   return LADA_FILENAME_RE.test(fileName)
+    || (options?.allowRestored !== false && RESTORED_FILENAME_RE.test(fileName))
 }
 
 function pickHigherUncensoredKind(
@@ -118,7 +123,7 @@ export function detectFileUncensoredKind(
   if (name) {
     if (LTX_FILENAME_RE.test(name))
       return 'ltx'
-    if (LADA_FILENAME_RE.test(name))
+    if (isLadaFileName(name, { allowRestored: options?.allowNativeCode !== false }))
       return 'lada'
     if (NATIVE_TEXT_RE.test(name))
       return 'native'

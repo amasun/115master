@@ -182,6 +182,6 @@
 
 ## 附录 B：文档定期维护规约
 
-- 本文档为 `115 master fusion+` 的**用户向百科式产品说明书**，与面向模块清单的 [FEATURES.md](file:///Users/apple/Documents/Xcoding/115master/docs/FEATURES.md) 配套维护。
-- **同步更新触发条件**：每当新增主要功能模块、独立页面/面板、新数据源/同步机制、新的筛选/排序维度或用户可见的交互与设置项时，需在提交前同步更新对应章节（同步规则见 [feature-catalog.md](file:///Users/apple/Documents/Xcoding/115master/docs/agents/feature-catalog.md)）。
+- 本文档为 `115 master fusion+` 的**用户向百科式产品说明书**，与面向模块清单的 [FEATURES.md](FEATURES.md) 配套维护。
+- **同步更新触发条件**：每当新增主要功能模块、独立页面/面板、新数据源/同步机制、新的筛选/排序维度或用户可见的交互与设置项时，需在提交前同步更新对应章节（同步规则见 [feature-catalog.md](agents/feature-catalog.md)）。
 - **巡检建议**：每积累一个功能迭代周期或发版前，对照 `docs/FEATURES.md` 与最近提交记录检查本说明书各章节是否遗漏新功能或过时描述。

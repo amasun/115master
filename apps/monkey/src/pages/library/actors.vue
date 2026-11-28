@@ -174,13 +174,13 @@
             :title="store.isActorFavorite(actor.key) ? '取消收藏' : '收藏演员'"
             :aria-label="store.isActorFavorite(actor.key) ? '取消收藏' : '收藏演员'"
             :aria-pressed="store.isActorFavorite(actor.key)"
-            class="btn btn-circle btn-xs absolute top-2 right-2 z-10 border border-white/15 bg-black/65 shadow-sm backdrop-blur-xs transition-all hover:bg-black/85"
+            class="fav-icon-outline absolute top-2 right-2 z-10 inline-flex cursor-pointer items-center justify-center p-0.5 drop-shadow-sm transition-all hover:scale-110"
             :class="store.isActorFavorite(actor.key)
               ? 'text-rose-500 opacity-100'
-              : 'text-white/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-rose-400'"
+              : 'text-rose-400/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-rose-500'"
             @click.stop="handleToggleFavorite(actor)"
           >
-            <Icon :name="store.isActorFavorite(actor.key) ? I.HEART_FILL : I.HEART" class="text-xs" />
+            <Icon :name="store.isActorFavorite(actor.key) ? I.HEART_FILL : I.HEART" size="custom" class="size-5" />
           </button>
 
           <!-- 左上角：有打点作品数 -->
@@ -454,3 +454,18 @@ function openActorWorks(name: string) {
   void router.push({ name: 'library' })
 }
 </script>
+
+<style scoped>
+.fav-icon-outline :deep(svg) {
+  overflow: visible;
+}
+
+.fav-icon-outline :deep(path) {
+  stroke: #fff;
+  stroke-width: 4px;
+  vector-effect: non-scaling-stroke;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+</style>
