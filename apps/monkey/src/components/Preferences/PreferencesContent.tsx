@@ -172,8 +172,6 @@ const PreferencesContent = defineComponent({
     const nativeFolderTarget = useUserSetting('nativeFolderTarget')
     const indexRootFolders = useUserSetting('indexRootFolders')
     const enableCinemaLibrary = useUserSetting('enableCinemaLibrary')
-    const tmdbApiKey = useUserSetting('tmdbApiKey')
-    const tmdbProxyUrl = useUserSetting('tmdbProxyUrl')
     const backupBusy = shallowRef(false)
     const exportIncludeCustomMedia = shallowRef(true)
     const exportIncludePosterThumbs = shallowRef(false)
@@ -194,7 +192,7 @@ const PreferencesContent = defineComponent({
       const picked = await openIndexFolderPicker({
         title: category === 'cinema' ? '选择院线影视目录（可多选）' : '选择 AV / 番号影视目录（可多选）',
         description: category === 'cinema'
-          ? '选中的目录将归类为「院线影视」，使用 TMDB / 豆瓣刮削电影与剧集。'
+          ? '选中的目录将归类为「院线影视」，内置电影与剧集自动刮削。'
           : '选中的目录将作为「番号影视」AV 扫描范围；不选时默认扫描全盘。',
         initialFolders: current,
         fixedCategory: category,
@@ -557,7 +555,7 @@ const PreferencesContent = defineComponent({
               <SettingToggle
                 icon={I.FILE_VIDEO}
                 label="启用院线影视栏目"
-                description="开启后在侧边栏显示「院线影视」，支持 TMDB / 豆瓣刮削"
+                description="开启后在侧边栏显示「院线影视」，内置电影与剧集自动刮削"
                 modelValue={enableCinemaLibrary.value}
                 onUpdate:modelValue={(value) => {
                   enableCinemaLibrary.value = value
@@ -622,46 +620,6 @@ const PreferencesContent = defineComponent({
                       </button>
                     )}
                   </div>
-                  <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
-                    <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="flex items-center gap-1.5">
-                        <span class="pref-text-muted font-medium">TMDB API Key（可选）</span>
-                        <a
-                          href="https://www.themoviedb.org/settings/api"
-                          target="_blank"
-                          rel="noreferrer"
-                          class="text-primary text-[11px] font-medium hover:underline"
-                        >
-                          免费申请 ↗
-                        </a>
-                      </span>
-                      <span class="pref-text-subtle text-[11px]">已内置免 Key 加速，填写则优先用个人额度</span>
-                    </div>
-                    <input
-                      id="tmdb-api-key-input"
-                      type="password"
-                      autocomplete="off"
-                      placeholder="可选，支持 v3 API Key 或 v4 Read Token"
-                      class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
-                      value={tmdbApiKey.value}
-                      onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
-                    />
-                  </label>
-                  <label class="flex flex-col gap-1 pt-1" for="tmdb-proxy-url-input">
-                    <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="pref-text-muted font-medium">TMDB 反代地址（可选）</span>
-                      <span class="pref-text-subtle text-[11px]">留空默认使用内置 Cloudflare 加速反代</span>
-                    </div>
-                    <input
-                      id="tmdb-proxy-url-input"
-                      type="url"
-                      autocomplete="off"
-                      placeholder="可选，如 https://tmdb-proxy.example.com（留空走内置加速）"
-                      class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
-                      value={tmdbProxyUrl.value}
-                      onInput={event => tmdbProxyUrl.value = (event.target as HTMLInputElement).value.trim()}
-                    />
-                  </label>
                 </div>
               )}
             </div>
