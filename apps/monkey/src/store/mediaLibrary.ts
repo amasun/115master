@@ -36,6 +36,7 @@ import { folderPathResolver } from '@/utils/driveFolderPath'
 import { getAvNumber } from '@/utils/getNumber'
 import { normalizeAvNumber } from '@/utils/jav/jav'
 import { appLogger } from '@/utils/logger'
+import { pullUserNoteFromFileDesc, pushUserNoteToFileDesc } from '@/utils/markers/descCodec'
 import {
   aggregateLibraryEntries,
   analyzeDuplicateGroupsAsync,
@@ -202,6 +203,8 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const hiddenActorKeySet = computed(() => new Set(hiddenActorKeys.value))
   const favoriteActorKeys = useStorage<string[]>('115Master_library_favorite_actors', [])
   const favoriteActorKeySet = computed(() => new Set(favoriteActorKeys.value))
+  const actorNotes = useStorage<Record<string, string>>('115Master_library_actor_notes_v1', {})
+  const mediaNotes = useStorage<Record<string, string>>('115Master_library_media_notes_v1', {})
   const customCollections = useStorage<Record<string, CollectionCustomMeta>>(COLLECTION_CUSTOM_META_STORAGE_KEY, {})
   const ungroupedCollectionCids = useStorage<string[]>(UNGROUPED_COLLECTION_CIDS_STORAGE_KEY, [])
   const ungroupedCollectionCidSet = computed(() => new Set(ungroupedCollectionCids.value))
@@ -1053,7 +1056,11 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
   const filteredEntries = computed(() =>
     libraryIndex.value.query(
       filter,
-      hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : undefined,
+      {
+        ...(hideAdVideos.value ? { excludeKeys: adEntryKeySet.value } : {}),
+        mediaNotes: mediaNotes.value,
+        actorNotes: actorNotes.value,
+      },
     ),
   )
   const visibleEntryCount = computed(() =>
@@ -1414,6 +1421,77 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     return true
   }
 
+  function getActorNote(actorKey: string): string {
+    return actorKey ? (actorNotes.value[actorKey] ?? '') : ''
+  }
+
+  function setActorNote(actorKey: string, note: string) {
+    if (!actorKey)
+      return
+    const trimmed = note.trim()
+    const next = { ...actorNotes.value }
+    if (trimmed)
+      next[actorKey] = trimmed
+    else
+      delete next[actorKey]
+    actorNotes.value = next
+  }
+
+  function getMediaNote(mediaKey: string): string {
+    return mediaKey ? (mediaNotes.value[mediaKey] ?? '') : ''
+  }
+
+  async function setMediaNote(
+    mediaKey: string,
+    note: string,
+    options?: { syncToDriveFileIds?: string[] },
+  ): Promise<{ syncedCount: number, failedCount: number, truncated?: boolean }> {
+    if (!mediaKey)
+      return { syncedCount: 0, failedCount: 0 }
+    const trimmed = note.trim()
+    const next = { ...mediaNotes.value }
+    if (trimmed)
+      next[mediaKey] = trimmed
+    else
+      delete next[mediaKey]
+    mediaNotes.value = next
+
+    const fileIds = Array.from(new Set((options?.syncToDriveFileIds ?? []).filter(Boolean)))
+    if (fileIds.length === 0)
+      return { syncedCount: 0, failedCount: 0 }
+
+    let syncedCount = 0
+    let failedCount = 0
+    let truncated = false
+    for (const fileId of fileIds) {
+      const res = await pushUserNoteToFileDesc(fileId, trimmed)
+      if (res.ok) {
+        syncedCount += 1
+      }
+      else {
+        failedCount += 1
+        if (res.truncated)
+          truncated = true
+      }
+    }
+    return { syncedCount, failedCount, truncated }
+  }
+
+  async function syncMediaNoteFromDrive(mediaKey: string, fileId: string): Promise<string | null> {
+    if (!mediaKey || !fileId)
+      return null
+    const remoteNote = await pullUserNoteFromFileDesc(fileId)
+    if (remoteNote === null)
+      return null
+    if (remoteNote && remoteNote !== (mediaNotes.value[mediaKey] ?? '')) {
+      mediaNotes.value = {
+        ...mediaNotes.value,
+        [mediaKey]: remoteNote,
+      }
+    }
+    return remoteNote
+  }
+
   function selectActor(name?: string) {
     filter.actor = !name || filter.actor === name ? undefined : name
   }
@@ -1749,6 +1827,13 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
     hiddenActorKeySet,
     favoriteActorKeys,
     favoriteActorKeySet,
+    actorNotes,
+    mediaNotes,
+    getActorNote,
+    setActorNote,
+    getMediaNote,
+    setMediaNote,
+    syncMediaNoteFromDrive,
     scrollTop,
     tagRailOpen,
     actorAvatars,

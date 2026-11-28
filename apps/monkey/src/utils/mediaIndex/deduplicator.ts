@@ -13,12 +13,10 @@ const UNCENSORED_SUFFIX_RE = /[_-]UC?(?=\.[^.]+$|[-_](?:C|CH|CHS|CHT|SUB|4K|1080
 const UNCENSORED_TEXT_RE = /无码|無碼|无修正|無修正|uncensored/i
 
 const UNCENSORED_PRIORITY: Record<UncensoredKind, number> = {
-  ltx: 6,
-  lada: 5,
-  native: 4,
-  demosaic: 3,
-  cracked: 2,
-  uncensored: 1,
+  ltx: 4,
+  lada: 3,
+  native: 2,
+  cracked: 1,
 }
 
 export interface UncensoredBadgeMeta {
@@ -31,39 +29,27 @@ export interface UncensoredBadgeMeta {
 const UNCENSORED_BADGE_MAP: Record<UncensoredKind, UncensoredBadgeMeta> = {
   ltx: {
     shortLabel: 'LTX',
-    fullLabel: 'LTX 高级去码',
+    fullLabel: 'LTX',
     title: 'LTX 高级去码版',
     badgeClass: 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white ring-1 ring-white/25',
   },
   lada: {
     shortLabel: 'LADA',
-    fullLabel: 'LADA 去码',
-    title: 'LADA 高级去码版',
+    fullLabel: 'LADA',
+    title: 'LADA 去码版',
     badgeClass: 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white ring-1 ring-white/20',
   },
   native: {
     shortLabel: '无码',
-    fullLabel: '原生无码',
-    title: '原生无码作品',
+    fullLabel: '无码',
+    title: '原生无码',
     badgeClass: 'bg-emerald-500/90 text-white',
-  },
-  demosaic: {
-    shortLabel: '去码',
-    fullLabel: '去码 / 破坏版',
-    title: '去码 / 破坏版',
-    badgeClass: 'bg-rose-500/90 text-white',
   },
   cracked: {
     shortLabel: '破解',
-    fullLabel: '无码破解 / 流出',
-    title: '无码破解 / 流出版',
+    fullLabel: '破解',
+    title: '破解 / 去码 / 无码流出',
     badgeClass: 'bg-amber-500/90 text-black',
-  },
-  uncensored: {
-    shortLabel: '无码',
-    fullLabel: '无码',
-    title: '无码版本',
-    badgeClass: 'bg-emerald-500/90 text-white',
   },
 }
 
@@ -96,54 +82,64 @@ function pickHigherUncensoredKind(
   return UNCENSORED_PRIORITY[candidate] > UNCENSORED_PRIORITY[current] ? candidate : current
 }
 
-function detectTextUncensoredKind(text?: string | null): UncensoredKind | undefined {
+function detectTextUncensoredKind(
+  text: string | null | undefined,
+  options: { isNativeFromStudio: boolean, allowDirectNative?: boolean },
+): UncensoredKind | undefined {
   if (!text)
     return undefined
   if (LTX_FILENAME_RE.test(text))
     return 'ltx'
   if (LADA_FILENAME_RE.test(text))
     return 'lada'
-  if (NATIVE_TEXT_RE.test(text))
-    return 'native'
-  if (DEMOSAIC_TEXT_RE.test(text))
-    return 'demosaic'
-  if (CRACKED_TEXT_RE.test(text))
+  if (DEMOSAIC_TEXT_RE.test(text) || CRACKED_TEXT_RE.test(text))
     return 'cracked'
+  if (NATIVE_TEXT_RE.test(text)) {
+    if (options.isNativeFromStudio || options.allowDirectNative)
+      return 'native'
+    return 'cracked'
+  }
   if (UNCENSORED_TEXT_RE.test(text))
-    return 'uncensored'
+    return options.isNativeFromStudio ? 'native' : 'cracked'
   return undefined
 }
 
-/** 识别单个文件的无码 / 去码来源类型 */
+/** 识别单个文件的无码 / 破解 / 去码来源类型（先判定 AI 去码与原生无码厂商，再处理文件名关键词冲突） */
 export function detectFileUncensoredKind(
   fileName?: string | null,
   options?: { externalId?: string, allowNativeCode?: boolean },
 ): UncensoredKind | undefined {
   const name = fileName?.trim() ?? ''
+  const allowNativeCode = options?.allowNativeCode !== false
   if (name) {
     if (LTX_FILENAME_RE.test(name))
       return 'ltx'
-    if (isLadaFileName(name, { allowRestored: options?.allowNativeCode !== false }))
+    if (isLadaFileName(name, { allowRestored: allowNativeCode }))
       return 'lada'
-    if (NATIVE_TEXT_RE.test(name))
-      return 'native'
   }
-  if (options?.allowNativeCode !== false) {
-    if ((name && NATIVE_UNCENSORED_CODE_RE.test(name)) || (options?.externalId && NATIVE_UNCENSORED_CODE_RE.test(options.externalId)))
-      return 'native'
-  }
+
+  const isNativeCode = allowNativeCode && (
+    (Boolean(name) && (NATIVE_UNCENSORED_CODE_RE.test(name) || NATIVE_TEXT_RE.test(name)))
+    || (options?.externalId ? NATIVE_UNCENSORED_CODE_RE.test(options.externalId) : false)
+  )
+  if (isNativeCode)
+    return 'native'
+
   if (!name)
     return undefined
-  if (DEMOSAIC_TEXT_RE.test(name))
-    return 'demosaic'
-  if (CRACKED_TEXT_RE.test(name))
+
+  if (
+    DEMOSAIC_TEXT_RE.test(name)
+    || CRACKED_TEXT_RE.test(name)
+    || UNCENSORED_SUFFIX_RE.test(name)
+    || UNCENSORED_TEXT_RE.test(name)
+  ) {
     return 'cracked'
-  if (UNCENSORED_SUFFIX_RE.test(name) || UNCENSORED_TEXT_RE.test(name))
-    return 'uncensored'
+  }
   return undefined
 }
 
-/** 综合文件、网盘标签、题材与标题识别作品的无码 / 去码来源类型 */
+/** 综合文件、网盘标签、题材与标题识别作品的无码 / 破解 / 去码来源类型 */
 export function detectEntryUncensoredKind(params: {
   kind: LibraryEntry['kind']
   externalId?: string
@@ -152,6 +148,10 @@ export function detectEntryUncensoredKind(params: {
   driveLabels: ReadonlyArray<{ name: string }>
 }): UncensoredKind | undefined {
   const allowNativeCode = params.kind !== 'movie' && params.kind !== 'tv'
+  const isNativeFromStudio = allowNativeCode && Boolean(
+    (params.externalId && NATIVE_UNCENSORED_CODE_RE.test(params.externalId))
+    || params.files.some(file => NATIVE_UNCENSORED_CODE_RE.test(file.name)),
+  )
   let best: UncensoredKind | undefined
 
   for (const file of params.files) {
@@ -161,13 +161,35 @@ export function detectEntryUncensoredKind(params: {
     )
   }
 
-  for (const label of params.driveLabels)
-    best = pickHigherUncensoredKind(best, detectTextUncensoredKind(label.name))
+  // 手动网盘标签首先保留为网盘标签本身；仅在含明确 LTX/LADA 或文件名无任何标识时作为兜底冲突判定
+  for (const label of params.driveLabels) {
+    if (LTX_FILENAME_RE.test(label.name)) {
+      best = pickHigherUncensoredKind(best, 'ltx')
+      continue
+    }
+    if (LADA_FILENAME_RE.test(label.name)) {
+      best = pickHigherUncensoredKind(best, 'lada')
+      continue
+    }
+    if (!best) {
+      best = pickHigherUncensoredKind(
+        best,
+        detectTextUncensoredKind(label.name, { isNativeFromStudio }),
+      )
+    }
+  }
 
-  if (params.meta) {
-    for (const genre of params.meta.genres)
-      best = pickHigherUncensoredKind(best, detectTextUncensoredKind(genre))
-    best = pickHigherUncensoredKind(best, detectTextUncensoredKind(params.meta.title))
+  if (!best && params.meta) {
+    for (const genre of params.meta.genres) {
+      best = pickHigherUncensoredKind(
+        best,
+        detectTextUncensoredKind(genre, { isNativeFromStudio, allowDirectNative: !params.externalId }),
+      )
+    }
+    best = pickHigherUncensoredKind(
+      best,
+      detectTextUncensoredKind(params.meta.title, { isNativeFromStudio, allowDirectNative: !params.externalId }),
+    )
   }
 
   return best

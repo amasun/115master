@@ -208,7 +208,7 @@ describe('libraryAggregator auto collection', () => {
     expect(filtered.map(e => e.mediaKey)).toEqual(['jav:IPX811'])
   })
 
-  it('detects all uncensored sources (ltx, lada, native, demosaic, cracked, uncensored) and filters by onlyUncensored', async () => {
+  it('detects 5-tier uncensored/cracked sources (ltx, lada, native, cracked, censored) with studio-vs-filename/label conflict rules', async () => {
     const { aggregateLibraryEntries, buildLibraryIndex } = await import('../libraryAggregator')
 
     const entries = aggregateLibraryEntries([
@@ -216,8 +216,10 @@ describe('libraryAggregator auto collection', () => {
       makeVideo({ fid: 'u2', cid: 'd1', avNumber: 'SSIS-002', name: 'SSIS-002_LADA.mp4' }),
       makeVideo({ fid: 'u2b', cid: 'd1', avNumber: 'SSIS-003', name: 'SSIS-003_restored.mp4' }),
       makeVideo({ fid: 'u3', cid: 'd1', avNumber: 'FC2-PPV-1234567', name: 'FC2-PPV-1234567.mp4' }),
+      makeVideo({ fid: 'u3b', cid: 'd1', avNumber: 'FC2-PPV-7654321', name: 'FC2-PPV-7654321-UC.mp4' }),
       makeVideo({ fid: 'u4', cid: 'd1', avNumber: 'ABP-100', name: 'ABP-100-去码破坏版.mp4' }),
       makeVideo({ fid: 'u5', cid: 'd1', avNumber: 'MIDV-100', name: 'MIDV-100-无码破解.mp4' }),
+      makeVideo({ fid: 'u5b', cid: 'd1', avNumber: 'MIDV-101', name: 'MIDV-101-无码流出.mp4' }),
       makeVideo({ fid: 'u6', cid: 'd1', avNumber: 'STARS-100', name: 'STARS-100-UC.mp4' }),
       makeVideo({ fid: 'u7', cid: 'd1', avNumber: 'MIDE-100', name: 'MIDE-100.mp4', labels: [{ id: 't1', name: '无码收藏' }] }),
       makeVideo({ fid: 'c1', cid: 'd1', avNumber: 'JUQ-100', name: 'JUQ-100.mp4' }),
@@ -228,10 +230,12 @@ describe('libraryAggregator auto collection', () => {
     expect(entries.find(e => e.mediaKey === 'jav:SSIS002')?.uncensoredKind).toBe('lada')
     expect(entries.find(e => e.mediaKey === 'jav:SSIS003')?.uncensoredKind).toBe('lada')
     expect(entries.find(e => e.mediaKey === 'jav:FC2PPV1234567')?.uncensoredKind).toBe('native')
-    expect(entries.find(e => e.mediaKey === 'jav:ABP100')?.uncensoredKind).toBe('demosaic')
+    expect(entries.find(e => e.mediaKey === 'jav:FC2PPV7654321')?.uncensoredKind).toBe('native')
+    expect(entries.find(e => e.mediaKey === 'jav:ABP100')?.uncensoredKind).toBe('cracked')
     expect(entries.find(e => e.mediaKey === 'jav:MIDV100')?.uncensoredKind).toBe('cracked')
-    expect(entries.find(e => e.mediaKey === 'jav:STARS100')?.uncensoredKind).toBe('uncensored')
-    expect(entries.find(e => e.mediaKey === 'jav:MIDE100')?.uncensoredKind).toBe('uncensored')
+    expect(entries.find(e => e.mediaKey === 'jav:MIDV101')?.uncensoredKind).toBe('cracked')
+    expect(entries.find(e => e.mediaKey === 'jav:STARS100')?.uncensoredKind).toBe('cracked')
+    expect(entries.find(e => e.mediaKey === 'jav:MIDE100')?.uncensoredKind).toBe('cracked')
     expect(entries.find(e => e.mediaKey === 'jav:JUQ100')?.uncensoredKind).toBeUndefined()
     expect(entries.find(e => e.kind === 'movie')?.uncensoredKind).toBeUndefined()
 
@@ -247,11 +251,13 @@ describe('libraryAggregator auto collection', () => {
       sortAsc: false,
     })
 
-    expect(filtered).toHaveLength(8)
+    expect(filtered).toHaveLength(10)
     expect(filtered.some(e => e.mediaKey === 'jav:JUQ100')).toBe(false)
 
     expect(index.byUncensored.get('ltx')?.has('jav:IPX811')).toBe(true)
     expect(index.byUncensored.get('native')?.has('jav:FC2PPV1234567')).toBe(true)
+    expect(index.byUncensored.get('native')?.has('jav:FC2PPV7654321')).toBe(true)
+    expect(index.byUncensored.get('cracked')?.has('jav:MIDE100')).toBe(true)
 
     const byKind = index.query({
       view: 'all',
@@ -274,7 +280,7 @@ describe('libraryAggregator auto collection', () => {
       sortBy: 'mtime',
       sortAsc: false,
     })
-    expect(byKeywordUncensored).toHaveLength(8)
+    expect(byKeywordUncensored).toHaveLength(10)
 
     const byKeywordLtx = index.query({
       view: 'all',
@@ -286,5 +292,52 @@ describe('libraryAggregator auto collection', () => {
       sortAsc: false,
     })
     expect(byKeywordLtx.map(e => e.mediaKey)).toEqual(['jav:IPX811'])
+  })
+
+  it('matches mediaNotes and actorNotes in library keyword search', async () => {
+    const { aggregateLibraryEntries, buildLibraryIndex } = await import('../libraryAggregator')
+
+    const entries = aggregateLibraryEntries([
+      makeVideo({ fid: 'n1', cid: 'd1', avNumber: 'SSIS-900', name: 'SSIS-900.mp4' }),
+    ], new Map([
+      ['jav:SSIS900', {
+        mediaKey: 'jav:SSIS900',
+        kind: 'jav',
+        externalId: 'SSIS-900',
+        title: '测试影片',
+        actors: [{ name: '三上悠亚' }],
+        genres: [],
+        directors: [],
+        source: 'javbus',
+        updatedAt: Date.now(),
+      }],
+    ]), {})
+
+    const index = buildLibraryIndex(entries)
+    const byMediaNote = index.query({
+      view: 'all',
+      keyword: '经典二刷',
+      scrapeStatus: 'all',
+      onlyStarred: false,
+      onlyMarked: false,
+      sortBy: 'mtime',
+      sortAsc: false,
+    }, {
+      mediaNotes: { 'jav:SSIS900': '经典二刷收藏' },
+    })
+    expect(byMediaNote.map(e => e.mediaKey)).toEqual(['jav:SSIS900'])
+
+    const byActorNote = index.query({
+      view: 'all',
+      keyword: '鬼头桃菜',
+      scrapeStatus: 'all',
+      onlyStarred: false,
+      onlyMarked: false,
+      sortBy: 'mtime',
+      sortAsc: false,
+    }, {
+      actorNotes: { 三上悠亚: '曾用名：鬼头桃菜' },
+    })
+    expect(byActorNote.map(e => e.mediaKey)).toEqual(['jav:SSIS900'])
   })
 })

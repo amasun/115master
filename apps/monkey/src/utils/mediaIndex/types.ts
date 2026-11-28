@@ -15,7 +15,7 @@ export type {
 
 export type MediaKind = 'jav' | 'movie' | 'tv' | 'collection' | 'unknown'
 
-export type UncensoredKind = 'ltx' | 'lada' | 'native' | 'demosaic' | 'cracked' | 'uncensored'
+export type UncensoredKind = 'ltx' | 'lada' | 'native' | 'cracked'
 
 export interface CollectionCustomMeta {
   cid: string

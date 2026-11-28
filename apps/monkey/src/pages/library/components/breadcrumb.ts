@@ -38,12 +38,10 @@ const VIEW_LABELS: Record<'cinema' | 'starred' | 'marked', string> = {
 }
 
 const UNCENSORED_LABELS: Record<UncensoredKind, string> = {
-  ltx: 'LTX 高级去码',
-  lada: 'LADA 去码',
-  native: '原生无码',
-  demosaic: '去码 / 破坏版',
-  cracked: '无码破解 / 流出',
-  uncensored: '无码',
+  ltx: 'LTX',
+  lada: 'LADA',
+  native: '无码',
+  cracked: '破解',
 }
 
 /**

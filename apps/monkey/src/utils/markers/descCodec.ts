@@ -192,3 +192,86 @@ export async function pushMarkersToFileDesc(
     return { ok: false }
   }
 }
+
+/** 从 115 原生文件备注中提取用户手写文本（自动剥离打点同步块） */
+export function extractUserNoteFromDesc(desc: string): string {
+  if (!desc)
+    return ''
+  return desc.replace(MARKER_BLOCK_REGEX, '').trim()
+}
+
+/** 将用户备注写入 115 原生文件备注，同时无损保留已有打点同步块 */
+export function encodeUserNoteIntoDesc(
+  originalDesc: string,
+  userNote: string,
+  maxLength = MAX_FILE_DESC_LENGTH,
+): { desc: string, truncated: boolean } {
+  const trimmedNote = userNote.trim()
+  const markerMatch = originalDesc.match(MARKER_BLOCK_REGEX)
+  const markerBlock = markerMatch ? markerMatch[0].trim() : ''
+
+  let combined = ''
+  if (trimmedNote && markerBlock)
+    combined = `${trimmedNote}\n\n${markerBlock}`
+  else if (trimmedNote)
+    combined = trimmedNote
+  else
+    combined = markerBlock
+
+  if (combined.length > maxLength)
+    return { desc: originalDesc, truncated: true }
+
+  return { desc: combined, truncated: false }
+}
+
+/** 从 115 原生文件备注读取用户手写备注（剥离打点块） */
+export async function pullUserNoteFromFileDesc(fileId: string): Promise<string | null> {
+  if (!fileId)
+    return null
+  try {
+    const { drive115 } = await import('@/utils/drive115Instance')
+    const res = await drive115.file.getFileDesc({ file_id: fileId })
+    if (!res.state)
+      return null
+    const rawDesc = String(res.desc ?? res.file_desc ?? '')
+    return extractUserNoteFromDesc(rawDesc)
+  }
+  catch (error) {
+    logger.warn('读取 115 文件原生备注失败', fileId, error)
+    return null
+  }
+}
+
+/** 将用户备注无损写入 115 原生文件备注（保留打点同步块） */
+export async function pushUserNoteToFileDesc(
+  fileId: string,
+  userNote: string,
+): Promise<{ ok: boolean, truncated?: boolean }> {
+  if (!fileId)
+    return { ok: false }
+  try {
+    const { drive115 } = await import('@/utils/drive115Instance')
+    const current = await drive115.file.getFileDesc({ file_id: fileId })
+    if (!current.state)
+      return { ok: false }
+
+    const rawDesc = String(current.desc ?? current.file_desc ?? '')
+    const encoded = encodeUserNoteIntoDesc(rawDesc, userNote)
+    if (encoded.truncated) {
+      logger.warn('文件备注超出 115 备注长度上限，已跳过远端写入', fileId)
+      return { ok: false, truncated: true }
+    }
+    if (encoded.desc === rawDesc)
+      return { ok: true }
+
+    const saveRes = await drive115.file.setFileDesc({
+      file_id: fileId,
+      file_desc: encoded.desc,
+    })
+    return { ok: Boolean(saveRes.state) }
+  }
+  catch (error) {
+    logger.warn('写入 115 文件原生备注失败', fileId, error)
+    return { ok: false }
+  }
+}

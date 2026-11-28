@@ -44,6 +44,8 @@ export interface LibraryQueryOptions {
   excludeKeys?: ReadonlySet<string>
   hideAdVideos?: boolean
   adFilterOptions?: AdVideoDetectOptions
+  mediaNotes?: Readonly<Record<string, string>>
+  actorNotes?: Readonly<Record<string, string>>
 }
 
 export interface LibraryIndex {
@@ -384,15 +386,24 @@ function matchesKeyword(
   keyword: string,
   normalizedKeyword: string,
   extraActorNames?: Set<string>,
+  options?: LibraryQueryOptions,
 ): boolean {
   if (entry.externalId?.toLowerCase().includes(keyword))
     return true
   if (entry.meta?.title.toLowerCase().includes(keyword))
     return true
+  if (options?.mediaNotes?.[entry.mediaKey]?.toLowerCase().includes(keyword))
+    return true
   if (entry.files.some(file => file.name.toLowerCase().includes(keyword)))
     return true
-  if (entry.meta?.actors.some(actor => matchesActorText(actor.name, keyword, normalizedKeyword)))
+  if (entry.meta?.actors.some((actor) => {
+    if (matchesActorText(actor.name, keyword, normalizedKeyword))
+      return true
+    const actorKey = normalizeActressName(actor.name)
+    return Boolean(actorKey && options?.actorNotes?.[actorKey]?.toLowerCase().includes(keyword))
+  })) {
     return true
+  }
   if (extraActorNames && Array.from(extraActorNames).some(name => matchesActorText(name, keyword, normalizedKeyword)))
     return true
   if (entry.meta?.genres.some(genre => genre.toLowerCase().includes(keyword)))
@@ -412,11 +423,9 @@ function matchesKeyword(
 
 const UNCENSORED_SEARCH_TERMS: Record<UncensoredKind, readonly string[]> = {
   ltx: ['ltx', '无码', '無碼', '去码', '去碼', '高级去码', 'uncensored', 'demosaic'],
-  lada: ['lada', '无码', '無碼', '去码', '去碼', 'uncensored', 'demosaic'],
+  lada: ['lada', 'restored', '无码', '無碼', '去码', '去碼', 'uncensored', 'demosaic'],
   native: ['无码', '無碼', '原生无码', '原生無碼', '步兵', 'uncensored'],
-  demosaic: ['无码', '無碼', '去码', '去碼', '破坏版', '破壞版', 'demosaic', 'uncensored'],
-  cracked: ['无码', '無碼', '破解', '流出', 'leaked', 'uncensored'],
-  uncensored: ['无码', '無碼', '无修正', '無修正', 'uncensored'],
+  cracked: ['破解', '无码', '無碼', '去码', '去碼', '破坏版', '破壞版', '流出', '无码流出', '無碼流出', 'leaked', 'demosaic', 'uncensored'],
 }
 
 function getUncensoredSearchTerms(kind: UncensoredKind): readonly string[] {
@@ -786,7 +795,7 @@ export function buildLibraryIndex(
         return false
       if (filter.scrapeStatus === 'unscraped' && entry.meta !== null)
         return false
-      if (keyword && !matchesKeyword(entry, keyword, normalizedKeyword, getMediaActorSearchNames(entry.mediaKey)))
+      if (keyword && !matchesKeyword(entry, keyword, normalizedKeyword, getMediaActorSearchNames(entry.mediaKey), options))
         return false
       return true
     })

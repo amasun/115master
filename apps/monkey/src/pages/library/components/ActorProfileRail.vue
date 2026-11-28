@@ -92,6 +92,57 @@
                 {{ alias }}
               </span>
             </div>
+
+            <!-- 演员备注（曾用名 / 特征等） -->
+            <div class="mt-1.5 w-full">
+              <div v-if="editingNote" class="flex flex-col gap-1.5">
+                <input
+                  v-model="noteDraft"
+                  type="text"
+                  class="input input-xs input-bordered bg-base-100/70 w-full rounded-xl"
+                  placeholder="输入曾用名、特征或备注..."
+                  @keydown.enter.prevent="saveNote"
+                  @keydown.esc.prevent="cancelEditNote"
+                >
+                <div class="flex justify-end gap-1.5">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs rounded-lg"
+                    @click="cancelEditNote"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-xs rounded-lg"
+                    @click="saveNote"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else-if="actorNote"
+                class="bg-primary/10 text-primary/90 flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left text-[11px]"
+              >
+                <span class="min-w-0 flex-1 break-words">{{ actorNote }}</span>
+                <button
+                  type="button"
+                  class="text-primary/70 hover:text-primary shrink-0 cursor-pointer underline-offset-2 hover:underline"
+                  @click="startEditNote"
+                >
+                  编辑
+                </button>
+              </div>
+              <button
+                v-else
+                type="button"
+                class="text-base-content/50 hover:text-base-content/80 cursor-pointer text-[11px] transition-colors"
+                @click="startEditNote"
+              >
+                + 添加备注（曾用名 / 特征等）
+              </button>
+            </div>
           </div>
         </div>
 
@@ -286,6 +337,28 @@ const displayName = computed(() => actorStat.value?.name || profile.value?.name 
 const actorKey = computed(() => actorStat.value?.key ?? normalizedName.value)
 const isFavorite = computed(() => store.isActorFavorite(actorKey.value))
 const isHidden = computed(() => store.isActorHidden(actorKey.value))
+const actorNote = computed(() => store.getActorNote(actorKey.value))
+const editingNote = shallowRef(false)
+const noteDraft = shallowRef('')
+
+watch(actorKey, () => {
+  editingNote.value = false
+})
+
+function startEditNote() {
+  noteDraft.value = actorNote.value
+  editingNote.value = true
+}
+
+function cancelEditNote() {
+  editingNote.value = false
+}
+
+function saveNote() {
+  store.setActorNote(actorKey.value, noteDraft.value)
+  editingNote.value = false
+  toast.success(noteDraft.value.trim() ? '已保存演员备注' : '已清除演员备注')
+}
 
 function handleToggleFavorite() {
   const favorited = store.toggleFavoriteActor(actorKey.value)

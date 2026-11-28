@@ -171,7 +171,7 @@
         type="button"
         class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
         :class="store.filter.onlyUncensored ? 'btn-success font-medium' : 'btn-ghost'"
-        title="仅显示无码 / 去码 / LADA / LTX / 破解影片"
+        title="仅显示无码 / 破解 / LADA / LTX 影片"
         @click="store.filter.onlyUncensored = !store.filter.onlyUncensored"
       >
         <span>无码</span>

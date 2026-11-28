@@ -79,6 +79,8 @@ const MAX_FOLDER_PATH_ENTRIES = 20000
 const LIBRARY_PREF_KEYS = [
   '115Master_library_hidden_actors',
   '115Master_library_favorite_actors',
+  '115Master_library_actor_notes_v1',
+  '115Master_library_media_notes_v1',
   '115Master_library_ad_max_duration_sec',
   '115Master_library_ad_max_size_mb',
   '115Master_library_ad_match_mode',

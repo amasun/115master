@@ -314,6 +314,73 @@
                 <h1 class="text-base-content text-xl leading-snug font-bold sm:text-2xl">
                   {{ displayTitle }}
                 </h1>
+
+                <!-- 片名备注（可同步写入 115 文件原生备注） -->
+                <div class="flex flex-col gap-1.5">
+                  <div v-if="editingMediaNote" class="bg-base-100/50 border-base-content/10 flex flex-col gap-2 rounded-2xl border p-3">
+                    <input
+                      v-model="mediaNoteDraft"
+                      type="text"
+                      class="input input-sm input-bordered w-full rounded-xl"
+                      placeholder="输入片名备注（留空即清除）"
+                      @keydown.enter.prevent="saveMediaNote"
+                      @keydown.esc.prevent="cancelEditMediaNote"
+                    >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <label class="text-base-content/75 flex cursor-pointer items-center gap-2 text-xs">
+                        <input
+                          v-model="mediaNoteSyncToDrive"
+                          type="checkbox"
+                          class="checkbox checkbox-xs checkbox-primary"
+                        >
+                        <span>同步写入 115 文件原生备注（自动保留打点）</span>
+                      </label>
+                      <div class="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs rounded-lg"
+                          :disabled="savingMediaNote"
+                          @click="cancelEditMediaNote"
+                        >
+                          取消
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-primary btn-xs rounded-lg"
+                          :disabled="savingMediaNote"
+                          @click="saveMediaNote"
+                        >
+                          {{ savingMediaNote ? '保存中...' : '保存' }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    v-else-if="mediaNote"
+                    class="bg-primary/10 border-primary/20 flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 text-xs"
+                  >
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span class="badge badge-primary badge-xs shrink-0 font-medium">备注</span>
+                      <span class="text-base-content/90 break-words">{{ mediaNote }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="text-primary hover:text-primary/80 shrink-0 cursor-pointer font-medium"
+                      @click="startEditMediaNote"
+                    >
+                      编辑
+                    </button>
+                  </div>
+                  <div v-else>
+                    <button
+                      type="button"
+                      class="text-base-content/50 hover:text-base-content/80 cursor-pointer text-xs transition-colors"
+                      @click="startEditMediaNote"
+                    >
+                      + 添加片名备注（可同步至 115 文件备注）
+                    </button>
+                  </div>
+                </div>
                 <p
                   v-if="entry.meta?.overview"
                   class="text-base-content/75 line-clamp-4 text-xs leading-relaxed sm:text-sm"
@@ -898,6 +965,63 @@ watch(
 
 const activeFileIndex = shallowRef(0)
 const activeFile = computed(() => displayedFiles.value[activeFileIndex.value] ?? displayedFiles.value[0])
+
+const mediaNote = computed(() => store.getMediaNote(mediaKey.value))
+const editingMediaNote = shallowRef(false)
+const mediaNoteDraft = shallowRef('')
+const mediaNoteSyncToDrive = shallowRef(true)
+const savingMediaNote = shallowRef(false)
+let lastSyncedNoteKey = ''
+
+watch(
+  [mediaKey, () => activeFile.value?.fid],
+  ([key, fid]) => {
+    editingMediaNote.value = false
+    if (!key || !fid)
+      return
+    const token = `${key}:${fid}`
+    if (token === lastSyncedNoteKey)
+      return
+    lastSyncedNoteKey = token
+    void store.syncMediaNoteFromDrive(key, fid)
+  },
+  { immediate: true },
+)
+
+function startEditMediaNote() {
+  mediaNoteDraft.value = mediaNote.value
+  editingMediaNote.value = true
+}
+
+function cancelEditMediaNote() {
+  editingMediaNote.value = false
+}
+
+async function saveMediaNote() {
+  if (!mediaKey.value || savingMediaNote.value)
+    return
+  savingMediaNote.value = true
+  try {
+    const fileIds = mediaNoteSyncToDrive.value
+      ? (entry.value?.files.map(file => file.fid) ?? [])
+      : []
+    const res = await store.setMediaNote(mediaKey.value, mediaNoteDraft.value, {
+      syncToDriveFileIds: fileIds,
+    })
+    editingMediaNote.value = false
+    if (res.truncated)
+      toast.warning('本地备注已保存，但超出 115 文件备注长度上限未能同步远端')
+    else if (res.failedCount > 0)
+      toast.warning('本地备注已保存，部分文件同步 115 备注失败')
+    else if (mediaNoteSyncToDrive.value && res.syncedCount > 0)
+      toast.success('已保存片名备注并同步至 115 文件备注')
+    else
+      toast.success(mediaNoteDraft.value.trim() ? '已保存片名备注' : '已清除片名备注')
+  }
+  finally {
+    savingMediaNote.value = false
+  }
+}
 
 function selectActiveFile(file: LibraryFileItem) {
   const idx = displayedFiles.value.findIndex(item => item.fid === file.fid)

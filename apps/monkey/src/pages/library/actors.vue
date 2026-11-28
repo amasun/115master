@@ -217,6 +217,13 @@
           >
             {{ actor.name }}
           </h3>
+          <p
+            v-if="store.getActorNote(actor.key)"
+            :title="store.getActorNote(actor.key)"
+            class="text-primary/85 truncate text-[11px] leading-tight"
+          >
+            {{ store.getActorNote(actor.key) }}
+          </p>
           <div class="text-base-content/55 flex items-center justify-between gap-2 text-[11px] tabular-nums">
             <span>{{ actor.count }} 部作品</span>
             <span>{{ format.fileSize(actor.totalSize) }}</span>
@@ -241,8 +248,9 @@ import type { ActorFacetStat } from '@/utils/mediaIndex'
 import { ActionMenu, Button, Empty } from '@115master/ui'
 import { format } from '@115master/utils'
 import { useStorage, useTitle } from '@vueuse/core'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, h, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAppDialog } from '@/app/dialog'
 import { useToast } from '@/components'
 import { I, Icon } from '@/icons'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
@@ -262,6 +270,7 @@ const sortOptions: Array<{ value: ActorSortBy, label: string }> = [
 
 const router = useRouter()
 const store = useMediaLibraryStore()
+const dialog = useAppDialog()
 const toast = useToast()
 const sortBy = useStorage<ActorSortBy>('115Master_library_actors_sort', 'count')
 const activeTab = useStorage<ActorTab>('115Master_library_actors_tab', 'female')
@@ -301,6 +310,32 @@ function handleToggleFavorite(actor: ActorFacetStat) {
   toast.success(favorited ? `已收藏「${actor.name}」` : `已取消收藏「${actor.name}」`)
 }
 
+async function handleEditActorNote(actor: ActorFacetStat) {
+  const draft = ref(store.getActorNote(actor.key))
+  const confirmed = await dialog.confirm({
+    title: `编辑演员备注 · ${actor.name}`,
+    confirmText: '保存',
+    cancelText: '取消',
+    content: () => h('div', { class: 'flex flex-col gap-2 py-1 text-sm' }, [
+      h('p', { class: 'text-base-content/70 text-xs' }, '可用于记录曾用名、特征或其他备注（支持在演员页与片库顶部搜索）'),
+      h('input', {
+        type: 'text',
+        class: 'input input-sm input-bordered w-full rounded-xl',
+        placeholder: '输入备注名，留空即清除',
+        value: draft.value,
+        autofocus: true,
+        onInput: (event: Event) => {
+          draft.value = (event.target as HTMLInputElement).value
+        },
+      }),
+    ]),
+  })
+  if (!confirmed)
+    return
+  store.setActorNote(actor.key, draft.value)
+  toast.success(draft.value.trim() ? `已保存「${actor.name}」的备注` : `已清除「${actor.name}」的备注`)
+}
+
 function openActorMenu(event: MouseEvent, actor: ActorFacetStat) {
   menuTarget.value = actor
   menuPosition.value = { x: event.clientX, y: event.clientY }
@@ -333,6 +368,12 @@ const actorMenuGroups = computed<ActionMenuGroup[]>(() => {
         label: '更换头像',
         leading: actionIcon(I.RENAME),
         onSelect: () => store.openAvatarPicker(target),
+      },
+      {
+        id: 'edit-note',
+        label: store.getActorNote(target.key) ? '编辑备注' : '添加备注',
+        leading: actionIcon(I.DOCUMENT),
+        onSelect: () => void handleEditActorNote(target),
       },
     ],
     [
@@ -398,6 +439,9 @@ const totalActors = computed(() => {
 const hasKeyword = computed(() => Boolean(store.filter.keyword.trim()))
 
 function matchesActorSearch(actor: ActorFacetStat, rawKeyword: string, normalizedKeyword: string): boolean {
+  const note = store.getActorNote(actor.key)
+  if (note && note.toLowerCase().includes(rawKeyword))
+    return true
   const candidates = [actor.name, ...actor.aliases]
   return candidates.some((name) => {
     if (name.toLowerCase().includes(rawKeyword))

@@ -127,12 +127,21 @@
 
     <!-- 底部文案区：固定标题高度 + 题材标签行 + 番号年份 -->
     <div class="flex min-h-0 flex-1 flex-col justify-between gap-1.5 p-2.5">
-      <h3
-        :title="displayTitle"
-        class="text-base-content line-clamp-2 min-h-[2.1rem] shrink-0 text-xs leading-[1.4] font-medium"
-      >
-        {{ displayTitle }}
-      </h3>
+      <div class="flex shrink-0 flex-col gap-0.5">
+        <h3
+          :title="displayTitle"
+          class="text-base-content line-clamp-2 min-h-[2.1rem] text-xs leading-[1.4] font-medium"
+        >
+          {{ displayTitle }}
+        </h3>
+        <p
+          v-if="mediaNote"
+          :title="`备注：${mediaNote}`"
+          class="text-primary/85 truncate text-[11px] leading-tight"
+        >
+          {{ mediaNote }}
+        </p>
+      </div>
 
       <!-- AV 演员与发行商 -->
       <div
@@ -213,15 +222,19 @@
 </template>
 
 <script setup lang="ts">
+import type { ActionMenuGroup } from '@115master/ui'
 import type { LibraryEntry, PosterThumbResource } from '@/utils/mediaIndex'
 import { ActionMenu } from '@115master/ui'
 import { useIntersectionObserver } from '@vueuse/core'
-import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, h, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAppDialog } from '@/app/dialog'
+import { useToast } from '@/components'
 import { formatTime } from '@/components/XPlayer/utils/time'
 import { I, Icon } from '@/icons'
 import { useLibraryFileActions } from '@/pages/library/useLibraryFileActions'
 import { useMediaLibraryStore } from '@/store/mediaLibrary'
+import { actionIcon } from '@/utils/action'
 import { getCoverCandidates, getUncensoredBadgeMeta, loadPosterThumbUrl, shouldCropRightHalfForPortrait } from '@/utils/mediaIndex'
 
 const props = defineProps<{
@@ -231,6 +244,8 @@ const props = defineProps<{
 
 const router = useRouter()
 const store = useMediaLibraryStore()
+const dialog = useAppDialog()
+const toast = useToast()
 const fileActions = useLibraryFileActions()
 
 const cardRef = ref<HTMLElement>()
@@ -244,7 +259,62 @@ let activeController: AbortController | null = null
 let activeResource: PosterThumbResource | null = null
 
 const primaryFile = computed(() => props.entry.files[0])
-const menuGroups = fileActions.buildFileMenuGroups(
+const mediaNote = computed(() => store.getMediaNote(props.entry.mediaKey))
+const displayTitle = computed(() =>
+  props.entry.meta?.title
+  || props.entry.externalId
+  || primaryFile.value?.name
+  || '未命名视频',
+)
+
+async function editMediaNote() {
+  const draft = ref(mediaNote.value)
+  const syncToDrive = ref(true)
+  const confirmed = await dialog.confirm({
+    title: '编辑片名备注',
+    confirmText: '保存',
+    cancelText: '取消',
+    content: () => h('div', { class: 'flex flex-col gap-2.5 py-1 text-sm' }, [
+      h('p', { class: 'text-base-content/75 line-clamp-2 text-xs' }, displayTitle.value),
+      h('input', {
+        type: 'text',
+        class: 'input input-sm input-bordered w-full rounded-xl',
+        placeholder: '输入片名备注，留空即清除',
+        value: draft.value,
+        autofocus: true,
+        onInput: (event: Event) => {
+          draft.value = (event.target as HTMLInputElement).value
+        },
+      }),
+      h('label', { class: 'flex cursor-pointer items-center gap-2 text-xs text-base-content/75' }, [
+        h('input', {
+          type: 'checkbox',
+          class: 'checkbox checkbox-xs checkbox-primary',
+          checked: syncToDrive.value,
+          onChange: (event: Event) => {
+            syncToDrive.value = (event.target as HTMLInputElement).checked
+          },
+        }),
+        h('span', '同时写入 115 文件原生备注（自动保留打点数据）'),
+      ]),
+    ]),
+  })
+  if (!confirmed)
+    return
+  const res = await store.setMediaNote(props.entry.mediaKey, draft.value, {
+    syncToDriveFileIds: syncToDrive.value ? props.entry.files.map(file => file.fid) : [],
+  })
+  if (res.truncated)
+    toast.warning('本地备注已保存，但超出 115 文件备注长度上限未能同步远端')
+  else if (res.failedCount > 0)
+    toast.warning('本地备注已保存，部分文件同步 115 备注失败')
+  else if (syncToDrive.value && res.syncedCount > 0)
+    toast.success('已保存片名备注并同步至 115 文件备注')
+  else
+    toast.success(draft.value.trim() ? '已保存片名备注' : '已清除片名备注')
+}
+
+const baseMenuGroups = fileActions.buildFileMenuGroups(
   () => primaryFile.value,
   {
     onPlay: () => playPrimary(),
@@ -252,6 +322,17 @@ const menuGroups = fileActions.buildFileMenuGroups(
     onChangeCover: () => store.openCoverPicker(props.entry.mediaKey),
   },
 )
+
+const menuGroups = computed<ActionMenuGroup[]>(() => {
+  const [first, ...rest] = baseMenuGroups
+  const noteItem = {
+    id: 'edit-media-note',
+    label: mediaNote.value ? '编辑片名备注' : '添加片名备注',
+    leading: actionIcon(I.DOCUMENT),
+    onSelect: () => void editMediaNote(),
+  }
+  return first ? [[...first, noteItem], ...rest] : [[noteItem], ...rest]
+})
 
 function openContextMenu(event: MouseEvent) {
   if (!primaryFile.value)
@@ -278,13 +359,6 @@ const releaseDateLabel = computed(() => {
     return props.entry.meta?.releaseDate || (props.entry.meta?.year ? String(props.entry.meta.year) : '')
   return props.entry.meta?.year || props.entry.meta?.releaseDate?.slice(0, 4) || ''
 })
-
-const displayTitle = computed(() =>
-  props.entry.meta?.title
-  || props.entry.externalId
-  || primaryFile.value?.name
-  || '未命名视频',
-)
 
 const durationLabel = computed(() => {
   if (props.entry.maxDuration > 0)
