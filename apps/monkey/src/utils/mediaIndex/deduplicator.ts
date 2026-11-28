@@ -1,6 +1,7 @@
 import type { IndexedVideo, LibraryEntry, LibraryFileItem, UncensoredKind, UnifiedMediaMeta } from './types'
 import type { MarkerDoc } from '@/utils/markers/types'
 import { normalizeAvNumber } from '@/utils/jav/jav'
+import { isEpisodicSeriesFilename, parseCinemaTitle } from './cinemaTitleParser'
 
 const LTX_FILENAME_RE = /(?:^|[^A-Z0-9])LTX(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
 const LADA_FILENAME_RE = /(?:^|[^A-Z0-9])LADA(?:V?\d+(?:\.\d+)?)?(?=[^A-Z0-9]|$)/i
@@ -632,11 +633,58 @@ function collectSimilarBuckets(unnumbered: IndexedVideo[]): IndexedVideo[][] {
   return Array.from(buckets.values()).filter(list => list.length >= 2)
 }
 
+function stripSectionPrefix(mediaKey: string): string {
+  return mediaKey.startsWith('sec:')
+    ? mediaKey.slice(mediaKey.indexOf(':', 4) + 1)
+    : mediaKey
+}
+
+function resolveAvDuplicateKey(
+  video: IndexedVideo,
+  fidToMediaKey: ReadonlyMap<string, string>,
+): string | null {
+  if (isEpisodicSeriesFilename(video.name))
+    return null
+  const entryKey = fidToMediaKey.get(video.fid)
+  if (entryKey) {
+    const unprefixed = stripSectionPrefix(entryKey)
+    if (
+      unprefixed.startsWith('file:')
+      || unprefixed.startsWith('collection:')
+      || unprefixed.startsWith('tv:')
+      || unprefixed.startsWith('movie:')
+    ) {
+      return null
+    }
+    return entryKey
+  }
+  if (video.avNumber) {
+    const normalized = normalizeAvNumber(video.avNumber)
+    return normalized ? `jav:${normalized}` : `jav:${video.avNumber.trim().toUpperCase()}`
+  }
+  return null
+}
+
+function resolveTvEpisodeDuplicateInfo(video: IndexedVideo): { key: string, title: string } | null {
+  if (!isEpisodicSeriesFilename(video.name))
+    return null
+  const parsed = parseCinemaTitle(video.name)
+  if (!parsed.normalizedKey || parsed.episode === undefined)
+    return null
+  const season = parsed.season ?? 0
+  const episode = parsed.episode
+  const epTag = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
+  return {
+    key: `tv-ep:${parsed.normalizedKey}:${epTag}`,
+    title: `${parsed.title} ${epTag}`,
+  }
+}
+
 /**
  * 分析网盘视频索引中的重复组：
  * 1. sha1 完全相同
- * 2. 同番号 / 同 mediaKey（与 sha1 组完全重合的跳过）
- * 3. 无番号视频的相似文件名或同体积同长视频
+ * 2. 同番号 / 同 mediaKey（与 sha1 组完全重合的跳过，排除剧集分集文件）
+ * 3. 同剧集同季同集重复 / 无番号视频的相似文件名或同体积同长视频
  */
 export function analyzeDuplicateGroups(
   videos: IndexedVideo[],
@@ -671,16 +719,7 @@ export function analyzeDuplicateGroups(
 
   const sha1Signatures = new Set(sha1Groups.map(g => signatureOf(g.files)))
 
-  const avBuckets = groupByKey(videos, (video) => {
-    const entryKey = fidToMediaKey.get(video.fid)
-    if (entryKey && !entryKey.startsWith('file:') && !entryKey.startsWith('collection:'))
-      return entryKey
-    if (video.avNumber) {
-      const normalized = normalizeAvNumber(video.avNumber)
-      return normalized ? `jav:${normalized}` : `jav:${video.avNumber.trim().toUpperCase()}`
-    }
-    return null
-  })
+  const avBuckets = groupByKey(videos, video => resolveAvDuplicateKey(video, fidToMediaKey))
 
   const avGroups = Array.from(avBuckets.entries())
     .filter(([, list]) => (
@@ -694,6 +733,8 @@ export function analyzeDuplicateGroups(
     })
 
   const editionBuckets = groupByKey(videos, (video) => {
+    if (isEpisodicSeriesFilename(video.name))
+      return null
     const resolved = resolveEditionWorkKey(video.avNumber)
     return resolved?.workKey ?? null
   })
@@ -720,11 +761,32 @@ export function analyzeDuplicateGroups(
       }
     })
 
+  const tvEpisodeBuckets = new Map<string, { title: string, items: IndexedVideo[] }>()
+  for (const video of videos) {
+    const tvInfo = resolveTvEpisodeDuplicateInfo(video)
+    if (!tvInfo)
+      continue
+    const bucket = tvEpisodeBuckets.get(tvInfo.key)
+    if (bucket)
+      bucket.items.push(video)
+    else
+      tvEpisodeBuckets.set(tvInfo.key, { title: tvInfo.title, items: [video] })
+  }
+
+  const tvEpisodeGroups = Array.from(tvEpisodeBuckets.entries())
+    .filter(([, bucket]) => bucket.items.length >= 2 && !sha1Signatures.has(signatureOf(bucket.items)))
+    .map(([key, bucket]) => ({
+      ...buildGroup(`tv-ep:${key}`, 'similar', bucket.title, key, bucket.items, fidToMediaKey, markerDocs),
+      suspectedMultiPart: false,
+    }))
+
   const unnumbered = videos.filter((video) => {
+    if (isEpisodicSeriesFilename(video.name))
+      return false
     if (video.avNumber)
       return false
     const entryKey = fidToMediaKey.get(video.fid)
-    return !entryKey || entryKey.startsWith('file:')
+    return !entryKey || stripSectionPrefix(entryKey).startsWith('file:')
   })
 
   const similarGroups = collectSimilarBuckets(unnumbered)
@@ -735,7 +797,7 @@ export function analyzeDuplicateGroups(
       return buildGroup(`similar:${list[0].fid}`, 'similar', list[0].name, key, list, fidToMediaKey, markerDocs)
     })
 
-  return [...sha1Groups, ...avGroups, ...editionGroups, ...similarGroups].sort(
+  return [...sha1Groups, ...avGroups, ...editionGroups, ...tvEpisodeGroups, ...similarGroups].sort(
     (a, b) => b.reclaimableSize - a.reclaimableSize || b.totalSize - a.totalSize || a.id.localeCompare(b.id),
   )
 }
@@ -784,6 +846,7 @@ export async function analyzeDuplicateGroupsAsync(
   const sha1Buckets = new Map<string, IndexedVideo[]>()
   const avBuckets = new Map<string, IndexedVideo[]>()
   const editionBuckets = new Map<string, IndexedVideo[]>()
+  const tvEpisodeBuckets = new Map<string, { title: string, items: IndexedVideo[] }>()
   const unnumbered: IndexedVideo[] = []
 
   for (let i = 0; i < videos.length; i += 1) {
@@ -797,16 +860,16 @@ export async function analyzeDuplicateGroupsAsync(
         sha1Buckets.set(sha1, [video])
     }
 
-    const entryKey = fidToMediaKey.get(video.fid)
-    let avKey: string | null = null
-    if (entryKey && !entryKey.startsWith('file:') && !entryKey.startsWith('collection:')) {
-      avKey = entryKey
-    }
-    else if (video.avNumber) {
-      const normalized = normalizeAvNumber(video.avNumber)
-      avKey = normalized ? `jav:${normalized}` : `jav:${video.avNumber.trim().toUpperCase()}`
+    const tvInfo = resolveTvEpisodeDuplicateInfo(video)
+    if (tvInfo) {
+      const bucket = tvEpisodeBuckets.get(tvInfo.key)
+      if (bucket)
+        bucket.items.push(video)
+      else
+        tvEpisodeBuckets.set(tvInfo.key, { title: tvInfo.title, items: [video] })
     }
 
+    const avKey = resolveAvDuplicateKey(video, fidToMediaKey)
     if (avKey) {
       const list = avBuckets.get(avKey)
       if (list)
@@ -823,7 +886,7 @@ export async function analyzeDuplicateGroupsAsync(
           editionBuckets.set(editionResolved.workKey, [video])
       }
     }
-    else if (!video.avNumber) {
+    else if (!isEpisodicSeriesFilename(video.name) && !video.avNumber) {
       unnumbered.push(video)
     }
 
@@ -885,6 +948,20 @@ export async function analyzeDuplicateGroupsAsync(
       ...group,
       ...(primaryMediaKey ? { mediaKey: primaryMediaKey } : {}),
       title,
+    })
+    builtCount += 1
+    if (builtCount % chunkSize === 0) {
+      await yieldMainThread()
+      throwIfAborted(signal)
+    }
+  }
+
+  for (const [key, bucket] of tvEpisodeBuckets.entries()) {
+    if (bucket.items.length < 2 || sha1Signatures.has(signatureOf(bucket.items)))
+      continue
+    groups.push({
+      ...buildGroup(`tv-ep:${key}`, 'similar', bucket.title, key, bucket.items, fidToMediaKey, markerDocs),
+      suspectedMultiPart: false,
     })
     builtCount += 1
     if (builtCount % chunkSize === 0) {

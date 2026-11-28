@@ -236,6 +236,17 @@ export function getAvNumber(filename: string): string | null {
     logger.info('番号格式匹配完成，忽略创作者平台文件')
     return null
   }
+
+  /** 1.2.5 连续剧分集/分季文件（S01E01 / EP02 / 第01集 / 第一季 等）不提取番号。 */
+  if (
+    /\bS\d{1,2}\s*E\d{1,3}\b/i.test(normalizedName)
+    || /(?:^|[\s._-])EP\d{1,3}(?=$|[\s._-])/i.test(normalizedName)
+    || /第\s*\d{1,3}\s*[集话話]/.test(normalizedName)
+    || /第\s*[一二三四五六七八九十\d]+\s*季/.test(normalizedName)
+  ) {
+    logger.info('番号格式匹配完成，忽略剧集分集文件')
+    return null
+  }
   /** 1.3 清理文件名中的干扰字符，并用分隔符保留文字两侧边界，防止跨词拼接成假番号。 */
   const cleanName = normalizedName
   // 清除 BBCode URL 标签，避免标签挡住开头的站点域名清理。
@@ -258,7 +269,7 @@ export function getAvNumber(filename: string): string | null {
     .replace(/[\u3040-\u309F\u30A0-\u30FF]+/g, ' | ')
   // 电影常用格式/分辨率/帧率/编码名称
     .replace(
-      /(?<![a-z0-9])(?:BDRIP|HDRIP|WEBRIP|WEB[-_.]?DL|BLURAY|BLU-RAY|REMUX|HDR10\+?|HEVC|DVDRIP|HDTV|AV1|VP9|DTS[-_.\s]?HD|(?:FULL[-_.\s]?HD|FHD|UHD|QHD|WQHD|HD|SD)[-_.\s]?(?:4320|2160|1440|1080|720|540|480|360)[pi]?|(?:4320|2160|1440|1080|720|540|480|360)[pi]|(?:H|X)[-_.\s]?26[45]|(?:FPS|FRAME)[-_.\s]?(?:24|25|30|50|60|120)|(?:24|25|30|50|60|120)[-_.\s]?FPS|UHD|FHD)(?![a-z0-9])/gi,
+      /(?<![a-z0-9])(?:BDRIP|HDRIP|WEBRIP|WEB[-_.]?DL|BLURAY|BLU-RAY|REMUX|HDR10\+?|HEVC|DVDRIP|HDTVRIP|HDTV|AC3|AAC\d?(?:\.\d)?|YYETS|BDYS|AV1|VP9|DTS[-_.\s]?HD|\d{3,4}x\d{3,4}|(?:FULL[-_.\s]?HD|FHD|UHD|QHD|WQHD|BD|HD|SD)[-_.\s]?(?:4320|2160|1440|1080|720|540|480|360)[pi]?|(?:4320|2160|1440|1080|720|540|480|360)[pi]|(?:H|X)[-_.\s]?26[45]|(?:FPS|FRAME)[-_.\s]?(?:24|25|30|50|60|120)|(?:24|25|30|50|60|120)[-_.\s]?FPS|UHD|FHD)(?![a-z0-9])/gi,
       ' | ',
     )
   // 清除@SIS001@

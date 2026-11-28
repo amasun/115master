@@ -331,5 +331,67 @@ describe('deduplicator', () => {
       expect(Array.from(selected.fids)).toEqual(['c1b'])
       expect(selected.skippedMultiPart).toBe(1)
     })
+
+    it('不将连续剧不同分集误判为同番号多版本或疑似分段视频，仅在同剧同季同集时检出重复', async () => {
+      const sh1 = makeVideo({
+        fid: 'sh1',
+        pickCode: 'psh1',
+        sha1: 'SHA_SH1',
+        avNumber: 'US-04',
+        name: '无耻家庭.shameless.us.s04e01.中英字幕.hr-hdtv.ac3.1024x576.x264.mkv',
+        size: 649 * 1024 ** 2,
+        duration: 3437,
+      })
+      const sh2 = makeVideo({
+        fid: 'sh2',
+        pickCode: 'psh2',
+        sha1: 'SHA_SH2',
+        avNumber: 'US-04',
+        name: '无耻家庭.shameless.us.s04e04.中英字幕.hr-hdtv.ac3.1024x576.x264.mkv',
+        size: 643 * 1024 ** 2,
+        duration: 3406,
+      })
+      const bb1 = makeVideo({
+        fid: 'bb1',
+        pickCode: 'pbb1',
+        sha1: 'SHA_BB1',
+        avNumber: 'EP-02',
+        name: '绝命毒师.第二季.2009.EP02.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4',
+        size: 4.91 * 1024 ** 3,
+        duration: 2877,
+      })
+      const bb2 = makeVideo({
+        fid: 'bb2',
+        pickCode: 'pbb2',
+        sha1: 'SHA_BB2',
+        avNumber: 'EP-02',
+        name: '绝命毒师.第一季.2008.EP02.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4',
+        size: 4.23 * 1024 ** 3,
+        duration: 2844,
+      })
+
+      const distinctGroups = analyzeDuplicateGroups([sh1, sh2, bb1, bb2], [
+        makeEntry('collection:series:无耻家庭', [sh1, sh2]),
+        makeEntry('collection:series:绝命毒师', [bb1, bb2]),
+      ])
+      expect(distinctGroups).toHaveLength(0)
+
+      // 若两份文件确实是同一季同一集（不同编码/体积），应只检出这一集为重复，不标为 avNumber 也不标为疑似分段
+      const bb1Dup = makeVideo({
+        fid: 'bb1_dup',
+        pickCode: 'pbb1_dup',
+        sha1: 'SHA_BB1_DUP',
+        name: '绝命毒师.第二季.2009.EP02.720P.mp4',
+        size: 1.5 * 1024 ** 3,
+        duration: 2877,
+      })
+      const syncDup = analyzeDuplicateGroups([bb1, bb1Dup, bb2], [])
+      const asyncDup = await analyzeDuplicateGroupsAsync([bb1, bb1Dup, bb2], [], undefined, { chunkSize: 1 })
+      expect(asyncDup).toEqual(syncDup)
+      expect(syncDup).toHaveLength(1)
+      expect(syncDup[0].kind).toBe('similar')
+      expect(syncDup[0].suspectedMultiPart).toBe(false)
+      expect(syncDup[0].files.map(f => f.fid)).toEqual(['bb1', 'bb1_dup'])
+    })
   })
 })

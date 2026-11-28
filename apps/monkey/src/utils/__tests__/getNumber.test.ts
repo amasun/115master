@@ -203,4 +203,12 @@ describe('getNumber', () => {
     expect(getAvNumber('video_X-265.mp4')).toBeNull()
     expect(getAvNumber('SSIS-001 HD-1080.mp4')).toBe('SSIS-001')
   })
+
+  it('不把连续剧分集与分季文件名误判为番号', () => {
+    expect(getAvNumber('无耻家庭.shameless.us.s04e01.中英字幕.hr-hdtv.ac3.1024x576.x264.mkv')).toBeNull()
+    expect(getAvNumber('无耻家庭.Shameless.US.S01E02.Chi_Eng.BD-HR.AC3.1024X576.x264-YYeTs人人影视.mkv')).toBeNull()
+    expect(getAvNumber('绝命毒师.第二季.2009.EP02.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4')).toBeNull()
+    expect(getAvNumber('绝命毒师.第一季.2008.EP05.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4')).toBeNull()
+    expect(getAvNumber('三体.第01集.4K.HDR.mp4')).toBeNull()
+  })
 })

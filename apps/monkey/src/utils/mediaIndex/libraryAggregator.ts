@@ -16,7 +16,7 @@ import type { MarkerDoc } from '@/utils/markers/types'
 import type { ActorWorksCacheEntry } from '@/utils/superSearch'
 import { cleanActorName, normalizeActressName } from '@/utils/actressNameMatcher'
 import { normalizeAvNumber } from '@/utils/jav/jav'
-import { parseCinemaTitle } from './cinemaTitleParser'
+import { isEpisodicSeriesFilename, parseCinemaTitle } from './cinemaTitleParser'
 import { detectEntryUncensoredKind, isLtxFileName } from './deduplicator'
 import { isAdLibraryEntry } from './junkScanner'
 import { normalizeManualAvNumber } from './manualMatchStore'
@@ -120,6 +120,36 @@ function countDocMarkers(doc?: MarkerDoc): number {
   return doc.markers.filter(marker => !marker.deleted).length
 }
 
+interface SeriesCollectionInfo {
+  scopedKey: string
+  title: string
+  season: number
+  episode: number
+}
+
+function resolveSeriesCollectionInfo(
+  video: IndexedVideo,
+  options?: AggregateLibraryOptions,
+): SeriesCollectionInfo | null {
+  if (video.libraryCategory === 'cinema' || video.customScrapeMode === 'cinema' || video.customScrapeMode === 'none')
+    return null
+  if (!isEpisodicSeriesFilename(video.name))
+    return null
+
+  const folderName = video.cid && video.cid !== '0' ? options?.folderNameLookup?.(video.cid) : undefined
+  const parsed = parseCinemaTitle(video.name, folderName)
+  if (parsed.mediaType !== 'tv' || !parsed.normalizedKey)
+    return null
+
+  const sectionPrefix = video.sectionId ? `sec:${video.sectionId}:` : ''
+  return {
+    scopedKey: `${sectionPrefix}collection:series:${parsed.normalizedKey}`,
+    title: parsed.title,
+    season: parsed.season ?? 0,
+    episode: parsed.episode ?? 0,
+  }
+}
+
 function resolveAutoCollectionCids(
   videos: IndexedVideo[],
   options?: AggregateLibraryOptions,
@@ -137,7 +167,7 @@ function resolveAutoCollectionCids(
     if (options?.excludedRootCids?.has(cid) || options?.ungroupedCids?.has(cid))
       continue
 
-    const hasAv = Boolean(video.avNumber && normalizeAvNumber(video.avNumber))
+    const hasAv = !isEpisodicSeriesFilename(video.name) && Boolean(video.avNumber && normalizeAvNumber(video.avNumber))
     const isSectionFolderCollection = video.customScrapeMode === 'folder_collection'
     const current = stats.get(cid)
     if (current) {
@@ -173,13 +203,18 @@ function resolveAutoCollectionCids(
 function resolveMediaKey(
   video: IndexedVideo,
   collectionCids: ReadonlySet<string>,
+  seriesCounts: ReadonlyMap<string, number>,
   options?: AggregateLibraryOptions,
 ): string {
   const sectionPrefix = video.sectionId ? `sec:${video.sectionId}:` : ''
   const folderName = video.cid && video.cid !== '0' ? options?.folderNameLookup?.(video.cid) : undefined
+  const isEpisodic = isEpisodicSeriesFilename(video.name)
+  const seriesInfo = isEpisodic ? resolveSeriesCollectionInfo(video, options) : null
 
   if (video.sectionId) {
     if (video.customScrapeMode === 'folder_collection') {
+      if (seriesInfo && (seriesCounts.get(seriesInfo.scopedKey) ?? 0) >= 2)
+        return seriesInfo.scopedKey
       if (video.cid && collectionCids.has(video.cid))
         return `collection:${video.cid}`
       return `${sectionPrefix}file:${video.fid}`
@@ -192,7 +227,9 @@ function resolveMediaKey(
         ? `${sectionPrefix}movie:${parsed.normalizedKey}:${parsed.year}`
         : `${sectionPrefix}${parsed.mediaType}:${parsed.normalizedKey}`
     }
-    if (video.avNumber) {
+    if (seriesInfo && (seriesCounts.get(seriesInfo.scopedKey) ?? 0) >= 2)
+      return seriesInfo.scopedKey
+    if (!isEpisodic && video.avNumber) {
       const normalized = normalizeAvNumber(video.avNumber)
       if (normalized)
         return `${sectionPrefix}jav:${normalized}`
@@ -206,7 +243,9 @@ function resolveMediaKey(
       ? `movie:${parsed.normalizedKey}:${parsed.year}`
       : `${parsed.mediaType}:${parsed.normalizedKey}`
   }
-  if (video.avNumber) {
+  if (seriesInfo && (seriesCounts.get(seriesInfo.scopedKey) ?? 0) >= 2)
+    return seriesInfo.scopedKey
+  if (!isEpisodic && video.avNumber) {
     const normalized = normalizeAvNumber(video.avNumber)
     if (normalized)
       return `jav:${normalized}`
@@ -247,21 +286,22 @@ function collectDriveLabels(files: LibraryFileItem[]): IndexedVideoLabel[] {
 }
 
 function buildCollectionMeta(
-  cid: string,
+  collectionId: string,
   latestMtime: number,
   options?: AggregateLibraryOptions,
+  fallbackTitle?: string,
 ): UnifiedMediaMeta {
-  const custom = options?.customCollections?.[cid]
-  const folderName = options?.folderNameLookup?.(cid)?.trim()
-  const title = custom?.title?.trim() || folderName || `合集 #${cid}`
+  const custom = options?.customCollections?.[collectionId]
+  const folderName = !collectionId.startsWith('series:') ? options?.folderNameLookup?.(collectionId)?.trim() : undefined
+  const title = custom?.title?.trim() || fallbackTitle?.trim() || folderName || `合集 #${collectionId}`
   const overview = custom?.overview?.trim() || undefined
   const genres = custom?.genres ?? []
   const actors = (custom?.actors ?? []).map(name => ({ name }))
 
   return {
-    mediaKey: `collection:${cid}`,
+    mediaKey: `collection:${collectionId}`,
     kind: 'collection',
-    externalId: cid,
+    externalId: collectionId,
     title,
     ...(overview ? { overview } : {}),
     directors: [],
@@ -280,6 +320,20 @@ export function aggregateLibraryEntries(
   options?: AggregateLibraryOptions,
 ): LibraryEntry[] {
   const collectionCids = resolveAutoCollectionCids(videos, options)
+  const seriesCounts = new Map<string, number>()
+  const seriesTitleMap = new Map<string, string>()
+  const seriesEpisodeMap = new Map<string, { season: number, episode: number }>()
+
+  for (const video of videos) {
+    const info = resolveSeriesCollectionInfo(video, options)
+    if (!info)
+      continue
+    seriesCounts.set(info.scopedKey, (seriesCounts.get(info.scopedKey) ?? 0) + 1)
+    if (!seriesTitleMap.has(info.scopedKey))
+      seriesTitleMap.set(info.scopedKey, info.title)
+    seriesEpisodeMap.set(video.fid, { season: info.season, episode: info.episode })
+  }
+
   const groups = new Map<string, {
     videos: IndexedVideo[]
     externalId?: string
@@ -288,12 +342,14 @@ export function aggregateLibraryEntries(
   }>()
 
   videos.forEach((video) => {
-    const mediaKey = resolveMediaKey(video, collectionCids, options)
+    const mediaKey = resolveMediaKey(video, collectionCids, seriesCounts, options)
+    const isEpisodic = isEpisodicSeriesFilename(video.name)
+    const avId = isEpisodic ? undefined : (video.avNumber ?? undefined)
     const group = groups.get(mediaKey)
     if (group) {
       group.videos.push(video)
-      if (!group.externalId && video.avNumber)
-        group.externalId = video.avNumber
+      if (!group.externalId && avId)
+        group.externalId = avId
       if (!group.sectionId && video.sectionId) {
         group.sectionId = video.sectionId
         group.customScrapeMode = video.customScrapeMode
@@ -302,17 +358,31 @@ export function aggregateLibraryEntries(
     }
     groups.set(mediaKey, {
       videos: [video],
-      externalId: video.avNumber ?? undefined,
+      externalId: avId,
       ...(video.sectionId ? { sectionId: video.sectionId, customScrapeMode: video.customScrapeMode } : {}),
     })
   })
 
   return Array.from(groups.entries()).map(([mediaKey, group]) => {
-    const isCollection = mediaKey.startsWith('collection:')
     const unprefixedKey = mediaKey.startsWith('sec:')
       ? mediaKey.slice(mediaKey.indexOf(':', 4) + 1)
       : mediaKey
-    const sortedVideos = [...group.videos].sort((a, b) => b.mtime - a.mtime || b.size - a.size)
+    const isCollection = unprefixedKey.startsWith('collection:')
+    const isSeriesCollection = unprefixedKey.startsWith('collection:series:')
+    const sortedVideos = [...group.videos].sort((a, b) => {
+      if (isSeriesCollection) {
+        const ea = seriesEpisodeMap.get(a.fid)
+        const eb = seriesEpisodeMap.get(b.fid)
+        if (ea && eb) {
+          if (ea.season !== eb.season)
+            return ea.season - eb.season
+          if (ea.episode !== eb.episode)
+            return ea.episode - eb.episode
+        }
+        return a.name.localeCompare(b.name, 'zh-CN')
+      }
+      return b.mtime - a.mtime || b.size - a.size
+    })
     const files = sortedVideos.map(toLibraryFile)
     const latestMtime = files.reduce((max, file) => Math.max(max, file.mtime), 0)
     const isCinemaEntry = unprefixedKey.startsWith('movie:') || unprefixedKey.startsWith('tv:')
@@ -322,7 +392,12 @@ export function aggregateLibraryEntries(
     const manualAv = rawManualAv ? normalizeManualAvNumber(rawManualAv) || undefined : undefined
     const manualAvKey = manualAv ? normalizeAvNumber(manualAv) : ''
     const rawMeta = isCollection
-      ? buildCollectionMeta(mediaKey.slice('collection:'.length), latestMtime, options)
+      ? buildCollectionMeta(
+          unprefixedKey.slice('collection:'.length),
+          latestMtime,
+          options,
+          seriesTitleMap.get(mediaKey),
+        )
       : manualAv
         ? (manualAvKey ? (metaMap.get(`jav:${manualAvKey}`) ?? null) : null)
         : (metaMap.get(mediaKey) ?? metaMap.get(unprefixedKey) ?? null)

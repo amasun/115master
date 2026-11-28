@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCinemaSearchQueries,
+  isEpisodicSeriesFilename,
   needsCinemaFolderFallback,
   parseCinemaTitle,
 } from '../cinemaTitleParser'
@@ -90,5 +91,38 @@ describe('cinemaTitleParser', () => {
       episode: 3,
       normalizedKey: '漫长的季节',
     })
+  })
+
+  it('解析中文季数（第一季/第二季 + EP02）并跨年份/季数统一剧集 normalizedKey', () => {
+    const s1e5 = parseCinemaTitle('绝命毒师.第一季.2008.EP05.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4')
+    const s2e2 = parseCinemaTitle('绝命毒师.第二季.2009.EP02.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4')
+    const shameless = parseCinemaTitle('无耻家庭.shameless.us.s04e01.中英字幕.hr-hdtv.ac3.1024x576.x264.mkv')
+
+    expect(s1e5).toEqual({
+      title: '绝命毒师',
+      year: 2008,
+      mediaType: 'tv',
+      season: 1,
+      episode: 5,
+      normalizedKey: '绝命毒师',
+    })
+    expect(s2e2).toEqual({
+      title: '绝命毒师',
+      year: 2009,
+      mediaType: 'tv',
+      season: 2,
+      episode: 2,
+      normalizedKey: '绝命毒师',
+    })
+    expect(shameless).toEqual({
+      title: '无耻家庭',
+      mediaType: 'tv',
+      season: 4,
+      episode: 1,
+      normalizedKey: '无耻家庭',
+    })
+    expect(isEpisodicSeriesFilename('绝命毒师.第二季.2009.EP02.BD1080P.mp4')).toBe(true)
+    expect(isEpisodicSeriesFilename('无耻家庭.shameless.us.s04e01.mkv')).toBe(true)
+    expect(isEpisodicSeriesFilename('SSIS-001.mp4')).toBe(false)
   })
 })

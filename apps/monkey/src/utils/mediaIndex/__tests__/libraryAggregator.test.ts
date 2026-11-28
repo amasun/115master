@@ -340,4 +340,54 @@ describe('libraryAggregator auto collection', () => {
     })
     expect(byActorNote.map(e => e.mediaKey)).toEqual(['jav:SSIS900'])
   })
+
+  it('将多集剧集（含历史残留 avNumber）按剧集名聚合为单个合集卡片并按季集排序', () => {
+    const videos: IndexedVideo[] = [
+      makeVideo({
+        fid: 'sh2',
+        pickCode: 'psh2',
+        cid: 'c_shameless',
+        name: '无耻家庭.shameless.us.s04e04.中英字幕.hr-hdtv.ac3.1024x576.x264.mkv',
+        avNumber: 'US-04',
+        mtime: 100,
+      }),
+      makeVideo({
+        fid: 'sh1',
+        pickCode: 'psh1',
+        cid: 'c_shameless',
+        name: '无耻家庭.shameless.us.s01e02.Chi_Eng.BD-HR.AC3.1024x576.x264-YYeTs人人影视.mkv',
+        avNumber: 'US-01',
+        mtime: 200,
+      }),
+      makeVideo({
+        fid: 'bb2',
+        pickCode: 'pbb2',
+        cid: 'c_bb_s2',
+        name: '绝命毒师.第二季.2009.EP02.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4',
+        avNumber: 'EP-02',
+        mtime: 300,
+      }),
+      makeVideo({
+        fid: 'bb1',
+        pickCode: 'pbb1',
+        cid: 'c_bb_s1',
+        name: '绝命毒师.第一季.2008.EP05.BD1080P.X264.AAC.English.CHS-ENG.BDYS.mp4',
+        avNumber: 'EP-05',
+        mtime: 400,
+      }),
+    ]
+
+    const entries = aggregateLibraryEntries(videos, new Map(), {})
+    expect(entries).toHaveLength(2)
+
+    const shameless = entries.find(e => e.meta?.title === '无耻家庭')
+    const breakingBad = entries.find(e => e.meta?.title === '绝命毒师')
+    expect(shameless?.kind).toBe('collection')
+    expect(shameless?.mediaKey).toBe('collection:series:无耻家庭')
+    expect(shameless?.files.map(f => f.fid)).toEqual(['sh1', 'sh2'])
+
+    expect(breakingBad?.kind).toBe('collection')
+    expect(breakingBad?.mediaKey).toBe('collection:series:绝命毒师')
+    expect(breakingBad?.files.map(f => f.fid)).toEqual(['bb1', 'bb2'])
+  })
 })

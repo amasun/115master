@@ -14,6 +14,53 @@ const CN_NOISE_TAG_RE = /国粤双语|国英双语|国日双语|中英双字|中
 const DOMAIN_BRACKET_RE = /[[【(（][^\]】)）]*(?:www\.|\.com|\.net|\.cn|\.tv|\.cc|\.org)[^\]】)）]*[\]】)）]/gi
 const LEADING_DOMAIN_RE = /^(?:[\w-]+\.)+[a-z]{2,}@/i
 const CJK_CHAR_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
+const SE_EPISODE_RE = /\bS(\d{1,2})\s*E(\d{1,3})\b/i
+const CN_EPISODE_RE = /第\s*(\d{1,3})\s*[集话話]/
+const EP_EPISODE_RE = /(?:^|[\s._-])EP?(\d{1,3})(?=$|[\s._-])/i
+const CN_SEASON_RE = /第\s*([一二三四五六七八九十\d]+)\s*季/
+
+const CN_NUMERAL_MAP: Record<string, number> = {
+  一: 1,
+  二: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9,
+  十: 10,
+}
+
+function parseChineseSeasonNumber(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed)
+    return undefined
+  if (/^\d+$/.test(trimmed)) {
+    const n = Number(trimmed)
+    return n > 0 ? n : undefined
+  }
+  if (trimmed === '十')
+    return 10
+  if (trimmed.length === 1 && CN_NUMERAL_MAP[trimmed])
+    return CN_NUMERAL_MAP[trimmed]
+  if (trimmed.startsWith('十') && trimmed.length === 2 && CN_NUMERAL_MAP[trimmed[1]!])
+    return 10 + CN_NUMERAL_MAP[trimmed[1]!]!
+  if (trimmed.endsWith('十') && trimmed.length === 2 && CN_NUMERAL_MAP[trimmed[0]!])
+    return CN_NUMERAL_MAP[trimmed[0]!]! * 10
+  if (trimmed.length === 3 && trimmed[1] === '十' && CN_NUMERAL_MAP[trimmed[0]!] && CN_NUMERAL_MAP[trimmed[2]!])
+    return CN_NUMERAL_MAP[trimmed[0]!]! * 10 + CN_NUMERAL_MAP[trimmed[2]!]!
+  return undefined
+}
+
+/** 判断文件名是否包含明确的剧集分集/分季特征（S01E01 / EP02 / 第01集 / 第一季 等） */
+export function isEpisodicSeriesFilename(filename: string): boolean {
+  const normalized = filename.normalize('NFKC')
+  return SE_EPISODE_RE.test(normalized)
+    || /(?:^|[\s._-])EP\d{1,3}(?=$|[\s._-])/i.test(normalized)
+    || CN_EPISODE_RE.test(normalized)
+    || CN_SEASON_RE.test(normalized)
+}
 
 function normalizeCinemaKey(title: string): string {
   return title
@@ -77,7 +124,7 @@ function stripCinemaFilenameToWorking(rawInput: string): StrippedCinemaState {
   let season: number | undefined
   let episode: number | undefined
 
-  const seMatch = working.match(/\bS(\d{1,2})\s*E(\d{1,3})\b/i)
+  const seMatch = working.match(SE_EPISODE_RE)
   if (seMatch) {
     mediaType = 'tv'
     season = Number(seMatch[1])
@@ -85,14 +132,14 @@ function stripCinemaFilenameToWorking(rawInput: string): StrippedCinemaState {
     working = working.slice(0, seMatch.index)
   }
   else {
-    const cnEpMatch = working.match(/第\s*(\d{1,3})\s*[集话話]/)
+    const cnEpMatch = working.match(CN_EPISODE_RE)
     if (cnEpMatch) {
       mediaType = 'tv'
       episode = Number(cnEpMatch[1])
       working = working.slice(0, cnEpMatch.index)
     }
     else {
-      const epMatch = working.match(/(?:^|[\s._-])EP?(\d{1,3})(?=$|[\s._-])/i)
+      const epMatch = working.match(EP_EPISODE_RE)
       if (epMatch) {
         mediaType = 'tv'
         episode = Number(epMatch[1])
@@ -101,7 +148,21 @@ function stripCinemaFilenameToWorking(rawInput: string): StrippedCinemaState {
     }
   }
 
-  // 移除单季标识如 S01 / 第一季
+  // 提取并移除季标识如 S01 / 第一季 / 第二季
+  if (season === undefined) {
+    const cnSeasonMatch = working.match(CN_SEASON_RE)
+    if (cnSeasonMatch) {
+      season = parseChineseSeasonNumber(cnSeasonMatch[1]!)
+      mediaType = 'tv'
+    }
+    else {
+      const sMatch = working.match(/\bS(\d{1,2})\b/i)
+      if (sMatch) {
+        season = Number(sMatch[1])
+        mediaType = 'tv'
+      }
+    }
+  }
   working = working
     .replace(/\bS\d{1,2}\b/gi, ' ')
     .replace(/第\s*[一二三四五六七八九十\d]+\s*季/g, ' ')
