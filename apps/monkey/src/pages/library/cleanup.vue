@@ -46,7 +46,7 @@
     <section v-if="activeTab === 'duplicates'" class="flex flex-col gap-4">
       <!-- 统计卡片 -->
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+        <div class="rounded-xl border border-white/[0.06] bg-[#18181B] px-4 py-3">
           <div class="text-xs text-[#71717A]">
             检出重复组
           </div>
@@ -54,7 +54,7 @@
             {{ duplicateGroups.length }} 组
           </div>
         </div>
-        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+        <div class="rounded-xl border border-white/[0.06] bg-[#18181B] px-4 py-3">
           <div class="text-xs text-[#71717A]">
             冗余文件数（非分段）
           </div>
@@ -62,7 +62,7 @@
             {{ totalRedundantCount }} 个
           </div>
         </div>
-        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+        <div class="rounded-xl border border-white/[0.06] bg-[#18181B] px-4 py-3">
           <div class="text-xs text-[#71717A]">
             预计可释放空间
           </div>

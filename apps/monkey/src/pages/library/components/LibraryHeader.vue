@@ -347,7 +347,10 @@ function showWallFromFilter() {
 }
 
 function clearAllFilters() {
+  const preserveCinema = store.filter.view === 'cinema'
   store.resetFilters()
+  if (preserveCinema)
+    store.setView('cinema')
   showWallFromFilter()
 }
 
@@ -436,7 +439,7 @@ const hasActiveFilter = computed(() =>
     || store.filter.actor
     || store.filter.genre
     || store.filter.driveLabel
-    || store.filter.view !== 'all'
+    || (store.filter.view !== 'all' && store.filter.view !== 'cinema')
     || subFilterCount.value > 0,
   ),
 )
