@@ -1,11 +1,11 @@
 <div align="center">
 
-<p><img src="./apps/monkey/src/assets/logo-wordmark.svg" alt="115Master Fusion" width="500" /></p>
+<p><img src="./apps/monkey/src/assets/logo-wordmark.svg" alt="115master fusion+" width="500" /></p>
 
-[![GitHub Release](https://img.shields.io/github/v/release/amasun/115master?include_prereleases&logo=github)](https://github.com/amasun/115master/releases)
-[![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master/115master-fusion.user.js?logo=github)](https://github.com/amasun/115master/releases)
-[![产品说明书 Wiki](https://img.shields.io/badge/Docs-产品说明书_Wiki-2563eb?logo=gitbook&logoColor=white)](https://amasun.github.io/115master/)
-[![License](https://img.shields.io/github/license/amasun/115master)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/amasun/115master-fusion-plus?include_prereleases&logo=github)](https://github.com/amasun/115master-fusion-plus/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master-fusion-plus/115master-fusion.user.js?logo=github)](https://github.com/amasun/115master-fusion-plus/releases)
+[![产品说明书 Wiki](https://img.shields.io/badge/Docs-产品说明书_Wiki-2563eb?logo=gitbook&logoColor=white)](https://amasun.github.io/115master-fusion-plus/)
+[![License](https://img.shields.io/github/license/amasun/115master-fusion-plus)](LICENSE)
 
 </div>
 
@@ -14,7 +14,7 @@
 ## 安装
 
 ```
-https://github.com/amasun/115master/releases/latest/download/115master-fusion.user.js
+https://github.com/amasun/115master-fusion-plus/releases/latest/download/115master-fusion.user.js
 ```
 
 需要 Tampermonkey 5.3.3+，Chrome 130+ 或 115Browser 35+，并开启扩展开发者模式。安装前停用原版 115Master，两者不能同时运行。
@@ -23,7 +23,7 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 
 完整的功能介绍、快捷键说明与配置指南已发布至 GitHub Pages：
 
-- 在线文档：<https://amasun.github.io/115master/>
+- 在线文档：<https://amasun.github.io/115master-fusion-plus/>
 
 ## 三个界面的编号
 

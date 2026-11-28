@@ -630,7 +630,7 @@ const PreferencesContent = defineComponent({
                           href="https://www.themoviedb.org/settings/api"
                           target="_blank"
                           rel="noreferrer"
-                          class="text-primary hover:underline text-[11px] font-medium"
+                          class="text-primary text-[11px] font-medium hover:underline"
                         >
                           免费申请 ↗
                         </a>
@@ -753,8 +753,8 @@ const PreferencesContent = defineComponent({
             }}
           >
             <div class="flex gap-2">
-              {aboutLink('https://amasun.github.io/115master/', I.DOCUMENT, '产品文档')}
-              {aboutLink('https://github.com/amasun/115master', I.GITHUB, 'GitHub 仓库')}
+              {aboutLink('https://amasun.github.io/115master-fusion-plus/', I.DOCUMENT, '产品文档')}
+              {aboutLink('https://github.com/amasun/115master-fusion-plus', I.GITHUB, 'GitHub 仓库')}
               {aboutLink('https://github.com/amasun', I.SPONSOR, '赞助作者')}
             </div>
           </Card>

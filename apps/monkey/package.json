@@ -8,14 +8,14 @@
   "author": "artgineer, cbingb666, daoran9",
   "license": "MIT",
   "funding": "https://afdian.com/a/115Master",
-  "homepage": "https://github.com/amasun/115master",
+  "homepage": "https://github.com/amasun/115master-fusion-plus",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amasun/115master.git",
+    "url": "https://github.com/amasun/115master-fusion-plus.git",
     "directory": "/apps/monkey"
   },
   "bugs": {
-    "url": "https://github.com/amasun/115master/issues"
+    "url": "https://github.com/amasun/115master-fusion-plus/issues"
   },
   "engines": {
     "node": ">=20.12"
