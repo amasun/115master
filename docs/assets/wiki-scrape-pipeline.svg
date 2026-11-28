@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" width="960" height="340" role="img" aria-label="多源并发刮削与抗风控流程图">
+  <defs>
+    <style>
+      .ui-font { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif; }
+      .mono-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+    <clipPath id="scrapeClip">
+      <rect x="0" y="0" width="960" height="340" rx="16" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#scrapeClip)" class="ui-font">
+    <rect x="0" y="0" width="960" height="340" fill="#000000" />
+    <text x="28" y="36" fill="#f5f5f7" font-size="15" font-weight="700">多源并发刮削与抗风控流水线</text>
+    <text x="278" y="36" fill="#71717a" font-size="12">多源对冲融合补全字段，负缓存与熔断机制保障稳定性</text>
+
+    <!-- Stage 1: Input -->
+    <rect x="28" y="64" width="166" height="248" rx="14" fill="#121214" stroke="#262629" stroke-width="1" />
+    <text x="46" y="92" fill="#a1a1aa" font-size="11" font-weight="600">STEP 1 · 识别输入</text>
+    <rect x="44" y="110" width="134" height="48" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="111" y="131" text-anchor="middle" fill="#f5f5f7" font-size="12" font-weight="600">番号自动提取</text>
+    <text x="111" y="148" text-anchor="middle" fill="#71717a" font-size="10.5" class="mono-font">STAR-801 / FC2</text>
+
+    <rect x="44" y="172" width="134" height="48" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="111" y="193" text-anchor="middle" fill="#f5f5f7" font-size="12" font-weight="600">院线片名 / 年份</text>
+    <text x="111" y="210" text-anchor="middle" fill="#71717a" font-size="10.5">电影 &amp; 季集聚合</text>
+
+    <rect x="44" y="234" width="134" height="48" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="111" y="255" text-anchor="middle" fill="#f5f5f7" font-size="12" font-weight="600">手动绑定修正</text>
+    <text x="111" y="272" text-anchor="middle" fill="#71717a" font-size="10.5">详情页一键重刮</text>
+
+    <!-- Arrow 1 -> 2 -->
+    <line x1="194" y1="188" x2="228" y2="188" stroke="#52525b" stroke-width="1.5" />
+    <polygon points="224,183 234,188 224,193" fill="#52525b" />
+
+    <!-- Stage 2: Parallel Sources -->
+    <rect x="234" y="64" width="278" height="248" rx="14" fill="#121214" stroke="#262629" stroke-width="1" />
+    <text x="252" y="92" fill="#60a5fa" font-size="11" font-weight="600">STEP 2 · 多源并发对冲</text>
+
+    <rect x="250" y="110" width="246" height="54" rx="10" fill="#141416" stroke="#2585ff" stroke-opacity="0.45" stroke-width="1" />
+    <text x="264" y="131" fill="#f5f5f7" font-size="12" font-weight="600">JAV 核心并发源</text>
+    <text x="264" y="150" fill="#a1a1aa" font-size="10.5">JavLibrary · JavBus · JavDB · MissAV</text>
+
+    <rect x="250" y="176" width="246" height="54" rx="10" fill="#141416" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1" />
+    <text x="264" y="197" fill="#f5f5f7" font-size="12" font-weight="600">垂类优先与补盲源</text>
+    <text x="264" y="216" fill="#a1a1aa" font-size="10.5">MGStage · FC2 · FANZA · Jav321 · AVBASE</text>
+
+    <rect x="250" y="242" width="246" height="54" rx="10" fill="#141416" stroke="#10b981" stroke-opacity="0.45" stroke-width="1" />
+    <text x="264" y="263" fill="#f5f5f7" font-size="12" font-weight="600">院线双源自动兜底</text>
+    <text x="264" y="282" fill="#a1a1aa" font-size="10.5">TMDB API（优先）→ 豆瓣免 Key 回退</text>
+
+    <!-- Arrow 2 -> 3 -->
+    <line x1="512" y1="188" x2="546" y2="188" stroke="#52525b" stroke-width="1.5" />
+    <polygon points="542,183 552,188 542,193" fill="#52525b" />
+
+    <!-- Stage 3: Fusion & Guardrails -->
+    <rect x="552" y="64" width="206" height="248" rx="14" fill="#121214" stroke="#262629" stroke-width="1" />
+    <text x="570" y="92" fill="#fbbf24" font-size="11" font-weight="600">STEP 3 · 融合与抗风控</text>
+
+    <rect x="568" y="110" width="174" height="54" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="582" y="131" fill="#f5f5f7" font-size="12" font-weight="600">字段完整度融合</text>
+    <text x="582" y="150" fill="#a1a1aa" font-size="10.5">补全封面、剧照、评分</text>
+
+    <rect x="568" y="176" width="174" height="54" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="582" y="197" fill="#f5f5f7" font-size="12" font-weight="600">负缓存防无效重试</text>
+    <text x="582" y="216" fill="#a1a1aa" font-size="10.5">区分未收录与临时超时</text>
+
+    <rect x="568" y="242" width="174" height="54" rx="10" fill="#1c1c1e" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1" />
+    <text x="582" y="263" fill="#fcd34d" font-size="12" font-weight="600">115 接口抗风控</text>
+    <text x="582" y="282" fill="#a1a1aa" font-size="10.5">400ms 节流 · 30s 熔断</text>
+
+    <!-- Arrow 3 -> 4 -->
+    <line x1="758" y1="188" x2="792" y2="188" stroke="#2585ff" stroke-width="1.5" />
+    <polygon points="788,183 798,188 788,193" fill="#2585ff" />
+
+    <!-- Stage 4: Local Storage -->
+    <rect x="798" y="64" width="134" height="248" rx="14" fill="#141416" stroke="#2585ff" stroke-opacity="0.55" stroke-width="1.2" />
+    <text x="865" y="102" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">LOCAL CACHE</text>
+    <rect x="816" y="128" width="98" height="72" rx="10" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
+    <text x="865" y="158" text-anchor="middle" fill="#f5f5f7" font-size="12" font-weight="600">IndexedDB</text>
+    <text x="865" y="178" text-anchor="middle" fill="#a1a1aa" font-size="10.5">Fusion 本地库</text>
+    <text x="865" y="238" text-anchor="middle" fill="#d4d4d8" font-size="11">秒级加载</text>
+    <text x="865" y="258" text-anchor="middle" fill="#71717a" font-size="10.5">支持 .115bak</text>
+    <text x="865" y="276" text-anchor="middle" fill="#71717a" font-size="10.5">跨设备迁移</text>
+  </g>
+</svg>
