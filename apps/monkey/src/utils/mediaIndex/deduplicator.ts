@@ -32,7 +32,7 @@ const UNCENSORED_BADGE_MAP: Record<UncensoredKind, UncensoredBadgeMeta> = {
     shortLabel: 'LTX',
     fullLabel: 'LTX 高级去码',
     title: 'LTX 高级去码版',
-    badgeClass: 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 text-white ring-1 ring-white/25',
+    badgeClass: 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white ring-1 ring-white/25',
   },
   lada: {
     shortLabel: 'LADA',

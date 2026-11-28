@@ -157,7 +157,7 @@
         v-if="store.ltxCount > 0 || store.filter.onlyLtx"
         type="button"
         class="btn btn-xs shrink-0 gap-1 rounded-full font-normal whitespace-nowrap"
-        :class="store.filter.onlyLtx ? 'border-transparent bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 font-medium text-white' : 'btn-ghost'"
+        :class="store.filter.onlyLtx ? 'border-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 font-medium text-white' : 'btn-ghost'"
         title="仅显示包含 LTX 高级去码版本的影片"
         @click="store.filter.onlyLtx = !store.filter.onlyLtx"
       >

@@ -299,12 +299,16 @@
                     v-for="label in entry.driveLabels"
                     :key="label.id"
                     type="button"
-                    class="badge bg-base-content/10 cursor-pointer border-none text-xs transition-opacity hover:opacity-90"
-                    :style="label.color ? { backgroundColor: label.color } : undefined"
+                    class="bg-base-content/8 text-base-content/80 hover:bg-primary/20 hover:text-primary inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs transition-colors"
                     :title="`按网盘标签「${label.name}」筛选`"
                     @click="openDriveLabelInLibrary(label.id)"
                   >
-                    {{ label.name }}
+                    <span
+                      class="size-2 shrink-0 rounded-full"
+                      :class="!label.color ? 'border-current/40 border' : ''"
+                      :style="label.color ? { backgroundColor: label.color } : undefined"
+                    />
+                    <span>{{ label.name }}</span>
                   </button>
                 </div>
                 <h1 class="text-base-content text-xl leading-snug font-bold sm:text-2xl">
