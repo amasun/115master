@@ -624,7 +624,7 @@ export const useMediaLibraryStore = defineStore('mediaLibrary', () => {
       title: category === 'cinema' ? '选择院线影视目录（可多选）' : '选择 AV / 番号影视目录（可多选）',
       description: category === 'cinema'
         ? '选中的目录将归类为「院线影视」，使用 TMDB / 豆瓣刮削电影与剧集。'
-        : '选中的目录将作为「全部作品」AV 扫描范围；不选时默认扫描全盘。',
+        : '选中的目录将作为「番号影视」AV 扫描范围；不选时默认扫描全盘。',
       initialFolders: initialCategoryFolders,
       fixedCategory: category,
     })

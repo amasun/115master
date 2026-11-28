@@ -471,7 +471,7 @@ const headerFolderAction = computed(() => {
     const count = getIndexFoldersByCategory(store.indexRootFolders, 'jav').length
     return {
       label: count > 0 ? `AV 目录 (${count})` : 'AV 目录 (全盘)',
-      tooltip: '设置「全部作品」AV 扫描与刮削目录（不选默认全盘）',
+      tooltip: '设置「番号影视」AV 扫描与刮削目录（不选默认全盘）',
       onClick: () => store.configureCategoryFolders('jav'),
     }
   }

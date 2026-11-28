@@ -195,7 +195,7 @@ const PreferencesContent = defineComponent({
         title: category === 'cinema' ? '选择院线影视目录（可多选）' : '选择 AV / 番号影视目录（可多选）',
         description: category === 'cinema'
           ? '选中的目录将归类为「院线影视」，使用 TMDB / 豆瓣刮削电影与剧集。'
-          : '选中的目录将作为「全部作品」AV 扫描范围；不选时默认扫描全盘。',
+          : '选中的目录将作为「番号影视」AV 扫描范围；不选时默认扫描全盘。',
         initialFolders: current,
         fixedCategory: category,
       })
@@ -529,7 +529,7 @@ const PreferencesContent = defineComponent({
                     )
                   : (
                       <p class="pref-text-subtle text-[11px]">
-                        未指定目录时默认扫描全盘（仅归入「全部作品」）。
+                        未指定目录时默认扫描全盘（仅归入「番号影视」）。
                       </p>
                     )}
                 <div class="flex gap-2 pt-0.5">
@@ -624,7 +624,17 @@ const PreferencesContent = defineComponent({
                   </div>
                   <label class="flex flex-col gap-1 pt-1" for="tmdb-api-key-input">
                     <div class="flex items-center justify-between gap-2 text-xs">
-                      <span class="pref-text-muted font-medium">TMDB API Key（可选）</span>
+                      <span class="flex items-center gap-1.5">
+                        <span class="pref-text-muted font-medium">TMDB API Key（可选）</span>
+                        <a
+                          href="https://www.themoviedb.org/settings/api"
+                          target="_blank"
+                          rel="noreferrer"
+                          class="text-primary hover:underline text-[11px] font-medium"
+                        >
+                          免费申请 ↗
+                        </a>
+                      </span>
                       <span class="pref-text-subtle text-[11px]">留空走豆瓣免 Key 兜底</span>
                     </div>
                     <input

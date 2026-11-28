@@ -10,7 +10,7 @@ describe('buildLibraryBreadcrumbs', () => {
     })).toEqual([
       {
         key: 'root',
-        label: '全部作品',
+        label: '番号影视',
         current: true,
         count: 120,
       },
@@ -26,7 +26,7 @@ describe('buildLibraryBreadcrumbs', () => {
     })).toEqual([
       {
         key: 'root',
-        label: '全部作品',
+        label: '番号影视',
         current: false,
         target: { kind: 'wall' },
       },
@@ -45,7 +45,7 @@ describe('buildLibraryBreadcrumbs', () => {
       view: 'all',
       count: 42,
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       { key: 'actors', label: '演员', count: 42, current: true },
     ])
 
@@ -54,7 +54,7 @@ describe('buildLibraryBreadcrumbs', () => {
       view: 'all',
       count: 9,
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       { key: 'tags', label: '标签管理', count: 9, current: true },
     ])
 
@@ -63,7 +63,7 @@ describe('buildLibraryBreadcrumbs', () => {
       view: 'all',
       count: 4,
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       { key: 'cleanup', label: '去重与清理', count: 4, current: true },
     ])
   })
@@ -75,7 +75,7 @@ describe('buildLibraryBreadcrumbs', () => {
       actor: '三上悠亚',
       count: 18,
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       { key: 'actor:三上悠亚', label: '三上悠亚', title: '演员：三上悠亚', count: 18, current: true },
     ])
 
@@ -85,7 +85,7 @@ describe('buildLibraryBreadcrumbs', () => {
       actor: '三上悠亚',
       detailLabel: 'SSIS-001',
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       {
         key: 'actor:三上悠亚',
         label: '三上悠亚',
@@ -105,7 +105,7 @@ describe('buildLibraryBreadcrumbs', () => {
       driveLabelName: '经典收藏',
       detailLabel: 'SSIS-001',
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       {
         key: 'driveLabel:t1',
         label: '经典收藏',
@@ -121,7 +121,7 @@ describe('buildLibraryBreadcrumbs', () => {
       view: 'starred',
       detailLabel: 'SSIS-001',
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       {
         key: 'view:starred',
         label: '星标收藏',
@@ -141,7 +141,7 @@ describe('buildLibraryBreadcrumbs', () => {
       actor: '三上悠亚',
       detailLabel: 'SSIS-001',
     })).toEqual([
-      { key: 'root', label: '全部作品', current: false, target: { kind: 'root' } },
+      { key: 'root', label: '番号影视', current: false, target: { kind: 'root' } },
       {
         key: 'view:starred',
         label: '星标收藏',
@@ -163,6 +163,67 @@ describe('buildLibraryBreadcrumbs', () => {
         target: { kind: 'scope', keep: ['view', 'driveLabel', 'actor'] },
       },
       { key: 'detail', label: 'SSIS-001', title: 'SSIS-001', current: true },
+    ])
+  })
+
+  it('uses 院线影视 as root breadcrumb in cinema view', () => {
+    expect(buildLibraryBreadcrumbs({
+      routeName: 'library',
+      view: 'cinema',
+      count: 45,
+    })).toEqual([
+      {
+        key: 'view:cinema',
+        label: '院线影视',
+        current: true,
+        count: 45,
+      },
+    ])
+
+    expect(buildLibraryBreadcrumbs({
+      routeName: 'library-detail',
+      view: 'cinema',
+      detailLabel: 'Dune',
+    })).toEqual([
+      {
+        key: 'view:cinema',
+        label: '院线影视',
+        current: false,
+        target: { kind: 'wall' },
+      },
+      {
+        key: 'detail',
+        label: 'Dune',
+        title: 'Dune',
+        current: true,
+      },
+    ])
+
+    expect(buildLibraryBreadcrumbs({
+      routeName: 'library-detail',
+      view: 'cinema',
+      genre: '科幻',
+      detailLabel: 'Dune',
+    })).toEqual([
+      {
+        key: 'view:cinema',
+        label: '院线影视',
+        current: false,
+        target: { kind: 'scope', keep: ['view'] },
+      },
+      {
+        key: 'genre:科幻',
+        label: '科幻',
+        title: '题材：科幻',
+        current: false,
+        target: { kind: 'scope', keep: ['view', 'genre'] },
+      },
+      {
+        key: 'detail',
+        label: 'Dune',
+        title: 'Dune',
+        current: true,
+      },
     ])
   })
 })

@@ -46,14 +46,14 @@ const UNCENSORED_LABELS: Record<UncensoredKind, string> = {
 
 /**
  * 构建影视库顶部面包屑导航链路：
- * - 全部作品（顶层首页）
+ * - 番号影视（顶层首页）
  * - 模块或筛选层级（如 星标收藏 / 有打点 / 标签 / 演员 / 题材 / 导演）
  * - 作品详情
  */
 export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryBreadcrumbItem[] {
   const root: LibraryBreadcrumbItem = {
     key: 'root',
-    label: '全部作品',
+    label: '番号影视',
     current: false,
     target: { kind: 'root' },
   }
@@ -94,10 +94,20 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
     ]
   }
 
-  const items: LibraryBreadcrumbItem[] = [root]
-  const kept: BreadcrumbScopeKey[] = []
+  const isCinemaRoot = ctx.view === 'cinema'
+  const rootItem: LibraryBreadcrumbItem = isCinemaRoot
+    ? {
+        key: 'view:cinema',
+        label: VIEW_LABELS.cinema,
+        current: false,
+        target: { kind: 'scope', keep: ['view'] },
+      }
+    : root
 
-  if (ctx.view !== 'all') {
+  const items: LibraryBreadcrumbItem[] = [rootItem]
+  const kept: BreadcrumbScopeKey[] = isCinemaRoot ? ['view'] : []
+
+  if (ctx.view !== 'all' && !isCinemaRoot) {
     kept.push('view')
     const viewLabel = ctx.view.startsWith('section:')
       ? (ctx.sectionName || '自建栏目')
@@ -179,8 +189,8 @@ export function buildLibraryBreadcrumbs(ctx: LibraryBreadcrumbContext): LibraryB
   }
 
   if (ctx.routeName === 'library-detail') {
-    if (kept.length === 0)
-      root.target = { kind: 'wall' }
+    if (isCinemaRoot ? kept.length === 1 : kept.length === 0)
+      rootItem.target = { kind: 'wall' }
 
     const detailLabel = ctx.detailLabel || '作品详情'
     items.push({

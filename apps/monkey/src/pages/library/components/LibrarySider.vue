@@ -39,7 +39,7 @@
         >
           <span class="flex items-center gap-2.5">
             <Icon :name="I.LIBRARY" :filled="isAllWorksActive" class="text-lg" />
-            <span>全部作品</span>
+            <span>番号影视</span>
           </span>
           <span class="text-base-content/45 text-xs tabular-nums">{{ store.visibleEntryCount }}</span>
         </button>
