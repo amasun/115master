@@ -4,6 +4,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/amasun/115master?include_prereleases&logo=github)](https://github.com/amasun/115master/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/amasun/115master/115master-fusion.user.js?logo=github)](https://github.com/amasun/115master/releases)
+[![产品说明书 Wiki](https://img.shields.io/badge/Docs-产品说明书_Wiki-2563eb?logo=gitbook&logoColor=white)](https://amasun.github.io/115master/)
 [![License](https://img.shields.io/github/license/amasun/115master)](LICENSE)
 
 </div>
@@ -18,6 +19,12 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 
 需要 Tampermonkey 5.3.3+，Chrome 130+ 或 115Browser 35+，并开启扩展开发者模式。安装前停用原版 115Master，两者不能同时运行。
 
+## 产品说明书（Wiki）
+
+完整的功能介绍、快捷键说明与配置指南已发布至 GitHub Pages：
+
+- 在线文档：<https://amasun.github.io/115master/>
+
 ## 三个界面的编号
 
 脚本在三个界面里工作，下文和问题反馈里用编号称呼：
@@ -27,6 +34,12 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 | **U1** | 115 旧版 | 115 官方旧版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/home` |
 | **U2** | 115 新版 | 115 官方新版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/official` |
 | **U3** | Fusion | 脚本自带的独立文件管理界面，不使用 115 的页面 | `apps/monkey/src/app`、`apps/monkey/src/pages/drive` |
+
+## 界面预览（U3 影院）
+
+<p align="center">
+  <img src="./docs/assets/u3-cinema-preview.svg" alt="115Master Fusion U3 影院界面预览" width="100%" />
+</p>
 
 ## 在上游基础上新增的功能
 

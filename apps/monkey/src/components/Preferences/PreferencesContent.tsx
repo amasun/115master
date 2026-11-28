@@ -743,6 +743,7 @@ const PreferencesContent = defineComponent({
             }}
           >
             <div class="flex gap-2">
+              {aboutLink('https://amasun.github.io/115master/', I.DOCUMENT, '产品文档')}
               {aboutLink('https://github.com/amasun/115master', I.GITHUB, 'GitHub 仓库')}
               {aboutLink('https://github.com/amasun', I.SPONSOR, '赞助作者')}
             </div>
