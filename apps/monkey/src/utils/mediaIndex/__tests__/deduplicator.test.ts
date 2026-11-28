@@ -376,7 +376,7 @@ describe('deduplicator', () => {
       ])
       expect(distinctGroups).toHaveLength(0)
 
-      // 若两份文件确实是同一季同一集（不同编码/体积），应只检出这一集为重复，不标为 avNumber 也不标为疑似分段
+      /** 若两份文件确实是同一季同一集（不同编码/体积），应只检出这一集为重复，不标为 avNumber 也不标为疑似分段 */
       const bb1Dup = makeVideo({
         fid: 'bb1_dup',
         pickCode: 'pbb1_dup',

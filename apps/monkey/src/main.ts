@@ -29,6 +29,19 @@ catch (error) {
   console.warn('[115Master] Failed to set document.domain:', error)
 }
 
+/** 命中 MASTER 虚拟路径时，于浏览器首次绘制前立刻铺设深色底并隐藏后端 "undefined action" 文本，消除白屏闪烁 */
+if (
+  typeof window !== 'undefined'
+  && window.location.hostname === '115.com'
+  && window.location.pathname.startsWith('/web/lixian/master')
+  && !window.location.pathname.startsWith('/web/lixian/master/magnet')
+) {
+  const bootStyle = document.createElement('style')
+  bootStyle.id = 'master-boot-mask'
+  bootStyle.textContent = 'html,body{background:#121215!important;margin:0!important}body{visibility:hidden!important}'
+  ;(document.head || document.documentElement).appendChild(bootStyle)
+}
+
 /** 调试信息 */
 debugInfo.bootstrapInfo()
 

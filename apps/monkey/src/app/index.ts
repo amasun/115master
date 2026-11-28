@@ -63,6 +63,8 @@ function resetDocument() {
   document.head.append(createMeta)
 
   // 设置根元素，初始 data-theme 与背景色由 initTheme() 写入
+  document.documentElement.style.backgroundColor = '#121215'
   document.body.innerHTML = `<div id="my-app" data-theme="dark" style="min-height:100vh"></div>`
+  document.getElementById('master-boot-mask')?.remove()
   document.title = ''
 }
