@@ -289,7 +289,7 @@ async function editMediaNote() {
       h('label', { class: 'flex cursor-pointer items-center gap-2 text-xs text-base-content/75' }, [
         h('input', {
           type: 'checkbox',
-          class: 'checkbox checkbox-xs checkbox-primary',
+          class: 'checkbox checkbox-xs border-white/25 checked:border-zinc-200 checked:bg-zinc-200 checked:text-zinc-950',
           checked: syncToDrive.value,
           onChange: (event: Event) => {
             syncToDrive.value = (event.target as HTMLInputElement).checked

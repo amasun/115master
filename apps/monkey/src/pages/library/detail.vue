@@ -331,7 +331,7 @@
                         <input
                           v-model="mediaNoteSyncToDrive"
                           type="checkbox"
-                          class="checkbox checkbox-xs checkbox-primary"
+                          class="checkbox checkbox-xs"
                         >
                         <span>同步写入 115 文件原生备注（自动保留打点）</span>
                       </label>
@@ -623,7 +623,7 @@
                 >
                   <input
                     type="checkbox"
-                    class="checkbox checkbox-xs checkbox-success"
+                    class="checkbox checkbox-xs"
                     :checked="keepFileFids.has(file.fid)"
                     @change="toggleKeepDetailFile(file.fid)"
                   >
@@ -715,7 +715,7 @@
               <input
                 v-model="dedupeDeleteEmptyParent"
                 type="checkbox"
-                class="checkbox checkbox-xs checkbox-primary"
+                class="checkbox checkbox-xs"
               >
               <span>同时安全删除空/独立父目录（仅在目录无其他作品与子目录时生效）</span>
             </label>

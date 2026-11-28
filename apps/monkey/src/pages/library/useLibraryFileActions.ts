@@ -128,7 +128,7 @@ export function useLibraryFileActions() {
         h('label', { class: 'flex cursor-pointer items-start gap-2 rounded-xl bg-base-200/70 px-3 py-2 text-xs text-base-content/80' }, [
           h('input', {
             type: 'checkbox',
-            class: 'checkbox checkbox-xs checkbox-primary mt-0.5',
+            class: 'checkbox checkbox-xs border-white/25 checked:border-zinc-200 checked:bg-zinc-200 checked:text-zinc-950 mt-0.5',
             checked: deleteEmptyParent.value,
             onChange: (event: Event) => {
               deleteEmptyParent.value = (event.target as HTMLInputElement).checked

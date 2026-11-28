@@ -193,6 +193,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.library-spotify-shell {
+  --color-primary: #b6f508;
+  --color-primary-content: #09090b;
+}
+
+.library-spotify-shell :deep(.checkbox) {
+  --input-color: #d4d4d8;
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: transparent;
+  color: #09090b;
+}
+
+.library-spotify-shell :deep(.checkbox:checked) {
+  border-color: #e4e4e7;
+  background-color: #e4e4e7;
+  color: #09090b;
+}
+
 .library-spotify-shell :deep(aside[aria-label='主导航']) {
   background: #09090b;
   border: 1px solid rgba(255, 255, 255, 0.06);

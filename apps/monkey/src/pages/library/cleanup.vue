@@ -46,34 +46,34 @@
     <section v-if="activeTab === 'duplicates'" class="flex flex-col gap-4">
       <!-- 统计卡片 -->
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div class="bg-base-200/55 border-base-content/8 rounded-2xl border px-4 py-3">
-          <div class="text-base-content/55 text-xs">
+        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+          <div class="text-xs text-[#71717A]">
             检出重复组
           </div>
-          <div class="text-base-content mt-1 text-xl font-bold tabular-nums">
+          <div class="mt-1 text-xl font-bold text-[#F4F4F5] tabular-nums">
             {{ duplicateGroups.length }} 组
           </div>
         </div>
-        <div class="bg-base-200/55 border-base-content/8 rounded-2xl border px-4 py-3">
-          <div class="text-base-content/55 text-xs">
+        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+          <div class="text-xs text-[#71717A]">
             冗余文件数（非分段）
           </div>
-          <div class="text-base-content mt-1 text-xl font-bold tabular-nums">
+          <div class="mt-1 text-xl font-bold text-[#F4F4F5] tabular-nums">
             {{ totalRedundantCount }} 个
           </div>
         </div>
-        <div class="bg-base-200/55 border-base-content/8 rounded-2xl border px-4 py-3">
-          <div class="text-base-content/55 text-xs">
+        <div class="bg-[#18181B] border-white/[0.06] rounded-xl border px-4 py-3">
+          <div class="text-xs text-[#71717A]">
             预计可释放空间
           </div>
-          <div class="text-primary mt-1 text-xl font-bold tabular-nums">
+          <div class="mt-1 text-xl font-bold text-[#B6F508] tabular-nums">
             {{ format.fileSize(totalReclaimableSize) }}
           </div>
         </div>
       </div>
 
       <!-- 筛选与智能选择栏 -->
-      <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#18181B] px-4 py-2.5">
         <div class="flex flex-wrap items-center gap-1.5">
           <button
             v-for="chip in dupKindOptions"
@@ -81,17 +81,17 @@
             type="button"
             class="rounded-full px-3 py-1 text-xs transition-colors"
             :class="dupFilterKind === chip.value
-              ? 'bg-primary/20 text-primary font-medium'
-              : 'text-base-content/65 hover:bg-base-content/5 hover:text-base-content'"
+              ? 'bg-white/[0.12] font-medium text-[#F4F4F5]'
+              : 'text-[#A1A1AA] hover:bg-white/[0.06] hover:text-[#F4F4F5]'"
             @click="dupFilterKind = chip.value"
           >
             {{ chip.label }} ({{ chip.count }})
           </button>
-          <label class="text-base-content/75 ml-2 flex cursor-pointer items-center gap-1.5 text-xs">
+          <label class="ml-2 flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
             <input
               v-model="hideMultiPartGroups"
               type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
+              class="checkbox checkbox-xs"
             >
             <span>隐藏疑似分段 (CD1/CD2)</span>
           </label>
@@ -187,33 +187,24 @@
         <article
           v-for="group in renderedDuplicateGroups"
           :key="group.id"
-          class="bg-base-200/45 border-base-content/8 flex flex-col gap-2.5 rounded-2xl border p-4"
+          class="flex flex-col gap-2.5 rounded-xl border border-white/[0.06] bg-[#18181B] p-4"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <span
-                class="badge badge-xs rounded-full"
-                :class="group.kind === 'sha1'
-                  ? 'badge-error badge-soft'
-                  : group.kind === 'avNumber'
-                    ? 'badge-warning badge-soft'
-                    : group.kind === 'edition'
-                      ? 'badge-secondary badge-soft'
-                      : 'badge-info badge-soft'"
-              >
+              <span class="rounded-md bg-white/[0.07] px-2 py-0.5 text-[11px] text-[#A1A1AA]">
                 {{ dupKindLabel(group.kind) }}
               </span>
-              <h3 class="text-base-content truncate text-sm font-semibold">
+              <h3 class="truncate text-sm font-semibold text-[#F4F4F5]">
                 {{ group.title }}
               </h3>
               <span
                 v-if="group.suspectedMultiPart"
-                class="badge badge-warning badge-outline badge-xs rounded-full"
+                class="rounded-md border border-[#ECA617]/30 bg-[#ECA617]/10 px-2 py-0.5 text-[11px] text-[#ECA617]"
                 title="文件名包含 CD1/CD2/Part 等分段标识，智能勾选已自动跳过"
               >
-                疑似分段视频 · 请谨慎核对
+                疑似分段
               </span>
-              <span class="text-base-content/50 text-xs tabular-nums">
+              <span class="text-xs text-[#71717A] tabular-nums">
                 {{ group.files.length }} 个文件 · 可释放 {{ format.fileSize(group.reclaimableSize) }}
               </span>
             </div>
@@ -222,7 +213,7 @@
               v-if="group.mediaKey"
               size="xs"
               variant="ghost"
-              class="rounded-full text-xs"
+              class="rounded-full text-xs text-[#A1A1AA] hover:text-[#F4F4F5]"
               @click="openMediaDetail(group.mediaKey)"
             >
               <span>查看详情</span>
@@ -234,40 +225,34 @@
             <div
               v-for="candidate in group.files"
               :key="candidate.fid"
-              class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs transition-colors"
+              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs transition-colors"
               :class="selectedDupFids.has(candidate.fid)
-                ? 'bg-error/10 border-error/30'
+                ? 'border-[#F43F5E]/35 bg-[#F43F5E]/[0.08]'
                 : candidate.recommendedKeep
-                  ? 'bg-success/8 border-success/25'
-                  : 'bg-base-100/40 border-base-content/6'"
+                  ? 'border-[#B6F508]/25 bg-[#B6F508]/[0.04]'
+                  : 'border-white/[0.06] bg-[#121215]/70'"
             >
               <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
                 <input
                   type="checkbox"
-                  class="checkbox checkbox-xs checkbox-error shrink-0"
+                  class="checkbox checkbox-xs shrink-0"
                   :checked="selectedDupFids.has(candidate.fid)"
                   @change="toggleDupFid(candidate.fid)"
                 >
                 <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div class="flex flex-wrap items-center gap-1.5">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="truncate text-[13px] font-medium text-[#F4F4F5]" :title="candidate.name">
+                      {{ candidate.name }}
+                    </span>
                     <span
                       v-if="candidate.recommendedKeep"
-                      class="badge badge-success badge-soft badge-xs shrink-0 rounded-full"
+                      :title="candidate.keepReasons.join(' · ') || '推荐保留'"
+                      class="shrink-0 rounded-md bg-[#B6F508]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#B6F508]"
                     >
                       推荐保留
                     </span>
-                    <span
-                      v-for="reason in candidate.keepReasons.slice(0, 3)"
-                      :key="reason"
-                      class="badge badge-ghost badge-xs shrink-0 rounded-full"
-                    >
-                      {{ reason }}
-                    </span>
-                    <span class="text-base-content truncate font-medium" :title="candidate.name">
-                      {{ candidate.name }}
-                    </span>
                   </div>
-                  <div class="text-base-content/55 flex flex-wrap items-center gap-3 text-[11px] tabular-nums">
+                  <div class="flex flex-wrap items-center gap-3 text-[11px] text-[#71717A] tabular-nums">
                     <span>{{ format.fileSize(candidate.size) }}</span>
                     <span v-if="candidate.duration > 0">{{ formatTime(candidate.duration) }}</span>
                     <span v-if="candidate.mtime > 0">{{ format.dateTime(candidate.mtime) }}</span>
@@ -388,23 +373,23 @@
 
     <!-- Tab 2: 垃圾文件与广告视频清理 -->
     <section v-else class="flex flex-col gap-4">
-      <div class="bg-base-200/45 border-base-content/8 flex flex-col gap-3 rounded-2xl border p-4">
+      <div class="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-[#18181B] p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-3">
-            <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-              <input v-model="scanCategories.web" type="checkbox" class="checkbox checkbox-xs checkbox-primary">
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
+              <input v-model="scanCategories.web" type="checkbox" class="checkbox checkbox-xs">
               <span>网页 / 快捷方式（{{ JUNK_EXTENSION_GROUPS.web.join(', ') }}）</span>
             </label>
-            <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-              <input v-model="scanCategories.textMagnet" type="checkbox" class="checkbox checkbox-xs checkbox-primary">
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
+              <input v-model="scanCategories.textMagnet" type="checkbox" class="checkbox checkbox-xs">
               <span>文本 / 磁力 / 种子（{{ JUNK_EXTENSION_GROUPS.textMagnet.join(', ') }}）</span>
             </label>
-            <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-              <input v-model="scanCategories.executable" type="checkbox" class="checkbox checkbox-xs checkbox-primary">
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
+              <input v-model="scanCategories.executable" type="checkbox" class="checkbox checkbox-xs">
               <span>安装包 / 脚本（{{ JUNK_EXTENSION_GROUPS.executable.join(', ') }}）</span>
             </label>
-            <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-              <input v-model="scanCategories.adVideo" type="checkbox" class="checkbox checkbox-xs checkbox-primary">
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
+              <input v-model="scanCategories.adVideo" type="checkbox" class="checkbox checkbox-xs">
               <span>疑似广告短视频（本地索引）</span>
             </label>
           </div>
@@ -501,7 +486,7 @@
             <input
               v-model="store.hideAdVideos"
               type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
+              class="checkbox checkbox-xs"
             >
             <span>在影视库展示墙隐藏</span>
           </label>
@@ -521,7 +506,7 @@
       </div>
 
       <!-- 分类过滤与全选工具栏 -->
-      <div class="bg-base-200/45 border-base-content/6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#18181B] px-4 py-2.5">
         <div class="flex flex-wrap items-center gap-1.5">
           <button
             v-for="cat in junkCategoryTabs"
@@ -529,8 +514,8 @@
             type="button"
             class="rounded-full px-3 py-1 text-xs transition-colors"
             :class="junkFilterCategory === cat.value
-              ? 'bg-primary/20 text-primary font-medium'
-              : 'text-base-content/65 hover:bg-base-content/5 hover:text-base-content'"
+              ? 'bg-white/[0.12] font-medium text-[#F4F4F5]'
+              : 'text-[#A1A1AA] hover:bg-white/[0.06] hover:text-[#F4F4F5]'"
             @click="junkFilterCategory = cat.value"
           >
             {{ cat.label }} ({{ cat.count }})
@@ -616,31 +601,24 @@
         <div
           v-for="item in renderedJunkItems"
           :key="item.fid"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs transition-colors"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 text-xs transition-colors"
           :class="selectedJunkFids.has(item.fid)
-            ? 'bg-error/10 border-error/30'
-            : 'bg-base-200/40 border-base-content/6 hover:bg-base-200/70'"
+            ? 'border-[#F43F5E]/35 bg-[#F43F5E]/[0.08]'
+            : 'border-white/[0.06] bg-[#18181B] hover:bg-[#27272A]'"
         >
           <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
             <input
               type="checkbox"
-              class="checkbox checkbox-xs checkbox-error shrink-0"
+              class="checkbox checkbox-xs shrink-0"
               :checked="selectedJunkFids.has(item.fid)"
               @change="toggleJunkFid(item.fid)"
             >
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="badge badge-ghost badge-xs shrink-0 rounded-full">
-                  {{ junkCategoryLabel(item.category) }}
-                </span>
-                <span class="badge badge-ghost badge-xs shrink-0 rounded-full">
-                  {{ item.reason }}
-                </span>
-                <span class="text-base-content truncate font-medium" :title="item.name">
-                  {{ item.name }}
-                </span>
-              </div>
-              <div class="text-base-content/55 flex flex-wrap items-center gap-3 text-[11px] tabular-nums">
+              <span class="truncate text-[13px] font-medium text-[#F4F4F5]" :title="item.name">
+                {{ item.name }}
+              </span>
+              <div class="flex flex-wrap items-center gap-3 text-[11px] text-[#71717A] tabular-nums">
+                <span>{{ junkCategoryLabel(item.category) }} · {{ item.reason }}</span>
                 <span>{{ format.fileSize(item.size) }}</span>
                 <span v-if="item.duration && item.duration > 0">{{ formatTime(item.duration) }}</span>
                 <span v-if="item.mtime > 0">{{ format.dateTime(item.mtime) }}</span>
@@ -813,11 +791,11 @@
           <span class="text-base-content/60 ml-1 tabular-nums">({{ format.fileSize(activeSelectedSize) }})</span>
         </div>
 
-        <label class="text-base-content/80 flex cursor-pointer items-center gap-1.5 text-xs">
+        <label class="flex cursor-pointer items-center gap-1.5 text-xs text-[#A1A1AA]">
           <input
             v-model="deleteEmptyParent"
             type="checkbox"
-            class="checkbox checkbox-xs checkbox-primary"
+            class="checkbox checkbox-xs"
           >
           <span>同时安全删除空/独立父目录</span>
         </label>
