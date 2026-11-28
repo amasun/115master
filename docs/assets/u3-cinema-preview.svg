@@ -5,424 +5,272 @@
       .mono-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     </style>
 
-    <!-- LTX gradient -->
-    <linearGradient id="ltxGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#4f46e5" />
-      <stop offset="50%" stop-color="#9333ea" />
-      <stop offset="100%" stop-color="#db2777" />
-    </linearGradient>
-
-    <!-- Card 1-8 moody low-saturation cinema gradients -->
-    <linearGradient id="art1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#18181b" />
-      <stop offset="55%" stop-color="#27272a" />
-      <stop offset="100%" stop-color="#323036" />
-    </linearGradient>
-    <linearGradient id="art2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#141615" />
-      <stop offset="55%" stop-color="#1e2824" />
-      <stop offset="100%" stop-color="#27322e" />
-    </linearGradient>
-    <linearGradient id="art3" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#18161a" />
-      <stop offset="55%" stop-color="#26222c" />
-      <stop offset="100%" stop-color="#302b38" />
-    </linearGradient>
-    <linearGradient id="art4" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#171514" />
-      <stop offset="55%" stop-color="#262220" />
-      <stop offset="100%" stop-color="#332c28" />
-    </linearGradient>
-    <linearGradient id="art5" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#141618" />
-      <stop offset="55%" stop-color="#202428" />
-      <stop offset="100%" stop-color="#2a2f35" />
-    </linearGradient>
-    <linearGradient id="art6" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1517" />
-      <stop offset="55%" stop-color="#2b2125" />
-      <stop offset="100%" stop-color="#38292f" />
-    </linearGradient>
-    <linearGradient id="art7" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#141416" />
-      <stop offset="55%" stop-color="#222225" />
-      <stop offset="100%" stop-color="#2c2c30" />
-    </linearGradient>
-    <linearGradient id="art8" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#151718" />
-      <stop offset="55%" stop-color="#212628" />
-      <stop offset="100%" stop-color="#2b3134" />
-    </linearGradient>
-
     <clipPath id="winClip">
-      <rect x="0" y="0" width="1200" height="720" rx="16" />
+      <rect x="0.5" y="0.5" width="1199" height="719" rx="12" />
     </clipPath>
-    <clipPath id="posterClip1"><rect x="246" y="154" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip2"><rect x="483" y="154" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip3"><rect x="720" y="154" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip4"><rect x="957" y="154" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip5"><rect x="246" y="428" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip6"><rect x="483" y="428" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip7"><rect x="720" y="428" width="221" height="147" rx="12" /></clipPath>
-    <clipPath id="posterClip8"><rect x="957" y="428" width="221" height="147" rx="12" /></clipPath>
+    <clipPath id="posterClip1"><rect x="252" y="156" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip2"><rect x="489" y="156" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip3"><rect x="726" y="156" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip4"><rect x="963" y="156" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip5"><rect x="252" y="424" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip6"><rect x="489" y="424" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip7"><rect x="726" y="424" width="221" height="144" rx="8" /></clipPath>
+    <clipPath id="posterClip8"><rect x="963" y="424" width="221" height="144" rx="8" /></clipPath>
   </defs>
 
   <g clip-path="url(#winClip)" class="ui-font">
-    <!-- Pure Black Canvas (base-100: oklch(0% 0 0)) -->
-    <rect x="0" y="0" width="1200" height="720" fill="#000000" />
+    <!-- Pure White Canvas -->
+    <rect x="0" y="0" width="1200" height="720" fill="#ffffff" />
 
-    <!-- Top Browser Chrome (y=0..36) -->
-    <rect x="0" y="0" width="1200" height="36" fill="#0a0a0a" />
-    <line x1="0" y1="36" x2="1200" y2="36" stroke="#1f1f22" stroke-width="1" />
-    <circle cx="22" cy="18" r="5.5" fill="#ef4444" />
-    <circle cx="40" cy="18" r="5.5" fill="#f59e0b" />
-    <circle cx="58" cy="18" r="5.5" fill="#10b981" />
-    <rect x="370" y="7" width="460" height="22" rx="11" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
-    <text x="600" y="21.5" text-anchor="middle" fill="#a1a1aa" font-size="11" class="mono-font">115.com/?mode=wangpan#/library</text>
+    <!-- Top Browser Chrome -->
+    <rect x="0" y="0" width="1200" height="38" fill="#fafafa" />
+    <line x1="0" y1="38" x2="1200" y2="38" stroke="#e4e4e7" stroke-width="1" />
+    <circle cx="22" cy="19" r="5" fill="#e4e4e7" />
+    <circle cx="38" cy="19" r="5" fill="#e4e4e7" />
+    <circle cx="54" cy="19" r="5" fill="#e4e4e7" />
+    <rect x="370" y="8" width="460" height="22" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="600" y="22.5" text-anchor="middle" fill="#71717a" font-size="11" class="mono-font">115.com/?mode=wangpan#/library</text>
 
-    <!-- Left Sidebar (x=0..228, y=36..720) -->
-    <rect x="0" y="36" width="228" height="684" fill="#0a0a0a" />
-    <line x1="228" y1="36" x2="228" y2="720" stroke="#1f1f22" stroke-width="1" />
+    <!-- Left Sidebar -->
+    <rect x="0" y="38" width="228" height="682" fill="#fafafa" />
+    <line x1="228" y1="38" x2="228" y2="720" stroke="#e4e4e7" stroke-width="1" />
 
-    <!-- Brand -->
-    <text x="18" y="70" fill="#f5f5f7" font-size="16" font-weight="700" letter-spacing="-0.3">115Master</text>
-    <rect x="108" y="55" width="44" height="19" rx="9.5" fill="#2585ff" fill-opacity="0.18" stroke="#2585ff" stroke-opacity="0.35" stroke-width="1" />
-    <text x="130" y="68" text-anchor="middle" fill="#60a5fa" font-size="10.5" font-weight="600">影视库</text>
-    <line x1="16" y1="84" x2="212" y2="84" stroke="#1f1f22" stroke-width="1" />
+    <!-- Brand Header -->
+    <text x="18" y="70" fill="#09090b" font-size="15" font-weight="700" letter-spacing="-0.3">115master fusion+</text>
+    <rect x="160" y="55" width="52" height="20" rx="5" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="186" y="68.5" text-anchor="middle" fill="#52525b" font-size="10.5" font-weight="600">U3 影院</text>
+    <line x1="16" y1="86" x2="212" y2="86" stroke="#e4e4e7" stroke-width="1" />
 
-    <!-- Cloud Download Primary Button -->
-    <rect x="16" y="96" width="196" height="32" rx="16" fill="#2585ff" />
-    <text x="114" y="116" text-anchor="middle" fill="#ffffff" font-size="12.5" font-weight="600">+ 离线下载</text>
+    <!-- Primary CTA Button -->
+    <rect x="16" y="98" width="196" height="32" rx="6" fill="#18181b" />
+    <text x="114" y="118.5" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="600">+ 离线下载</text>
 
-    <!-- Sidebar Nav Items -->
-    <!-- Active: 番号影视 -->
-    <rect x="14" y="140" width="200" height="34" rx="17" fill="#1c1c1e" stroke="#2a2a2d" stroke-width="1" />
-    <circle cx="32" cy="157" r="5" fill="#f5f5f7" />
-    <text x="46" y="161" fill="#f5f5f7" font-size="12.5" font-weight="600">番号影视</text>
-    <text x="200" y="161" text-anchor="end" fill="#a1a1aa" font-size="11.5" class="mono-font">1,248</text>
+    <!-- Active Nav Item: 番号影视 -->
+    <rect x="14" y="142" width="200" height="34" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <circle cx="30" cy="159" r="3.5" fill="#2563eb" />
+    <text x="44" y="163" fill="#09090b" font-size="12.5" font-weight="600">番号影视</text>
+    <text x="200" y="163" text-anchor="end" fill="#52525b" font-size="11" class="mono-font">1,248</text>
 
-    <!-- 演员 -->
-    <circle cx="32" cy="195" r="4.5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <text x="46" y="199" fill="#d4d4d8" font-size="12.5">演员</text>
-    <text x="200" y="199" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">312</text>
+    <!-- Nav Items -->
+    <circle cx="30" cy="196" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="200" fill="#52525b" font-size="12.5">院线影视</text>
+    <text x="200" y="200" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">186</text>
 
-    <!-- 星标收藏 -->
-    <circle cx="32" cy="231" r="4.5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <text x="46" y="235" fill="#d4d4d8" font-size="12.5">星标收藏</text>
-    <text x="200" y="235" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">94</text>
+    <circle cx="30" cy="230" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="234" fill="#52525b" font-size="12.5">演员</text>
+    <text x="200" y="234" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">312</text>
 
-    <!-- 有打点 -->
-    <circle cx="32" cy="267" r="4.5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <text x="46" y="271" fill="#d4d4d8" font-size="12.5">有打点</text>
-    <text x="200" y="271" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">42</text>
+    <circle cx="30" cy="264" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="268" fill="#52525b" font-size="12.5">星标收藏</text>
+    <text x="200" y="268" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">94</text>
 
-    <!-- 标签 -->
-    <circle cx="32" cy="303" r="4.5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <text x="46" y="307" fill="#d4d4d8" font-size="12.5">标签</text>
-    <text x="200" y="307" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">28</text>
+    <circle cx="30" cy="298" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="302" fill="#52525b" font-size="12.5">有打点</text>
+    <text x="200" y="302" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">42</text>
 
-    <!-- 去重与清理 -->
-    <circle cx="32" cy="339" r="4.5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <text x="46" y="343" fill="#d4d4d8" font-size="12.5">去重与清理</text>
-    <text x="200" y="343" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">17</text>
+    <circle cx="30" cy="332" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="336" fill="#52525b" font-size="12.5">标签</text>
+    <text x="200" y="336" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">18</text>
 
-    <!-- 院线影视独立分组 -->
-    <line x1="16" y1="362" x2="212" y2="362" stroke="#1f1f22" stroke-width="1" />
-    <rect x="27" y="381" width="10" height="8" rx="1.5" fill="none" stroke="#71717a" stroke-width="1.4" />
-    <line x1="27" y1="383.5" x2="37" y2="383.5" stroke="#71717a" stroke-width="1.1" />
-    <text x="46" y="389.5" fill="#d4d4d8" font-size="12.5">院线影视</text>
-    <text x="200" y="389.5" text-anchor="end" fill="#71717a" font-size="11.5" class="mono-font">168</text>
+    <circle cx="30" cy="366" r="3.5" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
+    <text x="44" y="370" fill="#52525b" font-size="12.5">去重清理</text>
+    <text x="200" y="370" text-anchor="end" fill="#71717a" font-size="11" class="mono-font">14</text>
 
-    <!-- Sidebar Bottom Stats Card -->
-    <rect x="14" y="630" width="200" height="72" rx="12" fill="#141416" stroke="#242427" stroke-width="1" />
-    <text x="28" y="652" fill="#a1a1aa" font-size="11">影视库统计</text>
-    <text x="28" y="672" fill="#f5f5f7" font-size="12" font-weight="600">总计 1,248 部</text>
-    <text x="28" y="690" fill="#60a5fa" font-size="11">约 2,140 小时片库</text>
+    <!-- Bottom Index Summary Card -->
+    <rect x="14" y="636" width="200" height="68" rx="8" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="28" y="658" fill="#71717a" font-size="11" font-weight="500">网盘索引状态</text>
+    <text x="28" y="681" fill="#09090b" font-size="13" font-weight="600" class="mono-font">1,248 部</text>
+    <rect x="132" y="666" width="68" height="20" rx="5" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="166" y="679.5" text-anchor="middle" fill="#2563eb" font-size="10.5" font-weight="600">已就绪</text>
 
-    <!-- Top Header (x=228..1200, y=36..92) -->
-    <text x="248" y="69" fill="#a1a1aa" font-size="13">影视库</text>
-    <text x="295" y="69" fill="#52525b" font-size="13">›</text>
-    <text x="310" y="69" fill="#f5f5f7" font-size="13.5" font-weight="600">番号影视</text>
-    <text x="370" y="69" fill="#71717a" font-size="12" class="mono-font">(1,248)</text>
+    <!-- Main Top Toolbar -->
+    <rect x="228" y="38" width="972" height="58" fill="#ffffff" />
+    <line x1="228" y1="96" x2="1200" y2="96" stroke="#e4e4e7" stroke-width="1" />
 
-    <!-- Instant Search Pill (ui-glass-floating) -->
-    <rect x="646" y="48" width="214" height="32" rx="16" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
-    <circle cx="664" cy="64" r="5" fill="none" stroke="#71717a" stroke-width="1.5" />
-    <line x1="668" y1="68" x2="672" y2="72" stroke="#71717a" stroke-width="1.5" />
-    <text x="680" y="68" fill="#71717a" font-size="11.5">搜番号、片名、演员...</text>
+    <!-- Search Input -->
+    <rect x="252" y="51" width="320" height="32" rx="6" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" />
+    <circle cx="268" cy="67" r="5" fill="none" stroke="#71717a" stroke-width="1.3" />
+    <line x1="272" y1="71" x2="275.5" y2="74.5" stroke="#71717a" stroke-width="1.3" stroke-linecap="round" />
+    <text x="284" y="71" fill="#71717a" font-size="12">搜索番号、片名、演员或备注...</text>
+    <rect x="524" y="57" width="40" height="20" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="544" y="70.5" text-anchor="middle" fill="#71717a" font-size="10" class="mono-font">Alt+K</text>
 
-    <!-- Super Search Pill -->
-    <rect x="868" y="48" width="88" height="32" rx="16" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
-    <text x="912" y="68" text-anchor="middle" fill="#e4e4e7" font-size="11.5" font-weight="500">超级搜索</text>
+    <!-- Filter Pills -->
+    <rect x="588" y="51" width="58" height="32" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="617" y="71" text-anchor="middle" fill="#2563eb" font-size="12" font-weight="600">全部</text>
 
-    <!-- Filter Icon Button (Active) -->
-    <circle cx="978" cy="64" r="16" fill="#1c1c1e" stroke="#2585ff" stroke-width="1.2" />
-    <path d="M972 59h12l-4.5 5.2v4.3l-3-1.5v-2.8z" fill="#2585ff" />
+    <rect x="654" y="51" width="64" height="32" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="686" y="71" text-anchor="middle" fill="#52525b" font-size="12">无码</text>
 
-    <!-- Hide Ads Icon Button -->
-    <circle cx="1018" cy="64" r="16" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
-    <path d="M1011 64s2.8-4.5 7-4.5 7 4.5 7 4.5-2.8 4.5-7 4.5-7-4.5-7-4.5z" fill="none" stroke="#a1a1aa" stroke-width="1.3" />
-    <circle cx="1018" cy="64" r="1.8" fill="#a1a1aa" />
+    <rect x="726" y="51" width="64" height="32" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="758" y="71" text-anchor="middle" fill="#52525b" font-size="12">LTX</text>
 
-    <!-- Sort Pill -->
-    <rect x="1044" y="48" width="134" height="32" rx="16" fill="#1c1c1e" stroke="#2c2c2f" stroke-width="1" />
-    <text x="1111" y="68" text-anchor="middle" fill="#e4e4e7" font-size="11.5">发行日期 ↓</text>
+    <rect x="798" y="51" width="76" height="32" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="836" y="71" text-anchor="middle" fill="#52525b" font-size="12">仅含打点</text>
 
-    <!-- FilterBar (ui-glass-surface: #141416 + #262629) -->
-    <rect x="246" y="96" width="932" height="42" rx="16" fill="#141416" stroke="#262629" stroke-width="1" />
-    <text x="264" y="121" fill="#a1a1aa" font-size="11">题材</text>
-    <rect x="292" y="105" width="84" height="24" rx="12" fill="#0c0c0e" stroke="#2a2a2d" stroke-width="1" />
-    <text x="334" y="120.5" text-anchor="middle" fill="#e4e4e7" font-size="11">全部题材 ▾</text>
+    <!-- Right Sort & View -->
+    <rect x="1032" y="51" width="96" height="32" rx="6" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="1080" y="71" text-anchor="middle" fill="#18181b" font-size="12">评分排序 ▾</text>
+    <rect x="1136" y="51" width="48" height="32" rx="6" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" />
+    <text x="1160" y="71" text-anchor="middle" fill="#52525b" font-size="11" class="mono-font">48/页</text>
 
-    <rect x="382" y="105" width="66" height="24" rx="12" fill="#1c1c1e" />
-    <text x="415" y="120.5" text-anchor="middle" fill="#a1a1aa" font-size="11">分类浏览</text>
+    <!-- Section Subheader -->
+    <text x="252" y="130" fill="#09090b" font-size="15" font-weight="700">番号影视</text>
+    <text x="322" y="130" fill="#71717a" font-size="12" class="mono-font">1,248 items</text>
+    <rect x="1104" y="114" width="80" height="24" rx="5" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" />
+    <text x="1144" y="129.5" text-anchor="middle" fill="#52525b" font-size="11">去重管理</text>
 
-    <text x="462" y="121" fill="#a1a1aa" font-size="11">年份</text>
-    <rect x="490" y="105" width="70" height="24" rx="12" fill="#0c0c0e" stroke="#2a2a2d" stroke-width="1" />
-    <text x="525" y="120.5" text-anchor="middle" fill="#e4e4e7" font-size="11">全部 ▾</text>
-
-    <text x="574" y="121" fill="#a1a1aa" font-size="11">片商</text>
-    <rect x="602" y="105" width="70" height="24" rx="12" fill="#0c0c0e" stroke="#2a2a2d" stroke-width="1" />
-    <text x="637" y="120.5" text-anchor="middle" fill="#e4e4e7" font-size="11">全部 ▾</text>
-
-    <text x="686" y="121" fill="#a1a1aa" font-size="11">标签</text>
-    <rect x="714" y="105" width="70" height="24" rx="12" fill="#0c0c0e" stroke="#2a2a2d" stroke-width="1" />
-    <text x="749" y="120.5" text-anchor="middle" fill="#e4e4e7" font-size="11">全部 ▾</text>
-
-    <!-- Uncensored Quick Pills -->
-    <rect x="802" y="105" width="44" height="24" rx="12" fill="#2585ff" />
-    <text x="824" y="120.5" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="600">全部</text>
-
-    <rect x="852" y="105" width="66" height="24" rx="12" fill="#10b981" fill-opacity="0.16" stroke="#10b981" stroke-opacity="0.4" stroke-width="1" />
-    <text x="885" y="120.5" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600">原生无码</text>
-
-    <rect x="924" y="105" width="46" height="24" rx="12" fill="url(#ltxGrad)" />
-    <text x="947" y="120.5" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" class="mono-font">LTX</text>
-
-    <rect x="976" y="105" width="54" height="24" rx="12" fill="#8b5cf6" fill-opacity="0.18" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1" />
-    <text x="1003" y="120.5" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700" class="mono-font">LADA</text>
-
-    <rect x="1036" y="105" width="48" height="24" rx="12" fill="#f59e0b" fill-opacity="0.16" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="1" />
-    <text x="1060" y="120.5" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">破解</text>
-
-    <!-- ==================== ROW 1 CARDS (y=154..414) ==================== -->
-
+    <!-- Row 1 Cards (y=150..398) -->
     <!-- Card 1 -->
-    <g>
-      <rect x="246" y="154" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip1)">
-        <rect x="246" y="154" width="221" height="147" fill="url(#art1)" />
-        <circle cx="420" cy="192" r="54" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="290" cy="276" r="46" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <!-- Center Hover Play -->
-      <circle cx="356.5" cy="227.5" r="18" fill="#2585ff" fill-opacity="0.92" />
-      <polygon points="352,220 365,227.5 352,235" fill="#ffffff" />
-      <!-- Top Left -->
-      <rect x="254" y="162" width="44" height="18" rx="9" fill="#000000" fill-opacity="0.62" />
-      <text x="276" y="174.5" text-anchor="middle" fill="#f5f5f7" font-size="10" font-weight="500">2 版本</text>
-      <rect x="302" y="162" width="32" height="18" rx="9" fill="#ec4899" />
-      <text x="318" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">● 4</text>
-      <!-- Top Right: LTX + Star -->
-      <rect x="394" y="162" width="38" height="18" rx="9" fill="url(#ltxGrad)" />
-      <text x="413" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700" class="mono-font">LTX</text>
-      <polygon points="449,161 452,167 459,168 454,173 455,180 449,176.5 443,180 444,173 439,168 446,167" fill="#fbbf24" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" />
-      <!-- Bottom Left & Right -->
-      <rect x="254" y="276" width="78" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="262" y="288.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.8</text>
-      <text x="296" y="288.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(1.2k)</text>
-      <rect x="398" y="276" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="428.5" y="288.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">02:14:30</text>
-      <!-- Footer -->
-      <text x="258" y="321" fill="#f5f5f7" font-size="12" font-weight="600">星夜霓虹下的东京漫游记</text>
-      <text x="258" y="338" fill="#d4d4d8" font-size="11.5">4K HDR 收藏版</text>
-      <text x="258" y="362" fill="#a1a1aa" font-size="10.5">三上悠亚 · S1</text>
-      <text x="258" y="395" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">STAR-801</text>
-      <text x="322" y="395" fill="#71717a" font-size="10" class="mono-font">2026-03-18</text>
-      <rect x="404" y="381" width="53" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="415" cy="390" r="3" fill="#4ade80" />
-      <text x="423" y="393.5" fill="#e4e4e7" font-size="10">精选</text>
+    <rect x="246" y="150" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip1)">
+      <rect x="252" y="156" width="221" height="144" fill="#f4f4f5" />
+      <line x1="252" y1="156" x2="473" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="473" y1="156" x2="252" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="342" y="210" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="358,218 358,230 369,224" fill="#71717a" />
     </g>
+    <rect x="424" y="164" width="41" height="20" rx="4" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="444.5" y="177.5" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">LTX</text>
+    <rect x="411" y="274" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="438" y="286.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">02:14:08</text>
+    <text x="258" y="324" fill="#09090b" font-size="13" font-weight="700" class="mono-font">SSIS-842</text>
+    <text x="258" y="344" fill="#52525b" font-size="12">夏日海滨特别篇 · 4K HDR</text>
+    <line x1="258" y1="362" x2="467" y2="362" stroke="#f4f4f5" stroke-width="1" />
+    <text x="258" y="384" fill="#71717a" font-size="11">三上悠亚 · 2024-06-14</text>
+    <text x="467" y="384" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.8</text>
 
     <!-- Card 2 -->
-    <g>
-      <rect x="483" y="154" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip2)">
-        <rect x="483" y="154" width="221" height="147" fill="url(#art2)" />
-        <circle cx="652" cy="196" r="50" fill="#ffffff" fill-opacity="0.05" />
-        <circle cx="530" cy="272" r="42" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="491" y="162" width="54" height="18" rx="9" fill="#000000" fill-opacity="0.62" />
-      <text x="518" y="174.5" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">合集 · 3</text>
-      <rect x="640" y="162" width="56" height="18" rx="9" fill="#10b981" />
-      <text x="668" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">原生无码</text>
-      <rect x="491" y="276" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="499" y="288.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.6</text>
-      <text x="533" y="288.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(840)</text>
-      <rect x="635" y="276" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="665.5" y="288.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">01:48:12</text>
-      <text x="495" y="321" fill="#f5f5f7" font-size="12" font-weight="600">海滨长廊与午后日光浴</text>
-      <text x="495" y="338" fill="#d4d4d8" font-size="11.5">加长未删减母带</text>
-      <text x="495" y="362" fill="#a1a1aa" font-size="10.5">枫可怜 · IdeaPocket</text>
-      <text x="495" y="395" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">IPX-912</text>
-      <text x="554" y="395" fill="#71717a" font-size="10" class="mono-font">2026-02-11</text>
-      <rect x="648" y="381" width="46" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="659" cy="390" r="3" fill="#ef4444" />
-      <text x="667" y="393.5" fill="#e4e4e7" font-size="10">无码</text>
+    <rect x="483" y="150" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip2)">
+      <rect x="489" y="156" width="221" height="144" fill="#f4f4f5" />
+      <line x1="489" y1="156" x2="710" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="710" y1="156" x2="489" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="579" y="210" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="595,218 595,230 606,224" fill="#71717a" />
     </g>
+    <rect x="661" y="164" width="41" height="20" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="681.5" y="177.5" text-anchor="middle" fill="#18181b" font-size="10" font-weight="600">无码</text>
+    <rect x="648" y="274" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="675" y="286.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">01:58:32</text>
+    <text x="495" y="324" fill="#09090b" font-size="13" font-weight="700" class="mono-font">FC2-PPV-419283</text>
+    <text x="495" y="344" fill="#52525b" font-size="12">午后咖啡馆日常记录</text>
+    <line x1="495" y1="362" x2="704" y2="362" stroke="#f4f4f5" stroke-width="1" />
+    <text x="495" y="384" fill="#71717a" font-size="11">2024-09-02 · 2 个版本</text>
+    <text x="704" y="384" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.6</text>
 
     <!-- Card 3 -->
-    <g>
-      <rect x="720" y="154" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip3)">
-        <rect x="720" y="154" width="221" height="147" fill="url(#art3)" />
-        <circle cx="888" cy="198" r="52" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="770" cy="268" r="40" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="728" y="162" width="32" height="18" rx="9" fill="#ec4899" />
-      <text x="744" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">● 2</text>
-      <rect x="862" y="162" width="44" height="18" rx="9" fill="#8b5cf6" />
-      <text x="884" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700" class="mono-font">LADA</text>
-      <polygon points="923,161 926,167 933,168 928,173 929,180 923,176.5 917,180 918,173 913,168 920,167" fill="#fbbf24" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" />
-      <rect x="728" y="276" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="736" y="288.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.5</text>
-      <text x="770" y="288.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(620)</text>
-      <rect x="872" y="276" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="902.5" y="288.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">02:03:45</text>
-      <text x="732" y="321" fill="#f5f5f7" font-size="12" font-weight="600">京都古宅的静谧雨夜</text>
-      <text x="732" y="338" fill="#d4d4d8" font-size="11.5">AI 修复高码率版</text>
-      <text x="732" y="362" fill="#a1a1aa" font-size="10.5">河北彩伽 · S1</text>
-      <text x="732" y="395" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">SSIS-642</text>
-      <text x="795" y="395" fill="#71717a" font-size="10" class="mono-font">2026-01-24</text>
-      <rect x="888" y="381" width="43" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="899" cy="390" r="3" fill="#d4d4d8" />
-      <text x="907" y="393.5" fill="#e4e4e7" font-size="10">4K</text>
+    <rect x="720" y="150" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip3)">
+      <rect x="726" y="156" width="221" height="144" fill="#f4f4f5" />
+      <line x1="726" y1="156" x2="947" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="947" y1="156" x2="726" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="816" y="210" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="832,218 832,230 843,224" fill="#71717a" />
     </g>
+    <rect x="898" y="164" width="41" height="20" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="918.5" y="177.5" text-anchor="middle" fill="#18181b" font-size="10" font-weight="600">破解</text>
+    <rect x="885" y="274" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="912" y="286.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">02:05:11</text>
+    <text x="732" y="324" fill="#09090b" font-size="13" font-weight="700" class="mono-font">IPZZ-315</text>
+    <text x="732" y="344" fill="#52525b" font-size="12">雨夜列车与酒店长镜头</text>
+    <line x1="732" y1="362" x2="941" y2="362" stroke="#f4f4f5" stroke-width="1" />
+    <text x="732" y="384" fill="#71717a" font-size="11">枫可怜 · 2024-07-19</text>
+    <text x="941" y="384" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.7</text>
 
     <!-- Card 4 -->
-    <g>
-      <rect x="957" y="154" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip4)">
-        <rect x="957" y="154" width="221" height="147" fill="url(#art4)" />
-        <circle cx="1125" cy="195" r="48" fill="#ffffff" fill-opacity="0.05" />
-        <circle cx="1005" cy="272" r="42" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="1129" y="162" width="41" height="18" rx="9" fill="#f59e0b" />
-      <text x="1149.5" y="174.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">破解</text>
-      <rect x="965" y="276" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="973" y="288.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.3</text>
-      <text x="1007" y="288.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(415)</text>
-      <rect x="1109" y="276" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="1139.5" y="288.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">01:55:20</text>
-      <text x="969" y="321" fill="#f5f5f7" font-size="12" font-weight="600">秋叶原深夜电车物语</text>
-      <text x="969" y="338" fill="#d4d4d8" font-size="11.5">中文字幕特别篇</text>
-      <text x="969" y="362" fill="#a1a1aa" font-size="10.5">明里紬 · Attacker</text>
-      <text x="969" y="395" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">ADN-518</text>
-      <text x="1028" y="395" fill="#71717a" font-size="10" class="mono-font">2025-12-09</text>
-      <rect x="1122" y="381" width="46" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="1133" cy="390" r="3" fill="#facc15" />
-      <text x="1141" y="393.5" fill="#e4e4e7" font-size="10">字幕</text>
+    <rect x="957" y="150" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip4)">
+      <rect x="963" y="156" width="221" height="144" fill="#f4f4f5" />
+      <line x1="963" y1="156" x2="1184" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="1184" y1="156" x2="963" y2="300" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="1053" y="210" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="1069,218 1069,230 1080,224" fill="#71717a" />
     </g>
+    <rect x="1135" y="164" width="41" height="20" rx="4" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="1155.5" y="177.5" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">LTX</text>
+    <rect x="1122" y="274" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="1149" y="286.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">02:28:40</text>
+    <text x="969" y="324" fill="#09090b" font-size="13" font-weight="700" class="mono-font">MIDV-774</text>
+    <text x="969" y="344" fill="#52525b" font-size="12">温泉旅馆纪念特辑</text>
+    <line x1="969" y1="362" x2="1178" y2="362" stroke="#f4f4f5" stroke-width="1" />
+    <text x="969" y="384" fill="#71717a" font-size="11">石川澪 · 2024-08-06</text>
+    <text x="1178" y="384" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.9</text>
 
-    <!-- ==================== ROW 2 CARDS (y=428..686) ==================== -->
-
+    <!-- Row 2 Cards (y=418..670) -->
     <!-- Card 5 -->
-    <g>
-      <rect x="246" y="428" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip5)">
-        <rect x="246" y="428" width="221" height="147" fill="url(#art5)" />
-        <circle cx="415" cy="468" r="52" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="295" cy="548" r="44" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="421" y="436" width="38" height="18" rx="9" fill="url(#ltxGrad)" />
-      <text x="440" y="448.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700" class="mono-font">LTX</text>
-      <rect x="254" y="550" width="78" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="262" y="562.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.9</text>
-      <text x="296" y="562.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(2.1k)</text>
-      <rect x="398" y="550" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="428.5" y="562.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">02:40:00</text>
-      <text x="258" y="595" fill="#f5f5f7" font-size="12" font-weight="600">横滨港湾跨年烟火夜</text>
-      <text x="258" y="612" fill="#d4d4d8" font-size="11.5">十周年纪念影像</text>
-      <text x="258" y="636" fill="#a1a1aa" font-size="10.5">石川澪 · Moodyz</text>
-      <text x="258" y="669" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">MIDV-774</text>
-      <text x="322" y="669" fill="#71717a" font-size="10" class="mono-font">2025-11-30</text>
-      <rect x="404" y="655" width="53" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="415" cy="664" r="3" fill="#4ade80" />
-      <text x="423" y="667.5" fill="#e4e4e7" font-size="10">精选</text>
+    <rect x="246" y="418" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip5)">
+      <rect x="252" y="424" width="221" height="144" fill="#f4f4f5" />
+      <line x1="252" y1="424" x2="473" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="473" y1="424" x2="252" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="342" y="478" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="358,486 358,498 369,492" fill="#71717a" />
     </g>
+    <rect x="411" y="542" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="438" y="554.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">01:47:19</text>
+    <text x="258" y="592" fill="#09090b" font-size="13" font-weight="700" class="mono-font">SONE-209</text>
+    <text x="258" y="612" fill="#52525b" font-size="12">东京夜景与深夜对谈</text>
+    <line x1="258" y1="630" x2="467" y2="630" stroke="#f4f4f5" stroke-width="1" />
+    <text x="258" y="652" fill="#71717a" font-size="11">河北彩花 · 2024-05-28</text>
+    <text x="467" y="652" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.7</text>
 
     <!-- Card 6 -->
-    <g>
-      <rect x="483" y="428" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip6)">
-        <rect x="483" y="428" width="221" height="147" fill="url(#art6)" />
-        <circle cx="650" cy="466" r="50" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="530" cy="544" r="42" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="491" y="436" width="32" height="18" rx="9" fill="#ec4899" />
-      <text x="507" y="448.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">● 6</text>
-      <polygon points="686,435 689,441 696,442 691,447 692,454 686,450.5 680,454 681,447 676,442 683,441" fill="#fbbf24" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" />
-      <rect x="491" y="550" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="499" y="562.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.7</text>
-      <text x="533" y="562.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(930)</text>
-      <rect x="635" y="550" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="665.5" y="562.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">02:05:18</text>
-      <text x="495" y="595" fill="#f5f5f7" font-size="12" font-weight="600">轻井泽林间别墅假日</text>
-      <text x="495" y="612" fill="#d4d4d8" font-size="11.5">高画质典藏收录</text>
-      <text x="495" y="636" fill="#a1a1aa" font-size="10.5">樱空桃 · IdeaPocket</text>
-      <text x="495" y="669" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">IPZZ-302</text>
-      <text x="558" y="669" fill="#71717a" font-size="10" class="mono-font">2025-10-15</text>
-      <rect x="651" y="655" width="43" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="662" cy="664" r="3" fill="#d4d4d8" />
-      <text x="670" y="667.5" fill="#e4e4e7" font-size="10">4K</text>
+    <rect x="483" y="418" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip6)">
+      <rect x="489" y="424" width="221" height="144" fill="#f4f4f5" />
+      <line x1="489" y1="424" x2="710" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="710" y1="424" x2="489" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="579" y="478" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="595,486 595,498 606,492" fill="#71717a" />
     </g>
+    <rect x="655" y="432" width="47" height="20" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="678.5" y="445.5" text-anchor="middle" fill="#18181b" font-size="10" font-weight="600">LADA</text>
+    <rect x="648" y="542" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="675" y="554.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">02:01:55</text>
+    <text x="495" y="592" fill="#09090b" font-size="13" font-weight="700" class="mono-font">PRED-692</text>
+    <text x="495" y="612" fill="#52525b" font-size="12">办公室加班夜特别篇</text>
+    <line x1="495" y1="630" x2="704" y2="630" stroke="#f4f4f5" stroke-width="1" />
+    <text x="495" y="652" fill="#71717a" font-size="11">山岸绮花 · 2024-04-12</text>
+    <text x="704" y="652" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.5</text>
 
     <!-- Card 7 -->
-    <g>
-      <rect x="720" y="428" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip7)">
-        <rect x="720" y="428" width="221" height="147" fill="url(#art7)" />
-        <circle cx="888" cy="466" r="46" fill="#ffffff" fill-opacity="0.06" />
-      </g>
-      <rect x="728" y="436" width="44" height="18" rx="9" fill="#000000" fill-opacity="0.62" />
-      <text x="750" y="448.5" text-anchor="middle" fill="#f5f5f7" font-size="10" font-weight="500">2 版本</text>
-      <rect x="877" y="436" width="56" height="18" rx="9" fill="#10b981" />
-      <text x="905" y="448.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700">原生无码</text>
-      <rect x="728" y="550" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="736" y="562.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.4</text>
-      <text x="770" y="562.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(380)</text>
-      <rect x="872" y="550" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="902.5" y="562.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">01:36:40</text>
-      <text x="732" y="595" fill="#f5f5f7" font-size="12" font-weight="600">涉谷街头摄影随笔</text>
-      <text x="732" y="612" fill="#d4d4d8" font-size="11.5">剧场级声轨重构</text>
-      <text x="732" y="636" fill="#a1a1aa" font-size="10.5">桃乃木香奈 · IP</text>
-      <text x="732" y="669" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">IPX-850</text>
-      <text x="790" y="669" fill="#71717a" font-size="10" class="mono-font">2025-09-22</text>
+    <rect x="720" y="418" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip7)">
+      <rect x="726" y="424" width="221" height="144" fill="#f4f4f5" />
+      <line x1="726" y1="424" x2="947" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="947" y1="424" x2="726" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="816" y="478" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="832,486 832,498 843,492" fill="#71717a" />
     </g>
+    <rect x="898" y="432" width="41" height="20" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="918.5" y="445.5" text-anchor="middle" fill="#18181b" font-size="10" font-weight="600">无码</text>
+    <rect x="885" y="542" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="912" y="554.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">01:36:40</text>
+    <text x="732" y="592" fill="#09090b" font-size="13" font-weight="700" class="mono-font">CAWD-650</text>
+    <text x="732" y="612" fill="#52525b" font-size="12">夏日祭典与烟火大会</text>
+    <line x1="732" y1="630" x2="941" y2="630" stroke="#f4f4f5" stroke-width="1" />
+    <text x="732" y="652" fill="#71717a" font-size="11">伊藤舞雪 · 2024-03-22</text>
+    <text x="941" y="652" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.6</text>
 
     <!-- Card 8 -->
-    <g>
-      <rect x="957" y="428" width="221" height="258" rx="14" fill="#121214" stroke="#222225" stroke-width="1" />
-      <g clip-path="url(#posterClip8)">
-        <rect x="957" y="428" width="221" height="147" fill="url(#art8)" />
-        <circle cx="1125" cy="468" r="50" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="1005" cy="546" r="40" fill="#a1a1aa" fill-opacity="0.05" />
-      </g>
-      <rect x="1126" y="436" width="44" height="18" rx="9" fill="#8b5cf6" />
-      <text x="1148" y="448.5" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="700" class="mono-font">LADA</text>
-      <rect x="965" y="550" width="76" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="973" y="562.5" fill="#fcd34d" font-size="10" class="mono-font">★ 4.6</text>
-      <text x="1007" y="562.5" fill="#d4d4d8" font-size="9.5" class="mono-font">(510)</text>
-      <rect x="1109" y="550" width="61" height="18" rx="9" fill="#000000" fill-opacity="0.68" />
-      <text x="1139.5" y="562.5" text-anchor="middle" fill="#ffffff" font-size="10" class="mono-font">02:22:10</text>
-      <text x="969" y="595" fill="#f5f5f7" font-size="12" font-weight="600">冲绳离岛蓝调时光</text>
-      <text x="969" y="612" fill="#d4d4d8" font-size="11.5">高帧率修复版</text>
-      <text x="969" y="636" fill="#a1a1aa" font-size="10.5">凉森玲梦 · Prestige</text>
-      <text x="969" y="669" fill="#d4d4d8" font-size="10.5" font-weight="600" class="mono-font">ABF-120</text>
-      <text x="1028" y="669" fill="#71717a" font-size="10" class="mono-font">2025-08-05</text>
-      <rect x="1122" y="655" width="46" height="18" rx="9" fill="#202022" stroke="#2e2e31" stroke-width="1" />
-      <circle cx="1133" cy="664" r="3" fill="#4ade80" />
-      <text x="1141" y="667.5" fill="#e4e4e7" font-size="10">无码</text>
+    <rect x="957" y="418" width="233" height="252" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <g clip-path="url(#posterClip8)">
+      <rect x="963" y="424" width="221" height="144" fill="#f4f4f5" />
+      <line x1="963" y1="424" x2="1184" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <line x1="1184" y1="424" x2="963" y2="568" stroke="#e4e4e7" stroke-width="1" />
+      <rect x="1053" y="478" width="40" height="28" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+      <polygon points="1069,486 1069,498 1080,492" fill="#71717a" />
     </g>
+    <rect x="1122" y="542" width="54" height="18" rx="4" fill="#ffffff" stroke="#e4e4e7" stroke-width="1" />
+    <text x="1149" y="554.5" text-anchor="middle" fill="#52525b" font-size="10" class="mono-font">02:09:15</text>
+    <text x="969" y="592" fill="#09090b" font-size="13" font-weight="700" class="mono-font">ABW-381</text>
+    <text x="969" y="612" fill="#52525b" font-size="12">轻井泽度假村纪录片</text>
+    <line x1="969" y1="630" x2="1178" y2="630" stroke="#f4f4f5" stroke-width="1" />
+    <text x="969" y="652" fill="#71717a" font-size="11">凉森玲梦 · 2024-02-09</text>
+    <text x="1178" y="652" text-anchor="end" fill="#09090b" font-size="11" font-weight="600" class="mono-font">★ 4.8</text>
   </g>
+
+  <!-- Outer Window Border -->
+  <rect x="0.5" y="0.5" width="1199" height="719" rx="12" fill="none" stroke="#e4e4e7" stroke-width="1" />
 </svg>
