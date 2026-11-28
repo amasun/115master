@@ -120,16 +120,16 @@
         {{ durationLabel }}
       </span>
 
-      <!-- Spotify 标志性：悬停从右下角平滑浮现「#B6F508 实心圆播放按钮」 -->
+      <!-- 悬停从右下角平滑浮现「玻璃质感底板 + 白色实心播放按钮」 -->
       <button
         v-if="primaryFile"
         type="button"
         title="直接播放"
         aria-label="直接播放"
-        class="absolute right-2.5 bottom-2.5 flex size-10 translate-y-2 cursor-pointer items-center justify-center rounded-full bg-[#B6F508] text-[#09090B] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.55)] transition-all duration-200 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 hover:scale-105 hover:bg-[#c6ff29]"
+        class="absolute right-2.5 bottom-2.5 flex size-10 translate-y-2 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-black/45 text-white opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-200 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 hover:scale-105 hover:border-white/40 hover:bg-black/60"
         @click.stop="playPrimary"
       >
-        <Icon :name="I.PLAY" class="ml-0.5 text-lg" />
+        <Icon :name="I.PLAY" :filled="true" class="ml-0.5 text-lg text-white" />
       </button>
     </div>
 
