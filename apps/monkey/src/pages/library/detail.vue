@@ -403,12 +403,17 @@
                   <Icon :name="I.SORT_DATABASE" class="text-base-content/50 text-base" />
                   <span>{{ format.fileSize(entry.totalSize) }}</span>
                 </span>
-                <span v-if="entry.meta?.rating" class="flex items-center gap-1">
-                  <Icon :name="I.STAR_RATING" class="text-warning text-base" />
-                  <span class="font-medium">{{ entry.meta.rating }}</span>
-                  <span v-if="entry.meta.ratingCount" class="text-base-content/50 text-xs tabular-nums">
-                    ({{ entry.meta.ratingCount.toLocaleString() }} 人评价)
-                  </span>
+              </div>
+
+              <!-- 独立评分展示（大字分数 + 小字「分」，无五角星、无灰底） -->
+              <div
+                v-if="entry.meta?.rating"
+                class="flex items-baseline gap-1 text-white"
+              >
+                <span class="text-2xl leading-none font-bold tracking-tight tabular-nums">{{ entry.meta.rating }}</span>
+                <span class="text-xs leading-none font-medium text-white/80">分</span>
+                <span v-if="entry.meta.ratingCount" class="ml-1.5 text-xs text-[#71717A] tabular-nums">
+                  {{ entry.meta.ratingCount.toLocaleString() }} 人评价
                 </span>
               </div>
 

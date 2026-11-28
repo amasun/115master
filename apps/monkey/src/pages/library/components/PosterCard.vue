@@ -94,14 +94,22 @@
         </span>
       </div>
 
-      <!-- 左下角：评分与评价人数角标 -->
+      <!-- 底部轻微渐变遮罩，保证无底色白字评分与时长清晰可读 -->
+      <div
+        v-if="ratingBadge || durationLabel"
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
+      />
+
+      <!-- 左下角：大字分数 + 小字「分」（无五角星、无灰底） -->
       <span
         v-if="ratingBadge"
         :title="ratingBadge.title"
-        class="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-black/75 px-2 py-0.5 font-mono text-[11px] text-[#ECA617] tabular-nums backdrop-blur-xs"
+        class="pointer-events-none absolute bottom-2 left-2.5 inline-flex items-baseline gap-0.5 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
       >
-        <span>★ {{ ratingBadge.scoreText }}</span>
-        <span v-if="ratingBadge.countText" class="text-[10px] text-[#F4F4F5]/70">({{ ratingBadge.countText }})</span>
+        <span class="text-base leading-none font-bold tracking-tight tabular-nums">{{ ratingBadge.scoreText }}</span>
+        <span class="text-[10px] leading-none font-medium text-white/85">分</span>
+        <span v-if="ratingBadge.countText" class="ml-0.5 text-[10px] leading-none text-white/70 tabular-nums">({{ ratingBadge.countText }})</span>
       </span>
 
       <!-- 右下角：时长角标（悬停时让位给播放按钮） -->
