@@ -1,7 +1,7 @@
 <template>
   <article
     ref="cardRef"
-    class="group bg-base-200/45 border-base-content/5 hover:border-primary/40 hover:bg-base-200/75 flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-200"
+    class="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl bg-[#18181B] p-2 ring-1 ring-white/[0.04] transition-colors duration-200 hover:bg-[#27272A]"
     tabindex="0"
     @click="openDetail"
     @contextmenu.prevent="openContextMenu"
@@ -9,7 +9,7 @@
   >
     <!-- 封面区域 -->
     <div
-      class="bg-base-300/60 relative w-full shrink-0 overflow-hidden"
+      class="relative w-full shrink-0 overflow-hidden rounded-lg bg-[#121215] shadow-md shadow-black/40"
       :class="aspectMode === 'portrait' ? 'aspect-[2/3]' : 'aspect-[3/2]'"
     >
       <img
@@ -26,22 +26,22 @@
       >
       <div
         v-else
-        class="text-base-content/35 flex size-full flex-col items-center justify-center gap-2 px-3 text-center"
+        class="flex size-full flex-col items-center justify-center gap-2 px-3 text-center text-[#71717A]"
       >
         <Icon
           :name="isScraping ? I.LOADING : (isCollection ? I.FOLDER_OPEN : I.LIBRARY)"
           class="text-3xl"
-          :class="isScraping && 'text-primary animate-spin'"
+          :class="isScraping && 'animate-spin text-[#B6F508]'"
         />
         <span
           v-if="isCollection"
-          class="bg-primary/15 text-primary max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+          class="max-w-full truncate rounded-md border border-[#38BDF8]/25 bg-[#38BDF8]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#38BDF8]"
         >
           合集 · {{ entry.files.length }} 个视频
         </span>
         <span
           v-else-if="entry.externalId"
-          class="bg-base-content/8 text-base-content/70 max-w-full truncate rounded-full px-2.5 py-0.5 font-mono text-[11px]"
+          class="max-w-full truncate rounded-md bg-white/[0.06] px-2.5 py-0.5 font-mono text-[11px] text-[#A1A1AA]"
         >
           {{ entry.externalId }}
         </span>
@@ -51,19 +51,19 @@
       <div class="pointer-events-none absolute top-2 left-2 flex flex-wrap gap-1">
         <span
           v-if="isCollection"
-          class="ui-glass-overlay text-primary inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+          class="inline-flex items-center gap-1 rounded-md border border-[#38BDF8]/25 bg-[#09090B]/80 px-2 py-0.5 text-[11px] font-medium text-[#38BDF8] backdrop-blur-xs"
         >
           合集 · {{ entry.files.length }}
         </span>
         <span
           v-else-if="entry.files.length > 1"
-          class="ui-glass-overlay text-base-content inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+          class="inline-flex items-center rounded-md border border-[#38BDF8]/25 bg-[#09090B]/80 px-2 py-0.5 text-[11px] font-medium text-[#38BDF8] backdrop-blur-xs"
         >
           {{ entry.files.length }} 版本
         </span>
         <span
           v-if="entry.markerCount > 0"
-          class="badge badge-secondary badge-xs gap-0.5 rounded-full px-1.5 py-2 text-[11px] shadow-xs"
+          class="inline-flex items-center gap-0.5 rounded-md border border-[#8B5CF6]/30 bg-[#8B5CF6]/20 px-1.5 py-0.5 text-[11px] font-medium text-[#C4B5FD] tabular-nums backdrop-blur-xs"
         >
           <Icon :name="I.MARKER" class="text-[11px]" />
           <span>{{ entry.markerCount }}</span>
@@ -79,7 +79,7 @@
           v-if="uncensoredBadge"
           type="button"
           :title="`${uncensoredBadge.title}（点击筛选）`"
-          class="pointer-events-auto inline-flex cursor-pointer items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm transition-transform hover:scale-105"
+          class="pointer-events-auto inline-flex cursor-pointer items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider shadow-sm transition-transform hover:scale-105"
           :class="uncensoredBadge.badgeClass"
           @click.stop="store.selectUncensoredKind(props.entry.uncensoredKind)"
         >
@@ -88,7 +88,7 @@
         <span
           v-if="entry.starred"
           title="已星标收藏"
-          class="fav-icon-outline inline-flex items-center justify-center text-amber-400 drop-shadow-sm"
+          class="fav-icon-outline inline-flex items-center justify-center text-[#F43F5E] drop-shadow-sm"
         >
           <Icon :name="I.STAR_FILL" size="custom" class="size-5" />
         </span>
@@ -98,46 +98,46 @@
       <span
         v-if="ratingBadge"
         :title="ratingBadge.title"
-        class="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 font-mono text-[11px] text-amber-300 tabular-nums backdrop-blur-xs"
+        class="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-black/75 px-2 py-0.5 font-mono text-[11px] text-[#ECA617] tabular-nums backdrop-blur-xs"
       >
         <span>★ {{ ratingBadge.scoreText }}</span>
-        <span v-if="ratingBadge.countText" class="text-[10px] text-white/75">({{ ratingBadge.countText }})</span>
+        <span v-if="ratingBadge.countText" class="text-[10px] text-[#F4F4F5]/70">({{ ratingBadge.countText }})</span>
       </span>
 
-      <!-- 右下角：时长角标 -->
+      <!-- 右下角：时长角标（悬停时让位给播放按钮） -->
       <span
         v-if="durationLabel"
-        class="pointer-events-none absolute right-2 bottom-2 rounded-full bg-black/65 px-2 py-0.5 font-mono text-[11px] text-white backdrop-blur-xs"
+        class="pointer-events-none absolute right-2 bottom-2 rounded-md bg-black/75 px-2 py-0.5 font-mono text-[11px] text-[#F4F4F5] tabular-nums backdrop-blur-xs transition-opacity duration-150 group-hover:opacity-0"
       >
         {{ durationLabel }}
       </span>
 
-      <!-- 悬停浮现「直接播放」按钮 -->
+      <!-- Spotify 标志性：悬停从右下角平滑浮现「#B6F508 实心圆播放按钮」 -->
       <button
         v-if="primaryFile"
         type="button"
         title="直接播放"
         aria-label="直接播放"
-        class="btn btn-primary btn-circle btn-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 shadow-lg transition-all duration-150 group-focus-within:opacity-100 group-hover:scale-105 group-hover:opacity-100"
+        class="absolute right-2.5 bottom-2.5 flex size-10 translate-y-2 cursor-pointer items-center justify-center rounded-full bg-[#B6F508] text-[#09090B] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.55)] transition-all duration-200 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 hover:scale-105 hover:bg-[#c6ff29]"
         @click.stop="playPrimary"
       >
-        <Icon :name="I.PLAY" class="ml-0.5 text-base" />
+        <Icon :name="I.PLAY" class="ml-0.5 text-lg" />
       </button>
     </div>
 
-    <!-- 底部文案区：固定标题高度 + 题材标签行 + 番号年份 -->
-    <div class="flex min-h-0 flex-1 flex-col justify-between gap-1.5 p-2.5">
+    <!-- 底部文案区 -->
+    <div class="flex min-h-0 flex-1 flex-col justify-between gap-1.5 px-1 pt-2.5 pb-1">
       <div class="flex shrink-0 flex-col gap-0.5">
         <h3
           :title="displayTitle"
-          class="text-base-content line-clamp-2 min-h-[2.1rem] text-xs leading-[1.4] font-medium"
+          class="line-clamp-2 min-h-[2.1rem] text-xs leading-[1.4] font-semibold text-[#F4F4F5]"
         >
           {{ displayTitle }}
         </h3>
         <p
           v-if="mediaNote"
           :title="`备注：${mediaNote}`"
-          class="text-primary/85 truncate text-[11px] leading-tight"
+          class="truncate text-[11px] leading-tight text-[#B6F508]/90"
         >
           {{ mediaNote }}
         </p>
@@ -146,7 +146,7 @@
       <!-- AV 演员与发行商 -->
       <div
         v-if="isAvEntry"
-        class="text-base-content/65 flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4"
+        class="flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4 text-[#A1A1AA]"
       >
         <div
           v-if="visibleActors.length > 0"
@@ -154,11 +154,11 @@
           :title="allActorsTitle"
         >
           <template v-for="(actor, idx) in visibleActors" :key="actor.name">
-            <span v-if="idx > 0" class="text-base-content/35 shrink-0">·</span>
+            <span v-if="idx > 0" class="shrink-0 text-[#71717A]">·</span>
             <button
               type="button"
-              class="hover:text-primary truncate transition-colors"
-              :class="store.filter.actor === actor.name ? 'text-primary font-medium' : ''"
+              class="truncate transition-colors hover:text-[#F4F4F5]"
+              :class="store.filter.actor === actor.name ? 'font-medium text-[#B6F508]' : ''"
               :title="`按演员「${actor.name}」筛选`"
               @click.stop="store.selectActor(actor.name)"
             >
@@ -166,12 +166,12 @@
             </button>
           </template>
         </div>
-        <span v-else class="text-base-content/35 truncate">未知演员</span>
+        <span v-else class="truncate text-[#71717A]">未知演员</span>
         <button
           v-if="publisherLabel"
           type="button"
-          class="hover:text-primary max-w-[45%] shrink-0 truncate transition-colors"
-          :class="store.filter.publisher === publisherLabel ? 'text-primary font-medium' : 'text-base-content/45'"
+          class="max-w-[45%] shrink-0 truncate transition-colors hover:text-[#F4F4F5]"
+          :class="store.filter.publisher === publisherLabel ? 'font-medium text-[#B6F508]' : 'text-[#71717A]'"
           :title="`按片商「${publisherLabel}」筛选`"
           @click.stop="store.selectPublisher(publisherLabel)"
         >
@@ -185,10 +185,10 @@
           v-for="genre in visibleGenres"
           :key="genre"
           type="button"
-          class="max-w-20 shrink-0 truncate rounded-full px-1.5 py-0.5 text-[10px] leading-tight transition-colors"
+          class="max-w-20 shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] leading-tight transition-colors"
           :class="store.filter.genre === genre
-            ? 'bg-primary/25 text-primary font-medium'
-            : 'bg-base-content/8 text-base-content/75 hover:bg-primary/20 hover:text-primary'"
+            ? 'bg-[#B6F508]/15 font-medium text-[#B6F508]'
+            : 'bg-white/[0.06] text-[#A1A1AA] hover:bg-white/[0.12] hover:text-[#F4F4F5]'"
           :title="`按题材「${genre}」筛选`"
           @click.stop="store.selectGenre(genre)"
         >
@@ -196,8 +196,8 @@
         </button>
       </div>
 
-      <div class="text-base-content/55 flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4">
-        <span v-if="isCollection" class="text-primary/80 truncate font-medium">
+      <div class="flex h-4 shrink-0 items-center justify-between gap-2 text-[11px] leading-4 text-[#71717A]">
+        <span v-if="isCollection" class="truncate font-medium text-[#38BDF8]">
           合集 · {{ entry.files.length }} 个视频
         </span>
         <span v-else-if="entry.externalId" class="truncate font-mono">

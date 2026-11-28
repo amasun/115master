@@ -16,13 +16,13 @@
     <!-- 首次拉取全盘索引加载态 -->
     <div
       v-else-if="(store.initializing || store.indexing) && entries.length === 0"
-      class="text-base-content/65 flex min-h-[50vh] flex-col items-center justify-center gap-3"
+      class="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-[#A1A1AA]"
     >
-      <Icon :name="I.LOADING" class="text-primary animate-spin text-3xl" />
-      <p class="text-sm font-medium">
+      <Icon :name="I.LOADING" class="animate-spin text-3xl text-[#B6F508]" />
+      <p class="text-sm font-medium text-[#F4F4F5]">
         正在同步 115 网盘全盘视频索引...
       </p>
-      <p v-if="store.indexProgress.fetched > 0" class="text-base-content/50 text-xs tabular-nums">
+      <p v-if="store.indexProgress.fetched > 0" class="text-xs text-[#71717A] tabular-nums">
         已扫描 {{ store.indexProgress.fetched }} / {{ store.indexProgress.total || '...' }} 部视频
       </p>
     </div>
@@ -88,24 +88,24 @@
           v-if="section.title"
           class="flex h-10 items-center gap-3"
         >
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-2.5">
             <span
               v-if="section.badge"
-              class="badge badge-primary badge-soft badge-xs rounded-full font-medium"
+              class="rounded-md border border-[#8B5CF6]/25 bg-[#8B5CF6]/15 px-2 py-0.5 text-[11px] font-medium text-[#C4B5FD]"
             >
               {{ section.badge }}
             </span>
-            <span class="text-base-content text-sm font-semibold">
+            <span class="text-lg font-bold tracking-tight text-[#F4F4F5]">
               {{ section.title }}
             </span>
             <span
               v-if="section.count !== undefined"
-              class="text-base-content/45 text-xs tabular-nums"
+              class="text-xs text-[#71717A] tabular-nums"
             >
               {{ section.count }} 部
             </span>
           </div>
-          <div class="bg-base-content/10 h-px flex-1" />
+          <div class="h-px flex-1 bg-white/[0.06]" />
         </div>
 
         <div

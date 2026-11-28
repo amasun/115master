@@ -7,18 +7,17 @@
         class="flex items-center gap-2 no-underline"
         @click="store.setTagRailOpen(false)"
       >
-        <LogoWordmark role="img" aria-label="115Master" class="text-base-content h-7 w-auto" />
-        <span class="badge badge-primary badge-soft badge-xs font-medium">影视库</span>
+        <LogoWordmark role="img" aria-label="115Master" class="h-7 w-auto text-[#F4F4F5]" />
+        <span class="rounded-md border border-[#B6F508]/20 bg-[#B6F508]/12 px-1.5 py-0.5 text-[10px] font-semibold text-[#B6F508]">影视库</span>
       </RouterLink>
     </div>
 
-    <div class="bg-base-content/5 mb-2.5 h-px w-full shrink-0" />
+    <div class="mb-2.5 h-px w-full shrink-0 bg-white/[0.06]" />
 
     <!-- 离线下载主入口 -->
     <Button
-      color="primary"
       size="sm"
-      class="mb-2.5 shrink-0 gap-2 rounded-full"
+      class="mb-2.5 shrink-0 gap-2 rounded-lg border-none bg-[#B6F508] font-semibold text-[#09090B] hover:bg-[#c6ff29]"
       @click="openCloudDownload"
     >
       <Icon :name="I.ADD_LINK" class="text-lg" />
@@ -30,17 +29,17 @@
       <li>
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isAllWorksActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="selectAllWorks"
           @contextmenu.prevent="openNavMenu($event, { kind: 'all' })"
         >
           <span class="flex items-center gap-2.5">
             <svg
               v-if="isAllWorksActive"
-              class="size-[1em] shrink-0 text-lg"
+              class="size-[1em] shrink-0 text-lg text-[#B6F508]"
               viewBox="0 0 16 16"
               fill="none"
               aria-hidden="true"
@@ -64,7 +63,10 @@
             </svg>
             <span>番号影视</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.visibleEntryCount }}</span>
+          <span
+            class="text-xs tabular-nums"
+            :class="isAllWorksActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
+          >{{ store.visibleEntryCount }}</span>
         </button>
       </li>
       <li
@@ -73,67 +75,99 @@
       >
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isSectionActive(section.id)
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           :title="`${section.name}（${scrapeModeLabel(section.scrapeMode)}）`"
           @click="selectView(`section:${section.id}`)"
           @contextmenu.prevent="openNavMenu($event, { kind: 'section', sectionId: section.id })"
         >
           <span class="flex min-w-0 items-center gap-2.5">
-            <Icon :name="I.FOLDER_OPEN" :filled="isSectionActive(section.id)" class="shrink-0 text-lg" />
+            <Icon
+              :name="I.FOLDER_OPEN"
+              :filled="isSectionActive(section.id)"
+              class="shrink-0 text-lg"
+              :class="isSectionActive(section.id) ? 'text-[#B6F508]' : ''"
+            />
             <span class="truncate">{{ section.name }}</span>
           </span>
-          <span class="text-base-content/45 shrink-0 text-xs tabular-nums">{{ store.sectionCounts[section.id] ?? 0 }}</span>
+          <span
+            class="shrink-0 text-xs tabular-nums"
+            :class="isSectionActive(section.id) ? 'text-[#B6F508]' : 'text-[#71717A]'"
+          >{{ store.sectionCounts[section.id] ?? 0 }}</span>
         </button>
       </li>
       <li>
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isActorsActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="openActorsWall"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.PEOPLE" :filled="isActorsActive" class="text-lg" />
+            <Icon
+              :name="I.PEOPLE"
+              :filled="isActorsActive"
+              class="text-lg"
+              :class="isActorsActive ? 'text-[#B6F508]' : ''"
+            />
             <span>演员</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ visibleActorCount }}</span>
+          <span
+            class="text-xs tabular-nums"
+            :class="isActorsActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
+          >{{ visibleActorCount }}</span>
         </button>
       </li>
       <li>
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isStarredActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="selectView('starred')"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.STAR" :filled="isStarredActive" class="text-lg" />
+            <Icon
+              :name="I.STAR"
+              :filled="isStarredActive"
+              class="text-lg"
+              :class="isStarredActive ? 'text-[#B6F508]' : ''"
+            />
             <span>星标收藏</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.starredCount }}</span>
+          <span
+            class="text-xs tabular-nums"
+            :class="isStarredActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
+          >{{ store.starredCount }}</span>
         </button>
       </li>
       <li>
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isMarkedActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="selectView('marked')"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.MARKER" :filled="isMarkedActive" class="text-lg" />
+            <Icon
+              :name="I.MARKER"
+              :filled="isMarkedActive"
+              class="text-lg"
+              :class="isMarkedActive ? 'text-[#B6F508]' : ''"
+            />
             <span>有打点</span>
           </span>
-          <span class="text-base-content/45 text-xs tabular-nums">{{ store.markedCount }}</span>
+          <span
+            class="text-xs tabular-nums"
+            :class="isMarkedActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
+          >{{ store.markedCount }}</span>
         </button>
       </li>
       <li>
@@ -141,19 +175,25 @@
           type="button"
           aria-label="标签与标签管理"
           :aria-expanded="store.tagRailOpen"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isTagsActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="toggleTagRail"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.TAG" :filled="isTagsActive" class="text-lg" />
+            <Icon
+              :name="I.TAG"
+              :filled="isTagsActive"
+              class="text-lg"
+              :class="isTagsActive ? 'text-[#B6F508]' : ''"
+            />
             <span>标签</span>
           </span>
           <span
             v-if="tagCount > 0"
-            class="text-base-content/45 text-xs tabular-nums"
+            class="text-xs tabular-nums"
+            :class="isTagsActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
           >
             {{ tagCount }}
           </span>
@@ -162,19 +202,25 @@
       <li>
         <button
           type="button"
-          class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+          class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
           :class="isCleanupActive
-            ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-            : 'hover:bg-base-content/5 text-base-content/75'"
+            ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+            : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
           @click="openCleanupPage"
         >
           <span class="flex items-center gap-2.5">
-            <Icon :name="I.DELETE" :filled="isCleanupActive" class="text-lg" />
+            <Icon
+              :name="I.DELETE"
+              :filled="isCleanupActive"
+              class="text-lg"
+              :class="isCleanupActive ? 'text-[#B6F508]' : ''"
+            />
             <span>去重与清理</span>
           </span>
           <span
             v-if="duplicateGroupCount > 0"
-            class="text-base-content/45 text-xs tabular-nums"
+            class="text-xs tabular-nums"
+            :class="isCleanupActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
           >
             {{ duplicateGroupCount }}
           </span>
@@ -184,30 +230,38 @@
 
     <!-- 院线影视独立分组（与 AV 导航视觉隔离） -->
     <template v-if="store.enableCinemaLibrary">
-      <div class="bg-base-content/8 my-2 h-px w-full shrink-0" />
+      <div class="my-2 h-px w-full shrink-0 bg-white/[0.06]" />
       <ul class="flex shrink-0 flex-col gap-0.5">
         <li>
           <button
             type="button"
-            class="flex h-9 w-full items-center justify-between rounded-full border border-transparent px-3.5 text-sm transition-colors"
+            class="flex h-9 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors"
             :class="isCinemaActive
-              ? 'bg-base-content/8 border-base-content/5 text-base-content font-medium'
-              : 'hover:bg-base-content/5 text-base-content/75'"
+              ? 'bg-[#18181B] font-semibold text-[#F4F4F5]'
+              : 'text-[#A1A1AA] hover:bg-white/[0.05] hover:text-[#F4F4F5]'"
             @click="selectView('cinema')"
             @contextmenu.prevent="openNavMenu($event, { kind: 'cinema' })"
           >
             <span class="flex items-center gap-2.5">
-              <Icon :name="I.FILE_VIDEO" :filled="isCinemaActive" class="text-lg" />
+              <Icon
+                :name="I.FILE_VIDEO"
+                :filled="isCinemaActive"
+                class="text-lg"
+                :class="isCinemaActive ? 'text-[#B6F508]' : ''"
+              />
               <span>院线影视</span>
             </span>
-            <span class="text-base-content/45 text-xs tabular-nums">{{ store.cinemaCount }}</span>
+            <span
+              class="text-xs tabular-nums"
+              :class="isCinemaActive ? 'text-[#B6F508]' : 'text-[#71717A]'"
+            >{{ store.cinemaCount }}</span>
           </button>
         </li>
       </ul>
     </template>
 
     <div class="mt-auto pt-3">
-      <div class="bg-base-content/5 mb-2 h-px w-full shrink-0" />
+      <div class="mb-2 h-px w-full shrink-0 bg-white/[0.06]" />
 
       <!-- 底部网盘索引与元数据刮削控制 -->
       <div class="mb-2.5 flex shrink-0 flex-col gap-2.5">

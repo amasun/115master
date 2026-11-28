@@ -18,7 +18,7 @@
               <button
                 v-if="!item.current"
                 type="button"
-                class="text-base-content/65 hover:text-base-content hover:bg-base-content/6 max-w-36 truncate rounded-full px-2 py-1 font-medium transition-colors"
+                class="max-w-36 truncate rounded-lg px-2 py-1 font-medium text-[#A1A1AA] transition-colors hover:bg-white/[0.06] hover:text-[#F4F4F5]"
                 :title="item.title ?? item.label"
                 @click="handleBreadcrumbClick(item)"
               >
@@ -27,13 +27,13 @@
               <span
                 v-else
                 aria-current="page"
-                class="text-base-content flex min-w-0 items-center gap-1 px-1.5 font-semibold"
+                class="flex min-w-0 items-center gap-1.5 px-1.5 text-base font-bold tracking-tight text-[#F4F4F5]"
                 :title="item.title ?? item.label"
               >
                 <span class="max-w-52 truncate">{{ item.label }}</span>
                 <span
                   v-if="item.count !== undefined"
-                  class="text-base-content/50 shrink-0 text-xs font-normal tabular-nums"
+                  class="shrink-0 text-xs font-normal text-[#71717A] tabular-nums"
                 >
                   ({{ item.count }})
                 </span>
@@ -44,7 +44,7 @@
         <button
           v-if="!isActors && !isDetail && !isCleanup && hasActiveFilter"
           type="button"
-          class="btn btn-ghost btn-xs text-base-content/65 hover:text-base-content shrink-0 rounded-full"
+          class="btn btn-ghost btn-xs shrink-0 rounded-lg text-[#A1A1AA] hover:bg-white/[0.06] hover:text-[#F4F4F5]"
           @click="clearAllFilters"
         >
           清空条件
@@ -56,20 +56,20 @@
       <!-- 库内即时搜索 -->
       <label
         v-if="!isCleanup"
-        class="ui-glass-floating flex h-9 w-40 items-center gap-1.5 rounded-full px-3 sm:w-56"
+        class="flex h-9 w-40 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#18181B]/90 px-3 backdrop-blur-md transition-colors focus-within:border-[#B6F508]/50 sm:w-56"
       >
-        <Icon :name="I.SEARCH" class="text-base-content/55 shrink-0 text-base" />
+        <Icon :name="I.SEARCH" class="shrink-0 text-base text-[#71717A]" />
         <input
           v-model="store.filter.keyword"
           type="text"
-          class="text-base-content placeholder:text-base-content/45 min-w-0 grow bg-transparent text-xs outline-none"
+          class="min-w-0 grow bg-transparent text-xs text-[#F4F4F5] outline-none placeholder:text-[#71717A]"
           :placeholder="isActors ? '搜索演员...' : '搜番号、片名、演员...'"
           @input="handleKeywordInput"
         >
         <button
           v-if="store.filter.keyword"
           type="button"
-          class="text-base-content/50 hover:text-base-content shrink-0"
+          class="shrink-0 text-[#71717A] hover:text-[#F4F4F5]"
           aria-label="清空搜索"
           @click="store.filter.keyword = ''"
         >
@@ -82,7 +82,7 @@
         <Button
           variant="glass-floating"
           size="sm"
-          class="gap-1.5 rounded-full px-3 text-xs"
+          class="gap-1.5 rounded-lg border-white/[0.08] bg-[#18181B]/90 px-3 text-xs text-[#F4F4F5] hover:bg-[#27272A]"
           aria-label="超级搜索"
           @click="openSuperSearch"
         >
@@ -98,7 +98,7 @@
           shape="circle"
           size="sm"
           aria-label="多维筛选"
-          :class="!isActors && (showFilters || subFilterCount > 0) ? 'ring-primary/50 text-primary ring-1' : ''"
+          :class="!isActors && (showFilters || subFilterCount > 0) ? 'bg-[#B6F508]/10 text-[#B6F508] ring-1 ring-[#B6F508]/50' : ''"
           @click="$emit('toggleFilters')"
         >
           <Icon :name="I.FILTER" :filled="!isActors && (showFilters || subFilterCount > 0)" class="text-base" />
@@ -113,7 +113,7 @@
           size="sm"
           aria-label="隐藏疑似广告视频"
           :aria-pressed="store.hideAdVideos"
-          :class="store.hideAdVideos ? 'ring-primary/50 text-primary ring-1' : ''"
+          :class="store.hideAdVideos ? 'bg-[#B6F508]/10 text-[#B6F508] ring-1 ring-[#B6F508]/50' : ''"
           @click="store.hideAdVideos = !store.hideAdVideos"
         >
           <Icon :name="store.hideAdVideos ? I.PREVIEW_OFF : I.VIEW" class="text-base" />
@@ -123,7 +123,7 @@
       <!-- 排序选择 + 方向 -->
       <div
         v-if="!isActors && !isCleanup"
-        class="ui-glass-floating hidden h-9 items-center gap-1 rounded-full px-2 md:inline-flex"
+        class="hidden h-9 items-center gap-1 rounded-lg border border-white/[0.08] bg-[#18181B]/90 px-2 backdrop-blur-md md:inline-flex"
       >
         <select
           v-model="store.filter.sortBy"

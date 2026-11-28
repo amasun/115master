@@ -4,15 +4,15 @@
     class="px-(--main-content-gutter) pb-3"
   >
     <div
-      class="ui-glass-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs"
+      class="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-[#18181B]/95 px-3.5 py-2.5 text-xs backdrop-blur-md"
     >
       <!-- 题材 -->
       <div class="flex shrink-0 items-center gap-1.5">
         <label class="flex shrink-0 items-center gap-1.5">
-          <span class="text-base-content/55 shrink-0 whitespace-nowrap">题材</span>
+          <span class="shrink-0 whitespace-nowrap text-[#71717A]">题材</span>
           <select
             v-model="store.filter.genre"
-            class="select select-xs select-bordered bg-base-100/70 w-auto max-w-36 min-w-24 rounded-full"
+            class="select select-xs select-bordered w-auto max-w-36 min-w-24 rounded-lg border-white/[0.08] bg-[#121215] text-[#F4F4F5]"
           >
             <option :value="undefined">全部题材</option>
             <optgroup
@@ -33,8 +33,8 @@
         <button
           v-if="groupedGenres.length > 0"
           type="button"
-          class="btn btn-xs shrink-0 rounded-full font-normal whitespace-nowrap"
-          :class="genreBrowserOpen ? 'btn-primary btn-soft' : 'btn-ghost text-base-content/65'"
+          class="btn btn-xs shrink-0 rounded-full whitespace-nowrap"
+          :class="genreBrowserOpen ? 'border-none bg-[#B6F508] font-semibold text-[#09090B] hover:bg-[#c6ff29]' : 'btn-ghost font-normal text-[#A1A1AA] hover:text-[#F4F4F5]'"
           :aria-expanded="genreBrowserOpen"
           @click="genreBrowserOpen = !genreBrowserOpen"
         >
@@ -44,10 +44,10 @@
 
       <!-- 年份 -->
       <label class="flex shrink-0 items-center gap-1.5">
-        <span class="text-base-content/55 shrink-0 whitespace-nowrap">年份</span>
+        <span class="shrink-0 whitespace-nowrap text-[#71717A]">年份</span>
         <select
           :value="store.filter.year ?? ''"
-          class="select select-xs select-bordered bg-base-100/70 w-auto min-w-24 rounded-full"
+          class="select select-xs select-bordered w-auto min-w-24 rounded-lg border-white/[0.08] bg-[#121215] text-[#F4F4F5]"
           @change="onYearChange"
         >
           <option value="">全部年份</option>

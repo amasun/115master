@@ -1,6 +1,6 @@
 <template>
   <div
-    class="bg-base-100 text-base-content flex min-h-screen flex-col [--main-content-gutter:calc(var(--spacing)*3)] [--ui-header-gutter:var(--main-content-gutter)] [--ui-header-offset:calc(var(--spacing)*2)] sm:[--main-content-gutter:calc(var(--spacing)*6)]"
+    class="library-spotify-shell flex min-h-screen flex-col bg-[#121215] text-[#F4F4F5] [--main-content-gutter:calc(var(--spacing)*3)] [--ui-header-gutter:var(--main-content-gutter)] [--ui-header-offset:calc(var(--spacing)*2)] sm:[--main-content-gutter:calc(var(--spacing)*6)]"
   >
     <Layout
       :class="store.tagRailOpen ? '[--rail2-width:0px] sm:[--rail2-width:calc(var(--spacing)*62)]' : '[--rail2-width:0px]'"
@@ -10,7 +10,17 @@
         <LibrarySider />
       </Sider>
       <LibraryTagRail />
-      <Main class="relative flex min-h-screen flex-col">
+      <Main class="relative flex min-h-screen flex-col bg-[#121215]">
+        <!-- 顶部极克制环境光渐变 -->
+        <div
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-x-0 top-0 h-72 transition-colors duration-500"
+          :style="{
+            background: store.filter.view === 'cinema'
+              ? 'radial-gradient(ellipse 75% 60% at 30% -10%, rgba(139, 92, 246, 0.11), transparent 72%)'
+              : 'radial-gradient(ellipse 75% 60% at 30% -10%, rgba(182, 245, 8, 0.08), transparent 72%)',
+          }"
+        />
         <LibraryHeader
           v-if="!isTags"
           :show-filters="showFilters"
@@ -181,3 +191,12 @@ onUnmounted(() => {
   setThemeOverride(null)
 })
 </script>
+
+<style scoped>
+.library-spotify-shell :deep(aside[aria-label='主导航']) {
+  background: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  box-shadow: none;
+}
+</style>

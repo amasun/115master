@@ -5,7 +5,7 @@
       <div class="flex flex-wrap items-center gap-3">
         <!-- 女演员 / 男演员 / 收藏 / 隐藏 互斥标签切换 -->
         <div
-          class="bg-base-200/70 border-base-content/8 inline-flex items-center gap-1 rounded-full border p-1"
+          class="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-[#18181B] p-1"
           role="tablist"
           aria-label="演员分类切换"
         >
@@ -14,8 +14,8 @@
             role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
             :class="activeTab === 'female'
-              ? 'bg-primary text-primary-content font-medium shadow-xs'
-              : 'text-base-content/70 hover:text-base-content'"
+              ? 'bg-[#B6F508] font-semibold text-[#09090B]'
+              : 'text-[#A1A1AA] hover:text-[#F4F4F5]'"
             :aria-selected="activeTab === 'female'"
             @click="activeTab = 'female'"
           >
@@ -27,8 +27,8 @@
             role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
             :class="activeTab === 'male'
-              ? 'bg-primary text-primary-content font-medium shadow-xs'
-              : 'text-base-content/70 hover:text-base-content'"
+              ? 'bg-[#B6F508] font-semibold text-[#09090B]'
+              : 'text-[#A1A1AA] hover:text-[#F4F4F5]'"
             :aria-selected="activeTab === 'male'"
             @click="activeTab = 'male'"
           >
@@ -40,15 +40,15 @@
             role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
             :class="activeTab === 'favorite'
-              ? 'bg-primary text-primary-content font-medium shadow-xs'
-              : 'text-base-content/70 hover:text-base-content'"
+              ? 'bg-[#B6F508] font-semibold text-[#09090B]'
+              : 'text-[#A1A1AA] hover:text-[#F4F4F5]'"
             :aria-selected="activeTab === 'favorite'"
             @click="activeTab = 'favorite'"
           >
             <Icon
               :name="activeTab === 'favorite' ? I.HEART_FILL : I.HEART"
               class="text-xs"
-              :class="activeTab === 'favorite' ? 'text-primary-content' : 'text-rose-400'"
+              :class="activeTab === 'favorite' ? 'text-[#09090B]' : 'text-[#F43F5E]'"
             />
             <span>收藏</span>
             <span class="text-[11px] tabular-nums opacity-75">{{ favoriteCount }}</span>
@@ -58,8 +58,8 @@
             role="tab"
             class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors"
             :class="activeTab === 'hidden'
-              ? 'bg-primary text-primary-content font-medium shadow-xs'
-              : 'text-base-content/70 hover:text-base-content'"
+              ? 'bg-[#B6F508] font-semibold text-[#09090B]'
+              : 'text-[#A1A1AA] hover:text-[#F4F4F5]'"
             :aria-selected="activeTab === 'hidden'"
             @click="activeTab = 'hidden'"
           >
@@ -68,27 +68,27 @@
           </button>
         </div>
 
-        <div class="text-base-content/65 flex flex-wrap items-center gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2 text-xs text-[#A1A1AA]">
           <span>
-            共 <strong class="text-base-content tabular-nums">{{ sortedActors.length }}</strong> 位
+            共 <strong class="text-[#F4F4F5] tabular-nums">{{ sortedActors.length }}</strong> 位
             <template v-if="hasKeyword && sortedActors.length !== totalActors">
               （全部 {{ totalActors }} 位）
             </template>
           </span>
-          <span class="text-base-content/35">·</span>
+          <span class="text-[#71717A]">·</span>
           <span>点击演员查看名下作品</span>
         </div>
       </div>
 
-      <div class="bg-base-200/70 border-base-content/8 inline-flex items-center gap-1 rounded-full border p-1">
+      <div class="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-[#18181B] p-1">
         <button
           v-for="option in sortOptions"
           :key="option.value"
           type="button"
           class="rounded-full px-3 py-1 text-xs transition-colors"
           :class="sortBy === option.value
-            ? 'bg-primary text-primary-content font-medium shadow-xs'
-            : 'text-base-content/70 hover:text-base-content'"
+            ? 'bg-[#B6F508] font-semibold text-[#09090B]'
+            : 'text-[#A1A1AA] hover:text-[#F4F4F5]'"
           @click="sortBy = option.value"
         >
           {{ option.label }}
