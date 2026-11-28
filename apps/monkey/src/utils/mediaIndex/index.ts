@@ -8,6 +8,9 @@ export {
 export type { ActorProfile, FetchActorProfileOptions } from './actorProfileFetcher'
 export {
   cinemaCache,
+  DEFAULT_TMDB_API_BASE,
+  DEFAULT_TMDB_IMAGE_BASE,
+  normalizeTmdbImageUrl,
   readAllCachedCinemaMeta,
   resolveTmdbApiBase,
   saveCinemaMeta,

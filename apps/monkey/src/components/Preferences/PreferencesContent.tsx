@@ -635,13 +635,13 @@ const PreferencesContent = defineComponent({
                           免费申请 ↗
                         </a>
                       </span>
-                      <span class="pref-text-subtle text-[11px]">留空走豆瓣免 Key 兜底</span>
+                      <span class="pref-text-subtle text-[11px]">已内置免 Key 加速，填写则优先用个人额度</span>
                     </div>
                     <input
                       id="tmdb-api-key-input"
                       type="password"
                       autocomplete="off"
-                      placeholder="支持 v3 API Key 或 v4 Read Token"
+                      placeholder="可选，支持 v3 API Key 或 v4 Read Token"
                       class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
                       value={tmdbApiKey.value}
                       onInput={event => tmdbApiKey.value = (event.target as HTMLInputElement).value.trim()}
@@ -650,13 +650,13 @@ const PreferencesContent = defineComponent({
                   <label class="flex flex-col gap-1 pt-1" for="tmdb-proxy-url-input">
                     <div class="flex items-center justify-between gap-2 text-xs">
                       <span class="pref-text-muted font-medium">TMDB 反代地址（可选）</span>
-                      <span class="pref-text-subtle text-[11px]">留空直连官方接口</span>
+                      <span class="pref-text-subtle text-[11px]">留空默认使用内置 Cloudflare 加速反代</span>
                     </div>
                     <input
                       id="tmdb-proxy-url-input"
                       type="url"
                       autocomplete="off"
-                      placeholder="可选，如 https://tmdb-proxy.example.com（留空直连）"
+                      placeholder="可选，如 https://tmdb-proxy.example.com（留空走内置加速）"
                       class="input input-bordered input-xs pref-input-3 w-full rounded-lg font-mono"
                       value={tmdbProxyUrl.value}
                       onInput={event => tmdbProxyUrl.value = (event.target as HTMLInputElement).value.trim()}

@@ -12,8 +12,9 @@ const logger = appLogger.sub('CinemaScraper')
 const gm = new GMRequest()
 
 const CINEMA_STORE_NAME = 'cinema_meta_v1'
-const DEFAULT_TMDB_API_BASE = 'https://api.themoviedb.org/3'
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+export const DEFAULT_TMDB_API_BASE = 'https://115masterfusion-tmdb-img.xyzpark.com/3'
+export const DEFAULT_TMDB_IMAGE_BASE = 'https://115masterfusion-tmdb-img.xyzpark.com/t/p'
+const LEGACY_TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 const DOUBAN_SUGGEST_URL = 'https://movie.douban.com/j/subject_suggest'
 const DOUBAN_ABSTRACT_URL = 'https://movie.douban.com/j/subject_abstract'
 const DOUBAN_SUBJECT_BASE = 'https://movie.douban.com/subject'
@@ -32,14 +33,35 @@ class CinemaMetaCache extends CacheCore<UnifiedMediaMeta> {
 
 export const cinemaCache = new CinemaMetaCache()
 
+/** 将历史缓存中的官方 TMDB 图片地址规范化为内置加速代理地址 */
+export function normalizeTmdbImageUrl(url?: string): string | undefined {
+  const trimmed = url?.trim()
+  if (!trimmed)
+    return undefined
+  if (trimmed.startsWith(`${LEGACY_TMDB_IMAGE_BASE}/`))
+    return `${DEFAULT_TMDB_IMAGE_BASE}${trimmed.slice(LEGACY_TMDB_IMAGE_BASE.length)}`
+  return trimmed
+}
+
 /** 读取本地全部院线影视缓存元数据 */
 export async function readAllCachedCinemaMeta(): Promise<Map<string, UnifiedMediaMeta>> {
   const result = new Map<string, UnifiedMediaMeta>()
   try {
     await cinemaCache.storage.iterate<CacheValue<UnifiedMediaMeta>, void>((entry: CacheValue<UnifiedMediaMeta> | null) => {
       const meta = entry?.value
-      if (meta?.mediaKey && meta.title)
-        result.set(meta.mediaKey, meta)
+      if (meta?.mediaKey && meta.title) {
+        const normalizedActors = meta.actors?.map(actor => ({
+          ...actor,
+          ...(actor.avatarUrl ? { avatarUrl: normalizeTmdbImageUrl(actor.avatarUrl) } : {}),
+        }))
+        result.set(meta.mediaKey, {
+          ...meta,
+          ...(meta.coverUrl ? { coverUrl: normalizeTmdbImageUrl(meta.coverUrl) } : {}),
+          ...(meta.posterUrl ? { posterUrl: normalizeTmdbImageUrl(meta.posterUrl) } : {}),
+          ...(meta.backdropUrl ? { backdropUrl: normalizeTmdbImageUrl(meta.backdropUrl) } : {}),
+          ...(normalizedActors ? { actors: normalizedActors } : {}),
+        })
+      }
     })
   }
   catch (error) {
@@ -126,11 +148,12 @@ async function tmdbFetchJson<T>(
   params: Record<string, string>,
   apiKey: string,
 ): Promise<{ status: number, data?: T }> {
-  const isBearer = isTmdbBearerToken(apiKey)
-  const queryParams = isBearer ? params : { ...params, api_key: apiKey }
+  const trimmedKey = apiKey.trim()
+  const isBearer = trimmedKey ? isTmdbBearerToken(trimmedKey) : false
+  const queryParams = trimmedKey && !isBearer ? { ...params, api_key: trimmedKey } : params
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    ...(isBearer ? { Authorization: `Bearer ${apiKey}` } : {}),
+    ...(isBearer ? { Authorization: `Bearer ${trimmedKey}` } : {}),
   }
 
   const response = await gm.get(`${apiBase}${path}`, {
@@ -167,6 +190,8 @@ async function scrapeFromTmdb(params: {
     let searchRes = await tmdbFetchJson<TmdbSearchResponse>(apiBase, `/search/${mediaType}`, searchParams, apiKey)
     if (searchRes.status === 429)
       return { meta: null, rateLimited: true, error: 'TMDB 请求过于频繁 (HTTP 429)' }
+    if (searchRes.status === 503)
+      return { meta: null, error: '内置 TMDB 代理暂未配置密钥 (HTTP 503)' }
     if (searchRes.status === 401 || searchRes.status === 403)
       return { meta: null, error: 'TMDB API Key 无效或已失效' }
     if (searchRes.status !== 200)
@@ -210,8 +235,8 @@ async function scrapeFromTmdb(params: {
   const parsedYear = releaseDate ? Number(releaseDate.slice(0, 4)) : undefined
   const posterPath = detail?.poster_path || candidate.poster_path
   const backdropPath = detail?.backdrop_path || candidate.backdrop_path
-  const posterUrl = posterPath ? `${TMDB_IMAGE_BASE}/w500${posterPath}` : undefined
-  const backdropUrl = backdropPath ? `${TMDB_IMAGE_BASE}/w1280${backdropPath}` : undefined
+  const posterUrl = posterPath ? `${DEFAULT_TMDB_IMAGE_BASE}/w500${posterPath}` : undefined
+  const backdropUrl = backdropPath ? `${DEFAULT_TMDB_IMAGE_BASE}/w1280${backdropPath}` : undefined
 
   const directors = Array.from(new Set(
     (detail?.credits?.crew ?? [])
@@ -224,7 +249,7 @@ async function scrapeFromTmdb(params: {
     .slice(0, 12)
     .map(cast => ({
       name: cast.name!.trim(),
-      ...(cast.profile_path ? { avatarUrl: `${TMDB_IMAGE_BASE}/w185${cast.profile_path}` } : {}),
+      ...(cast.profile_path ? { avatarUrl: `${DEFAULT_TMDB_IMAGE_BASE}/w185${cast.profile_path}` } : {}),
       ...(cast.gender === 1 ? { sex: 1 as const } : cast.gender === 2 ? { sex: 0 as const } : {}),
     }))
 
@@ -490,34 +515,32 @@ export async function scrapeCinemaMetaDetailed(params: {
 
   let tmdbFailure: { status: 'rate_limited' | 'network_error', reason: string } | null = null
 
-  if (apiKey) {
-    try {
-      const tmdbResult = await scrapeFromTmdb({
-        mediaKey: params.mediaKey,
-        title: parsed.title,
-        queries,
-        year: parsed.year,
-        mediaType,
-        apiKey,
-        apiBase,
-      })
-      if (tmdbResult.meta) {
-        await saveCinemaMeta(tmdbResult.meta)
-        return { status: 'ok', meta: tmdbResult.meta }
-      }
-      if (tmdbResult.rateLimited) {
-        tmdbFailure = { status: 'rate_limited', reason: tmdbResult.error ?? 'TMDB 限流' }
-      }
-      else if (tmdbResult.error) {
-        logger.warn('TMDB 刮削异常，自动回退豆瓣', tmdbResult.error)
-        tmdbFailure = { status: 'network_error', reason: tmdbResult.error }
-      }
+  try {
+    const tmdbResult = await scrapeFromTmdb({
+      mediaKey: params.mediaKey,
+      title: parsed.title,
+      queries,
+      year: parsed.year,
+      mediaType,
+      apiKey,
+      apiBase,
+    })
+    if (tmdbResult.meta) {
+      await saveCinemaMeta(tmdbResult.meta)
+      return { status: 'ok', meta: tmdbResult.meta }
     }
-    catch (error) {
-      const reason = error instanceof Error ? error.message : String(error ?? 'TMDB 请求异常')
-      logger.warn('TMDB 请求异常，自动回退豆瓣', reason)
-      tmdbFailure = { status: 'network_error', reason }
+    if (tmdbResult.rateLimited) {
+      tmdbFailure = { status: 'rate_limited', reason: tmdbResult.error ?? 'TMDB 限流' }
     }
+    else if (tmdbResult.error) {
+      logger.warn('TMDB 刮削异常，自动回退豆瓣', tmdbResult.error)
+      tmdbFailure = { status: 'network_error', reason: tmdbResult.error }
+    }
+  }
+  catch (error) {
+    const reason = error instanceof Error ? error.message : String(error ?? 'TMDB 请求异常')
+    logger.warn('TMDB 请求异常，自动回退豆瓣', reason)
+    tmdbFailure = { status: 'network_error', reason }
   }
 
   try {

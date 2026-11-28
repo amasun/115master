@@ -158,6 +158,7 @@ export default defineConfig({
           'xximgs.cc',
           'api.themoviedb.org',
           'image.tmdb.org',
+          '115masterfusion-tmdb-img.xyzpark.com',
           'movie.douban.com',
           'doubanio.com',
           '*.doubanio.com',

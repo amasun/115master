@@ -65,9 +65,9 @@ export interface Settings {
   enableCinemaLibrary: boolean
   /** 用户自建侧边栏目列表 */
   customSections: CustomLibrarySection[]
-  /** TMDB API Key（可选，支持 v3 Key 或 v4 Bearer Token；留空时自动用豆瓣免 Key 兜底） */
+  /** TMDB API Key（可选，支持 v3 Key 或 v4 Bearer Token；留空默认走内置免 Key 加速代理并支持豆瓣兜底） */
   tmdbApiKey: string
-  /** TMDB API 自定义反代地址（可选，如 https://tmdb-proxy.example.com；留空直连官方） */
+  /** TMDB API 自定义反代地址（可选，如 https://tmdb-proxy.example.com；留空默认使用内置 Cloudflare 加速反代） */
   tmdbProxyUrl: string
   /** 主题模式：跟随系统 / 浅色 / 深色 */
   theme: ThemeMode
