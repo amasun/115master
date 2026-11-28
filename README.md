@@ -47,6 +47,10 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 
 看视频时把重要位置记下来，下次打开同一个视频还在，可以直接跳过去。打点只在 MASTER 播放器里可用。
 
+<p align="center">
+  <img src="./docs/assets/player-markers-demo.svg" alt="播放器打点（Markers）交互演示" width="100%" />
+</p>
+
 **能做什么**
 
 - 在当前播放位置打点，并给它写备注
