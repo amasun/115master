@@ -33,7 +33,7 @@ https://github.com/amasun/115master/releases/latest/download/115master-fusion.us
 |---|---|---|---|
 | **U1** | 115 旧版 | 115 官方旧版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/home` |
 | **U2** | 115 新版 | 115 官方新版网盘页面，脚本往它的文件列表里注入内容 | `apps/monkey/src/pages/official` |
-| **U3** | Fusion | 脚本自带的独立文件管理界面，不使用 115 的页面 | `apps/monkey/src/app`、`apps/monkey/src/pages/drive` |
+| **U3** | 影院模式 | 脚本自带的独立文件管理界面，不使用 115 的页面 | `apps/monkey/src/app`、`apps/monkey/src/pages/drive` |
 
 ## 界面预览（U3 影院）
 
